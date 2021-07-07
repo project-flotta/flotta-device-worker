@@ -12,25 +12,25 @@ import (
 	"time"
 )
 
-type Service struct {
+type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
 	configManager    *configuration.Manager
 }
 
-func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *configuration.Manager) *Service {
-	return &Service{
+func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *configuration.Manager) *Heartbeat {
+	return &Heartbeat{
 		dispatcherClient: dispatcherClient,
 		configManager:    configManager,
 	}
 }
 
-func (s *Service) Start() {
+func (s *Heartbeat) Start() {
 	config := s.configManager.GetDeviceConfiguration()
 	s.initTicker(config.Heartbeat.PeriodSeconds)
 }
 
-func (s *Service) initTicker(periodSeconds int64) {
+func (s *Heartbeat) initTicker(periodSeconds int64) {
 	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
 	s.ticker = ticker
 	go func() {
@@ -40,8 +40,8 @@ func (s *Service) initTicker(periodSeconds int64) {
 
 			// Create a data message to send back to the dispatcher.
 			heartbeatInfo := models.Heartbeat{
-				Status: models.HeartbeatStatusUp,
-				Time:   strfmt.DateTime(time.Now()),
+				Status:  models.HeartbeatStatusUp,
+				Time:    strfmt.DateTime(time.Now()),
 				Version: s.configManager.GetConfigurationVersion(),
 			}
 
@@ -63,10 +63,12 @@ func (s *Service) initTicker(periodSeconds int64) {
 	}()
 }
 
-func (s *Service) Update(config models.DeviceConfigurationMessage) error {
+func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {
 	periodSeconds := config.Configuration.Heartbeat.PeriodSeconds
 	log.Infof("Reconfiguring ticker with interval: %v", periodSeconds)
-	s.ticker.Stop()
+	if s.ticker != nil {
+		s.ticker.Stop()
+	}
 	s.initTicker(periodSeconds)
 	return nil
 }

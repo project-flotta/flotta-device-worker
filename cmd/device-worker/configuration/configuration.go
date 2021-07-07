@@ -1,8 +1,11 @@
 package configuration
 
 import (
+	"encoding/json"
 	"git.sr.ht/~spc/go-log"
 	"github.com/jakub-dzon/k4e-operator/models"
+	"io/ioutil"
+	"path"
 	"reflect"
 )
 
@@ -26,13 +29,33 @@ type Observer interface {
 type Manager struct {
 	deviceConfiguration *models.DeviceConfigurationMessage
 
-	observers []Observer
+	observers        []Observer
+	deviceConfigFile string
+	initialConfig    bool
 }
 
-func NewConfigurationManager() *Manager {
+func NewConfigurationManager(configDir string) *Manager {
+	deviceConfigFile := path.Join(configDir, "device-config.json")
+	log.Infof("Device config file: %s", deviceConfigFile)
+	file, err := ioutil.ReadFile(deviceConfigFile)
+	var deviceConfiguration models.DeviceConfigurationMessage
+	var initialConfig bool
+	if err != nil {
+		log.Error(err)
+		deviceConfiguration = defaultDeviceConfigurationMessage
+		initialConfig = true
+	} else {
+		err = json.Unmarshal(file, &deviceConfiguration)
+		if err != nil {
+			log.Error(err)
+			deviceConfiguration = defaultDeviceConfigurationMessage
+		}
+	}
 	mgr := Manager{
-		deviceConfiguration: &defaultDeviceConfigurationMessage,
 		observers:           make([]Observer, 0),
+		deviceConfigFile:    deviceConfigFile,
+		deviceConfiguration: &deviceConfiguration,
+		initialConfig:       initialConfig,
 	}
 	return &mgr
 }
@@ -46,7 +69,7 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 }
 
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
-	if !(reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration) ||
+	if m.IsInitialConfig() || !(reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration) ||
 		!reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)) {
 		log.Info("Updating configuration: %v", message)
 		for _, observer := range m.observers {
@@ -55,7 +78,20 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 				return err
 			}
 		}
+
+		// TODO: handle all the failure scenarios correctly; i.e. compensate all the changes that has already been introduces.
+		file, err := json.MarshalIndent(message, "", " ")
+		if err != nil {
+			return err
+		}
+		log.Info("Writing config to %s: %s", m.deviceConfigFile, file)
+		err = ioutil.WriteFile(m.deviceConfigFile, file, 0640)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 		m.deviceConfiguration = &message
+		m.initialConfig = false
 	} else {
 		log.Info("Configuration didn't change")
 	}
@@ -67,4 +103,8 @@ func (m *Manager) GetConfigurationVersion() string {
 	version := m.deviceConfiguration.Version
 	log.Infof("Configuration version: %v", version)
 	return version
+}
+
+func (m *Manager) IsInitialConfig() bool {
+	return m.initialConfig
 }
