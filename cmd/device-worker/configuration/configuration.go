@@ -69,8 +69,9 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 }
 
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
-	if m.IsInitialConfig() || !(reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration) ||
-		!reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)) {
+	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
+	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
+	if m.IsInitialConfig() || !(configurationEqual && workloadsEqual) {
 		log.Info("Updating configuration: %v", message)
 		for _, observer := range m.observers {
 			err := observer.Update(message)
