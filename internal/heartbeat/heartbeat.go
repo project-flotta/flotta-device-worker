@@ -6,8 +6,8 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload"
+	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	workload2 "github.com/jakub-dzon/k4e-device-worker/internal/workload"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	"time"
@@ -16,12 +16,12 @@ import (
 type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
-	configManager    *configuration.Manager
-	workloadManager  *workload.WorkloadManager
+	configManager    *configuration2.Manager
+	workloadManager  *workload2.WorkloadManager
 }
 
-func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *configuration.Manager,
-	workloadManager *workload.WorkloadManager) *Heartbeat {
+func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *configuration2.Manager,
+	workloadManager *workload2.WorkloadManager) *Heartbeat {
 	return &Heartbeat{
 		dispatcherClient: dispatcherClient,
 		configManager:    configManager,

@@ -6,7 +6,7 @@ import (
 	"github.com/containers/podman/v2/pkg/bindings/play"
 	"github.com/containers/podman/v2/pkg/bindings/pods"
 	"github.com/containers/podman/v2/pkg/domain/entities"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload/api"
+	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 )
 
 type Podman struct {
@@ -23,14 +23,14 @@ func NewPodman() (*Podman, error) {
 	}, nil
 }
 
-func (p *Podman) List() ([]api.WorkloadInfo, error) {
+func (p *Podman) List() ([]api2.WorkloadInfo, error) {
 	podList, err := pods.List(p.podmanConnection, map[string][]string{})
 	if err != nil {
 		return nil, err
 	}
-	var workloads []api.WorkloadInfo
+	var workloads []api2.WorkloadInfo
 	for _, pod := range podList {
-		wi := api.WorkloadInfo{
+		wi := api2.WorkloadInfo{
 			Name:   pod.Name,
 			Status: pod.Status,
 		}

@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/hardware"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/heartbeat"
-	deviceos "github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/os"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/registration"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload"
+	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
+	heartbeat2 "github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
+	os2 "github.com/jakub-dzon/k4e-device-worker/internal/os"
+	registration2 "github.com/jakub-dzon/k4e-device-worker/internal/registration"
+	"github.com/jakub-dzon/k4e-device-worker/internal/server"
+	workload2 "github.com/jakub-dzon/k4e-device-worker/internal/workload"
 	"net"
 	"os"
 	"path"
@@ -75,24 +76,24 @@ func main() {
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
-	configManager := configuration.NewConfigurationManager(configDir)
+	configManager := configuration2.NewConfigurationManager(configDir)
 
-	wl, err := workload.NewWorkloadManager(configDir)
+	wl, err := workload2.NewWorkloadManager(configDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 	configManager.RegisterObserver(wl)
 
-	hbs := heartbeat.NewHeartbeatService(c, configManager, wl)
+	hbs := heartbeat2.NewHeartbeatService(c, configManager, wl)
 	configManager.RegisterObserver(hbs)
 
-	hw := hardware.Hardware{}
-	deviceOs := deviceos.OS{}
-	reg := registration.NewRegistration(&hw, &deviceOs, c)
+	hw := hardware2.Hardware{}
+	deviceOs := os2.OS{}
+	reg := registration2.NewRegistration(&hw, &deviceOs, c)
 
 
 	s := grpc.NewServer()
-	pb.RegisterWorkerServer(s, NewDeviceServer(configManager))
+	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager))
 	if configManager.IsInitialConfig() {
 		err := reg.RegisterDevice()
 		if err != nil {

@@ -3,8 +3,8 @@ package workload
 import (
 	"fmt"
 	"git.sr.ht/~spc/go-log"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload/api"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload/podman"
+	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	podman2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
 	"github.com/jakub-dzon/k4e-operator/models"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
@@ -16,7 +16,7 @@ import (
 
 type WorkloadManager struct {
 	manifestsDir string
-	workloads    api.WorkloadAPI
+	workloads    api2.WorkloadAPI
 }
 
 func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
@@ -24,7 +24,7 @@ func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	newPodman, err := podman.NewPodman()
+	newPodman, err := podman2.NewPodman()
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
 	}, nil
 }
 
-func (w *WorkloadManager) ListWorkloads() ([]api.WorkloadInfo, error) {
+func (w *WorkloadManager) ListWorkloads() ([]api2.WorkloadInfo, error) {
 	return w.workloads.List()
 }
 

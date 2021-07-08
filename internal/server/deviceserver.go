@@ -1,20 +1,20 @@
-package main
+package server
 
 import (
 	"context"
 	"encoding/json"
 	"git.sr.ht/~spc/go-log"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/configuration"
+	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
 type deviceServer struct {
 	pb.UnimplementedWorkerServer
-	configManager *configuration.Manager
+	configManager *configuration2.Manager
 }
 
-func NewDeviceServer(configManager *configuration.Manager) *deviceServer {
+func NewDeviceServer(configManager *configuration2.Manager) *deviceServer {
 	return &deviceServer{
 		configManager: configManager,
 	}

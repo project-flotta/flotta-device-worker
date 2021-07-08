@@ -4,20 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/hardware"
-	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/os"
+	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
+	os2 "github.com/jakub-dzon/k4e-device-worker/internal/os"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	"time"
 )
 
 type Registration struct {
-	hardware         *hardware.Hardware
-	os               *os.OS
+	hardware         *hardware2.Hardware
+	os               *os2.OS
 	dispatcherClient pb.DispatcherClient
 }
 
-func NewRegistration(hardware *hardware.Hardware, os *os.OS, dispatcherClient pb.DispatcherClient) *Registration {
+func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient pb.DispatcherClient) *Registration {
 	return &Registration{
 		hardware:         hardware,
 		os:               os,
