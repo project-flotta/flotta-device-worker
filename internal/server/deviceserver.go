@@ -23,7 +23,6 @@ func NewDeviceServer(configManager *configuration2.Manager) *deviceServer {
 // Send implements the "Send" method of the Worker gRPC service.
 func (s *deviceServer) Send(ctx context.Context, d *pb.Data) (*pb.Receipt, error) {
 	go func() {
-		log.Debugf("received data: %#v", d)
 		deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 		err := json.Unmarshal(d.Content, &deviceConfigurationMessage)
 		if err != nil {

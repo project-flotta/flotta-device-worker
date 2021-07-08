@@ -12,6 +12,7 @@ import (
 	"path"
 	"sigs.k8s.io/yaml"
 	"strings"
+	"time"
 )
 
 type WorkloadManager struct {
@@ -28,10 +29,22 @@ func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &WorkloadManager{
+
+	manager := WorkloadManager{
 		manifestsDir: manifestsDir,
 		workloads:    newPodman,
-	}, nil
+	}
+	go func() {
+		for {
+			err := manager.ensureWorkloadsFromManifestsAreRunning()
+			if err != nil {
+				log.Error(err)
+			}
+			time.Sleep(time.Second * 15)
+		}
+	}()
+
+	return &manager, nil
 }
 
 func (w *WorkloadManager) ListWorkloads() ([]api2.WorkloadInfo, error) {
@@ -122,6 +135,52 @@ func (w *WorkloadManager) storeManifest(workload *models.Workload) (string, erro
 		return "", err
 	}
 	return filePath, nil
+}
+
+func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
+	manifestInfo, err := ioutil.ReadDir(w.manifestsDir)
+	if err != nil {
+		return err
+	}
+	workloads, err := w.workloads.List()
+	if err != nil {
+		return err
+	}
+	nameToWorkload := make(map[string]api2.WorkloadInfo)
+	for _, workload := range workloads {
+		nameToWorkload[workload.Name] = workload
+	}
+	for _, fi := range manifestInfo {
+		filePath := path.Join(w.manifestsDir, fi.Name())
+		manifest, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		pod := v1.Pod{}
+		err = yaml.Unmarshal(manifest, &pod)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if workload, ok := nameToWorkload[pod.Name]; ok {
+			if workload.Status != "Running" {
+				// Workload is not running - start
+				err = w.workloads.Start(pod.Name)
+				if err != nil {
+					log.Error(err)
+				}
+			}
+			continue
+		}
+		// Workload is not present - run
+		err = w.workloads.Run(filePath)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+	}
+	return nil
 }
 
 func (w *WorkloadManager) toPodYaml(workload *models.Workload) ([]byte, error) {

@@ -61,3 +61,11 @@ func (p *Podman) Run(manifestPath string) error {
 	}
 	return nil
 }
+
+func (p *Podman) Start(workloadName string) error {
+	_, err := pods.Start(p.podmanConnection, workloadName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
