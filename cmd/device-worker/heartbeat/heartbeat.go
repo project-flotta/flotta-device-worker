@@ -7,6 +7,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
 	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/configuration"
+	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	"time"
@@ -16,12 +17,15 @@ type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
 	configManager    *configuration.Manager
+	workloadManager  *workload.WorkloadManager
 }
 
-func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *configuration.Manager) *Heartbeat {
+func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *configuration.Manager,
+	workloadManager *workload.WorkloadManager) *Heartbeat {
 	return &Heartbeat{
 		dispatcherClient: dispatcherClient,
 		configManager:    configManager,
+		workloadManager:  workloadManager,
 	}
 }
 
@@ -39,11 +43,7 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 			defer cancel()
 
 			// Create a data message to send back to the dispatcher.
-			heartbeatInfo := models.Heartbeat{
-				Status:  models.HeartbeatStatusUp,
-				Time:    strfmt.DateTime(time.Now()),
-				Version: s.configManager.GetConfigurationVersion(),
-			}
+			heartbeatInfo := s.getHeartbeatInfo()
 
 			content, err := json.Marshal(heartbeatInfo)
 			if err != nil {
@@ -61,6 +61,28 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 			}
 		}
 	}()
+}
+
+func (s *Heartbeat) getHeartbeatInfo() models.Heartbeat {
+	var workloadStatuses []*models.WorkloadStatus
+	workloads, err := s.workloadManager.ListWorkloads()
+	for _, info := range workloads {
+		workloadStatus := models.WorkloadStatus{
+			Name:   info.Name,
+			Status: info.Status,
+		}
+		workloadStatuses = append(workloadStatuses, &workloadStatus)
+	}
+	if err != nil {
+		log.Errorf("Cannot get workload information: %v", err)
+	}
+	heartbeatInfo := models.Heartbeat{
+		Status:    models.HeartbeatStatusUp,
+		Time:      strfmt.DateTime(time.Now()),
+		Version:   s.configManager.GetConfigurationVersion(),
+		Workloads: workloadStatuses,
+	}
+	return heartbeatInfo
 }
 
 func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {

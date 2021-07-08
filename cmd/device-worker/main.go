@@ -76,16 +76,21 @@ func main() {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
 	configManager := configuration.NewConfigurationManager(configDir)
-	hw := hardware.Hardware{}
-	deviceOs := deviceos.OS{}
-	hbs := heartbeat.NewHeartbeatService(c, configManager)
-	configManager.RegisterObserver(hbs)
-	reg := registration.NewRegistration(&hw, &deviceOs, c)
-	wl, err := workload.NewWorkload(configDir)
+
+	wl, err := workload.NewWorkloadManager(configDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 	configManager.RegisterObserver(wl)
+
+	hbs := heartbeat.NewHeartbeatService(c, configManager, wl)
+	configManager.RegisterObserver(hbs)
+
+	hw := hardware.Hardware{}
+	deviceOs := deviceos.OS{}
+	reg := registration.NewRegistration(&hw, &deviceOs, c)
+
+
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, NewDeviceServer(configManager))
 	if configManager.IsInitialConfig() {

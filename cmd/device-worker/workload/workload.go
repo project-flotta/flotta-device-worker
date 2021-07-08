@@ -1,13 +1,10 @@
 package workload
 
 import (
-	"context"
 	"fmt"
 	"git.sr.ht/~spc/go-log"
-	"github.com/containers/podman/v2/pkg/bindings"
-	"github.com/containers/podman/v2/pkg/bindings/play"
-	"github.com/containers/podman/v2/pkg/bindings/pods"
-	"github.com/containers/podman/v2/pkg/domain/entities"
+	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload/api"
+	"github.com/jakub-dzon/k4e-device-worker/cmd/device-worker/workload/podman"
 	"github.com/jakub-dzon/k4e-operator/models"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
@@ -17,54 +14,44 @@ import (
 	"strings"
 )
 
-type Workload struct {
+type WorkloadManager struct {
 	manifestsDir string
+	workloads    api.WorkloadAPI
 }
 
-func NewWorkload(configDir string) (*Workload, error) {
+func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
 	manifestsDir := path.Join(configDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	return &Workload{
+	newPodman, err := podman.NewPodman()
+	if err != nil {
+		return nil, err
+	}
+	return &WorkloadManager{
 		manifestsDir: manifestsDir,
+		workloads:    newPodman,
 	}, nil
 }
 
-func (w *Workload) Update(configuration models.DeviceConfigurationMessage) error {
+func (w *WorkloadManager) ListWorkloads() ([]api.WorkloadInfo, error) {
+	return w.workloads.List()
+}
+
+func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage) error {
 	workloads := configuration.Workloads
 	if len(workloads) == 0 {
 		log.Trace("No workloads")
 
-		// Stop all the workloads
-		podmanConnection, err := bindings.NewConnection(context.Background(), "unix://run/podman/podman.sock")
+		// Purge all the workloads
+		err := w.purgeWorkloads()
 		if err != nil {
-			log.Errorf("Cannot connect to podman: %v", err)
 			return err
-		}
-		podList, err := pods.List(podmanConnection, map[string][]string{})
-		if err != nil {
-			log.Errorf("Cannot list pods: %v", err)
-			return err
-		}
-		for _, podReport := range podList {
-			err := w.removePod(podmanConnection, podReport.Name)
-			if err != nil {
-				log.Errorf("Error removing pod: %v", err)
-				return err
-			}
 		}
 		// Remove manifests
-		manifestInfo, err := ioutil.ReadDir(w.manifestsDir)
+		err = w.removeManifests()
 		if err != nil {
 			return err
-		}
-		for _, fi := range manifestInfo {
-			filePath := path.Join(w.manifestsDir, fi.Name())
-			err := os.Remove(filePath)
-			if err != nil {
-				return err
-			}
 		}
 		return nil
 	}
@@ -77,44 +64,53 @@ func (w *Workload) Update(configuration models.DeviceConfigurationMessage) error
 		if err != nil {
 			return err
 		}
-		podmanConnection, err := bindings.NewConnection(context.Background(), "unix://run/podman/podman.sock")
+
+		err = w.workloads.Remove(podName)
 		if err != nil {
-			log.Errorf("Cannot connect to podman: %v", err)
+			log.Errorf("Error removing workload: %v", err)
 			return err
 		}
-		err = w.removePod(podmanConnection, podName)
+		err = w.workloads.Run(manifestPath)
 		if err != nil {
-			log.Errorf("Error removing pod: %v", err)
+			log.Errorf("Cannot run workload: %v", err)
 			return err
 		}
-		report, err := play.Kube(podmanConnection, manifestPath, entities.PlayKubeOptions{})
-		if err != nil {
-			log.Errorf("Cannot execute Podman Play Kube: %v", err)
-			return err
-		}
-		log.Infof("Pod report: %v", report)
 	}
 	return nil
 }
 
-func (w *Workload) removePod(podmanConnection context.Context, podName string) error {
-	exists, err := pods.Exists(podmanConnection, podName)
+func (w *WorkloadManager) purgeWorkloads() error {
+	podList, err := w.workloads.List()
 	if err != nil {
-		log.Errorf("Cannot check pod existence: %v", err)
+		log.Errorf("Cannot list workloads: %v", err)
 		return err
 	}
-	if exists {
-		log.Infof("Pod %s exists. Removing.", podName)
-		force := true
-		_, err := pods.Remove(podmanConnection, podName, &force)
+	for _, podReport := range podList {
+		err := w.workloads.Remove(podReport.Name)
 		if err != nil {
-			log.Errorf("Cannot remove pod: %v", err)
+			log.Errorf("Error removing workload: %v", err)
+			return err
 		}
 	}
 	return nil
 }
 
-func (w *Workload) storeManifest(workload *models.Workload) (string, error) {
+func (w *WorkloadManager) removeManifests() error {
+	manifestInfo, err := ioutil.ReadDir(w.manifestsDir)
+	if err != nil {
+		return err
+	}
+	for _, fi := range manifestInfo {
+		filePath := path.Join(w.manifestsDir, fi.Name())
+		err := os.Remove(filePath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *WorkloadManager) storeManifest(workload *models.Workload) (string, error) {
 	podYaml, err := w.toPodYaml(workload)
 	if err != nil {
 		return "", err
@@ -128,7 +124,7 @@ func (w *Workload) storeManifest(workload *models.Workload) (string, error) {
 	return filePath, nil
 }
 
-func (w *Workload) toPodYaml(workload *models.Workload) ([]byte, error) {
+func (w *WorkloadManager) toPodYaml(workload *models.Workload) ([]byte, error) {
 	podSpec := v1.PodSpec{}
 
 	err := yaml.Unmarshal([]byte(workload.Specification), &podSpec)
