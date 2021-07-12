@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path"
 	"reflect"
+	"sync/atomic"
 )
 
 var (
@@ -31,7 +32,7 @@ type Manager struct {
 
 	observers        []Observer
 	deviceConfigFile string
-	initialConfig    bool
+	initialConfig    atomic.Value
 }
 
 func NewConfigurationManager(configDir string) *Manager {
@@ -39,11 +40,12 @@ func NewConfigurationManager(configDir string) *Manager {
 	log.Infof("Device config file: %s", deviceConfigFile)
 	file, err := ioutil.ReadFile(deviceConfigFile)
 	var deviceConfiguration models.DeviceConfigurationMessage
-	var initialConfig bool
+	initialConfig := atomic.Value{}
+	initialConfig.Store(false)
 	if err != nil {
 		log.Error(err)
 		deviceConfiguration = defaultDeviceConfigurationMessage
-		initialConfig = true
+		initialConfig.Store(true)
 	} else {
 		err = json.Unmarshal(file, &deviceConfiguration)
 		if err != nil {
@@ -71,6 +73,7 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
+	log.Tracef("Initial config: [%v]; workloads equal: [%v]; configurationEqual: [%v]", m.IsInitialConfig(), workloadsEqual, configurationEqual)
 	if m.IsInitialConfig() || !(configurationEqual && workloadsEqual) {
 		log.Info("Updating configuration: %v", message)
 		for _, observer := range m.observers {
@@ -92,7 +95,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 			return err
 		}
 		m.deviceConfiguration = &message
-		m.initialConfig = false
+		m.initialConfig.Store(false)
 	} else {
 		log.Info("Configuration didn't change")
 	}
@@ -107,5 +110,5 @@ func (m *Manager) GetConfigurationVersion() string {
 }
 
 func (m *Manager) IsInitialConfig() bool {
-	return m.initialConfig
+	return m.initialConfig.Load().(bool)
 }
