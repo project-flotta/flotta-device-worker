@@ -75,7 +75,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
 	log.Tracef("Initial config: [%v]; workloads equal: [%v]; configurationEqual: [%v]", m.IsInitialConfig(), workloadsEqual, configurationEqual)
 	if m.IsInitialConfig() || !(configurationEqual && workloadsEqual) {
-		log.Info("Updating configuration: %v", message)
+		log.Tracef("Updating configuration: %v", message)
 		for _, observer := range m.observers {
 			err := observer.Update(message)
 			if err != nil {
@@ -88,7 +88,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 		if err != nil {
 			return err
 		}
-		log.Info("Writing config to %s: %s", m.deviceConfigFile, file)
+		log.Tracef("Writing config to %s: %v", m.deviceConfigFile, file)
 		err = ioutil.WriteFile(m.deviceConfigFile, file, 0640)
 		if err != nil {
 			log.Error(err)
@@ -97,7 +97,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 		m.deviceConfiguration = &message
 		m.initialConfig.Store(false)
 	} else {
-		log.Info("Configuration didn't change")
+		log.Trace("Configuration didn't change")
 	}
 
 	return nil
@@ -105,7 +105,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 
 func (m *Manager) GetConfigurationVersion() string {
 	version := m.deviceConfiguration.Version
-	log.Infof("Configuration version: %v", version)
+	log.Tracef("Configuration version: %v", version)
 	return version
 }
 
