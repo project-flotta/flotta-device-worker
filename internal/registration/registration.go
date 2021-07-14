@@ -26,9 +26,12 @@ func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient 
 }
 
 func (r *Registration) RegisterDevice() error {
-	hardwareInformation := r.hardware.GetHardwareInformation()
+	hardwareInformation, err := r.hardware.GetHardwareInformation()
+	if err != nil {
+		return err
+	}
 	registrationInfo := models.RegistrationInfo{
-		Hardware:  &hardwareInformation,
+		Hardware:  hardwareInformation,
 		OsImageID: r.os.GetOsImageId(),
 	}
 	content, err := json.Marshal(registrationInfo)

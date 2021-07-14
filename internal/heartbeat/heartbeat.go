@@ -6,8 +6,9 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	workload2 "github.com/jakub-dzon/k4e-device-worker/internal/workload"
+	cfg "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	hw "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
+	workld "github.com/jakub-dzon/k4e-device-worker/internal/workload"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	"time"
@@ -16,22 +17,31 @@ import (
 type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
-	configManager    *configuration2.Manager
-	workloadManager  *workload2.WorkloadManager
+	configManager    *cfg.Manager
+	workloadManager  *workld.WorkloadManager
+	hardware         *hw.Hardware
 }
 
-func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *configuration2.Manager,
-	workloadManager *workload2.WorkloadManager) *Heartbeat {
+func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
+	workloadManager *workld.WorkloadManager, hardware *hw.Hardware) *Heartbeat {
 	return &Heartbeat{
 		dispatcherClient: dispatcherClient,
 		configManager:    configManager,
 		workloadManager:  workloadManager,
+		hardware:         hardware,
 	}
 }
 
 func (s *Heartbeat) Start() {
-	config := s.configManager.GetDeviceConfiguration()
-	s.initTicker(config.Heartbeat.PeriodSeconds)
+	s.initTicker(s.getInterval(s.configManager.GetDeviceConfiguration()))
+}
+
+func (s *Heartbeat) getInterval(config models.DeviceConfiguration) int64 {
+	interval := config.Heartbeat.PeriodSeconds
+	if interval <= 0 {
+		interval = 60
+	}
+	return interval
 }
 
 func (s *Heartbeat) initTicker(periodSeconds int64) {
@@ -76,17 +86,28 @@ func (s *Heartbeat) getHeartbeatInfo() models.Heartbeat {
 	if err != nil {
 		log.Errorf("Cannot get workload information: %v", err)
 	}
+
+	config := s.configManager.GetDeviceConfiguration()
+	var hardwareInfo *models.HardwareInfo
+	if config.Heartbeat.HardwareProfile.Include {
+		hardwareInfo, err = s.hardware.GetHardwareInformation()
+		if err != nil {
+			log.Errorf("Can't get hardware information: %v", err)
+		}
+	}
+
 	heartbeatInfo := models.Heartbeat{
 		Status:    models.HeartbeatStatusUp,
 		Time:      strfmt.DateTime(time.Now()),
 		Version:   s.configManager.GetConfigurationVersion(),
 		Workloads: workloadStatuses,
+		Hardware:  hardwareInfo,
 	}
 	return heartbeatInfo
 }
 
 func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {
-	periodSeconds := config.Configuration.Heartbeat.PeriodSeconds
+	periodSeconds := s.getInterval(*config.Configuration)
 	log.Infof("Reconfiguring ticker with interval: %v", periodSeconds)
 	if s.ticker != nil {
 		s.ticker.Stop()

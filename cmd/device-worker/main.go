@@ -84,13 +84,13 @@ func main() {
 	}
 	configManager.RegisterObserver(wl)
 
-	hbs := heartbeat2.NewHeartbeatService(c, configManager, wl)
+	hw := hardware2.Hardware{}
+
+	hbs := heartbeat2.NewHeartbeatService(c, configManager, wl, &hw)
 	configManager.RegisterObserver(hbs)
 
-	hw := hardware2.Hardware{}
 	deviceOs := os2.OS{}
 	reg := registration2.NewRegistration(&hw, &deviceOs, c)
-
 
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager))
