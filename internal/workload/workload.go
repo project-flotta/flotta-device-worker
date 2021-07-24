@@ -2,22 +2,47 @@ package workload
 
 import (
 	"fmt"
-	"git.sr.ht/~spc/go-log"
-	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
-	podman2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
-	"github.com/jakub-dzon/k4e-operator/models"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	"os"
 	"path"
-	"sigs.k8s.io/yaml"
 	"strings"
 	"time"
+
+	"git.sr.ht/~spc/go-log"
+	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/network"
+	podman2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
+	"github.com/jakub-dzon/k4e-operator/models"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 )
+
+const nfTableName string = "edge"
 
 type WorkloadManager struct {
 	manifestsDir string
-	workloads    api2.WorkloadAPI
+	workloads    *workloadWrapper
+}
+
+// workloadWrapper manages the workload and its configuration on the device
+type workloadWrapper struct {
+	workloads *podman2.Podman
+	netfilter *network.Netfilter
+}
+
+func newWorkloadWrapper() (*workloadWrapper, error) {
+	newPodman, err := podman2.NewPodman()
+	if err != nil {
+		return nil, err
+	}
+	netfilter, err := network.NewNetfilter()
+	if err != nil {
+		return nil, err
+	}
+	return &workloadWrapper{
+		workloads: newPodman,
+		netfilter: netfilter,
+	}, nil
 }
 
 func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
@@ -25,14 +50,16 @@ func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	newPodman, err := podman2.NewPodman()
+	wrapper, err := newWorkloadWrapper()
 	if err != nil {
 		return nil, err
 	}
-
 	manager := WorkloadManager{
 		manifestsDir: manifestsDir,
-		workloads:    newPodman,
+		workloads:    wrapper,
+	}
+	if err := manager.workloads.Init(); err != nil {
+		return nil, err
 	}
 	go func() {
 		for {
@@ -70,20 +97,23 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 	}
 
 	for _, workload := range workloads {
-		podName := workload.Name
-		log.Tracef("Deploying workload: %s", podName)
+		log.Tracef("Deploying workload: %s", workload.Name)
 		// TODO: change error handling from fail fast to best effort (deploy as many workloads as possible)
-		manifestPath, err := w.storeManifest(workload)
+		pod, err := w.toPod(workload)
+		if err != nil {
+			return err
+		}
+		manifestPath, err := w.storeManifest(pod)
 		if err != nil {
 			return err
 		}
 
-		err = w.workloads.Remove(podName)
+		err = w.workloads.Remove(workload.Name)
 		if err != nil {
 			log.Errorf("Error removing workload: %v", err)
 			return err
 		}
-		err = w.workloads.Run(manifestPath)
+		err = w.workloads.Run(pod, manifestPath)
 		if err != nil {
 			log.Errorf("Cannot run workload: %v", err)
 			return err
@@ -123,12 +153,12 @@ func (w *WorkloadManager) removeManifests() error {
 	return nil
 }
 
-func (w *WorkloadManager) storeManifest(workload *models.Workload) (string, error) {
-	podYaml, err := w.toPodYaml(workload)
+func (w *WorkloadManager) storeManifest(pod *v1.Pod) (string, error) {
+	podYaml, err := yaml.Marshal(pod)
 	if err != nil {
 		return "", err
 	}
-	fileName := strings.ReplaceAll(workload.Name, " ", "-") + ".yaml"
+	fileName := strings.ReplaceAll(pod.Name, " ", "-") + ".yaml"
 	filePath := path.Join(w.manifestsDir, fileName)
 	err = ioutil.WriteFile(filePath, podYaml, 0640)
 	if err != nil {
@@ -157,8 +187,8 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 			log.Error(err)
 			continue
 		}
-		pod := v1.Pod{}
-		err = yaml.Unmarshal(manifest, &pod)
+		pod := &v1.Pod{}
+		err = yaml.Unmarshal(manifest, pod)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -166,26 +196,25 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 		if workload, ok := nameToWorkload[pod.Name]; ok {
 			if workload.Status != "Running" {
 				// Workload is not running - start
-				err = w.workloads.Start(pod.Name)
+				err = w.workloads.Start(pod)
 				if err != nil {
-					log.Error(err)
+					log.Errorf("failed to start workload %s: %v", pod.Name, err)
 				}
 			}
 			continue
 		}
 		// Workload is not present - run
-		err = w.workloads.Run(filePath)
+		err = w.workloads.Run(pod, filePath)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("failed to run workload %s (manifest: %s): %v", pod.Name, filePath, err)
 			continue
 		}
 	}
 	return nil
 }
 
-func (w *WorkloadManager) toPodYaml(workload *models.Workload) ([]byte, error) {
+func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	podSpec := v1.PodSpec{}
-
 	err := yaml.Unmarshal([]byte(workload.Specification), &podSpec)
 	if err != nil {
 		return nil, err
@@ -195,5 +224,82 @@ func (w *WorkloadManager) toPodYaml(workload *models.Workload) ([]byte, error) {
 	}
 	pod.Kind = "Pod"
 	pod.Name = workload.Name
-	return yaml.Marshal(pod)
+	return &pod, nil
+}
+
+func (ww workloadWrapper) Init() error {
+	return ww.netfilter.AddTable(nfTableName)
+}
+
+func (ww workloadWrapper) List() ([]api2.WorkloadInfo, error) {
+	return ww.workloads.List()
+}
+
+func (ww workloadWrapper) Remove(workloadName string) error {
+	if err := ww.workloads.Remove(workloadName); err != nil {
+		return err
+	}
+	if err := ww.netfilter.DeleteChain(nfTableName, workloadName); err != nil {
+		log.Errorf("failed to delete chain %[1]s from %s table for workload %[1]s", workloadName, nfTableName)
+	}
+	return nil
+}
+
+func (ww workloadWrapper) Run(workload *v1.Pod, manifestPath string) error {
+	if err := ww.applyNetworkConfiguration(workload); err != nil {
+		return err
+	}
+	if err := ww.workloads.Run(manifestPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ww workloadWrapper) applyNetworkConfiguration(workload *v1.Pod) error {
+	hostPorts, err := getHostPorts(workload)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if len(hostPorts) == 0 {
+		return nil
+	}
+	// skip existence check since chain is not changed if already exists
+	if err := ww.netfilter.AddChain(nfTableName, workload.Name); err != nil {
+		return fmt.Errorf("failed to create chain for workload %s: %v", workload.Name, err)
+	}
+
+	// for workloads, a port will be opened for the pod based on hostPort
+	for _, p := range hostPorts {
+		rule := fmt.Sprintf("tcp dport %d ct state new,established counter accept", p)
+		if err := ww.netfilter.AddRule(nfTableName, workload.Name, rule); err != nil {
+			return fmt.Errorf("failed to add rule %s for workload %s: %v", rule, workload.Name, err)
+		}
+	}
+	return nil
+}
+
+func (ww workloadWrapper) Start(workload *v1.Pod) error {
+	ww.netfilter.DeleteChain(nfTableName, workload.Name)
+	if err := ww.applyNetworkConfiguration(workload); err != nil {
+		return err
+	}
+	if err := ww.workloads.Start(workload.Name); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getHostPorts(workload *v1.Pod) ([]int32, error) {
+	hostPorts := []int32{}
+	for _, c := range workload.Spec.Containers {
+		for _, p := range c.Ports {
+			if p.HostPort > 0 && p.HostPort < 65536 {
+				hostPorts = append(hostPorts, p.HostPort)
+			} else {
+				return nil, fmt.Errorf("illegal host port number %d for container %s in workload %s", p.HostPort, c.Name, workload.Name)
+			}
+		}
+	}
+	return hostPorts, nil
 }
