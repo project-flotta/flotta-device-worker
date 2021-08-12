@@ -1,4 +1,4 @@
-package workload
+package mapping
 
 import (
 	"encoding/json"
@@ -79,6 +79,12 @@ func (m *MappingRepository) GetName(id string) string {
 	defer m.lock.RUnlock()
 
 	return m.idToName[id]
+}
+
+func (m *MappingRepository) Persist() error {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	return m.persist()
 }
 
 func (m *MappingRepository) persist() error {

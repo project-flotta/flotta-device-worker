@@ -20,6 +20,11 @@ type WorkloadManager struct {
 	workloads    *workloadWrapper
 }
 
+type podAndPath struct {
+	pod          v1.Pod
+	manifestPath string
+}
+
 func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
 	manifestsDir := path.Join(configDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
@@ -155,6 +160,8 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 	for _, workload := range workloads {
 		nameToWorkload[workload.Name] = workload
 	}
+
+	manifestNameToPodAndPath := make(map[string]podAndPath)
 	for _, fi := range manifestInfo {
 		filePath := path.Join(w.manifestsDir, fi.Name())
 		manifest, err := ioutil.ReadFile(filePath)
@@ -162,28 +169,45 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 			log.Error(err)
 			continue
 		}
-		pod := &v1.Pod{}
-		err = yaml.Unmarshal(manifest, pod)
+		pod := v1.Pod{}
+		err = yaml.Unmarshal(manifest, &pod)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
-		if workload, ok := nameToWorkload[pod.Name]; ok {
+		manifestNameToPodAndPath[pod.Name] = podAndPath{pod, filePath}
+	}
+
+	// Remove any workloads that don't correspond to stored manifests
+	for name := range nameToWorkload {
+		if _, ok := manifestNameToPodAndPath[name]; !ok {
+			log.Infof("Workload not found: %s. Removing", name)
+			if err := w.workloads.Remove(name); err != nil {
+				log.Error(err)
+			}
+		}
+	}
+
+	for name, podWithPath := range manifestNameToPodAndPath {
+		if workload, ok := nameToWorkload[name]; ok {
 			if workload.Status != "Running" {
 				// Workload is not running - start
-				err = w.workloads.Start(pod)
+				err = w.workloads.Start(&podWithPath.pod)
 				if err != nil {
-					log.Errorf("failed to start workload %s: %v", pod.Name, err)
+					log.Errorf("failed to start workload %s: %v", name, err)
 				}
 			}
 			continue
 		}
 		// Workload is not present - run
-		err = w.workloads.Run(pod, filePath)
+		err = w.workloads.Run(&podWithPath.pod, podWithPath.manifestPath)
 		if err != nil {
-			log.Errorf("failed to run workload %s (manifest: %s): %v", pod.Name, filePath, err)
+			log.Errorf("failed to run workload %s (manifest: %s): %v", name, podWithPath.manifestPath, err)
 			continue
 		}
+	}
+	if err = w.workloads.PersistConfiguration(); err != nil {
+		log.Errorf("failed to persist workload configuration: %v", err)
 	}
 	return nil
 }

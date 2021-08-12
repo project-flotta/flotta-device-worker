@@ -2,6 +2,7 @@ package workload
 
 import (
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
 
 	"git.sr.ht/~spc/go-log"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
@@ -16,7 +17,7 @@ const nfTableName string = "edge"
 type workloadWrapper struct {
 	workloads         *podman.Podman
 	netfilter         *network.Netfilter
-	mappingRepository *MappingRepository
+	mappingRepository *mapping.MappingRepository
 }
 
 func newWorkloadWrapper(configDir string) (*workloadWrapper, error) {
@@ -28,7 +29,7 @@ func newWorkloadWrapper(configDir string) (*workloadWrapper, error) {
 	if err != nil {
 		return nil, err
 	}
-	mappingRepository, err := NewMappingRepository(configDir)
+	mappingRepository, err := mapping.NewMappingRepository(configDir)
 	if err != nil {
 		return nil, err
 	}
@@ -49,13 +50,20 @@ func (ww workloadWrapper) List() ([]api2.WorkloadInfo, error) {
 		return nil, err
 	}
 	for i := range infos {
-		infos[i].Name = ww.mappingRepository.GetName(infos[i].Id)
+		mappedName := ww.mappingRepository.GetName(infos[i].Id)
+		if mappedName != "" {
+			infos[i].Name = mappedName
+		}
 	}
 	return infos, err
 }
 
 func (ww workloadWrapper) Remove(workloadName string) error {
-	if err := ww.workloads.Remove(ww.mappingRepository.GetId(workloadName)); err != nil {
+	id := ww.mappingRepository.GetId(workloadName)
+	if id == "" {
+		id = workloadName
+	}
+	if err := ww.workloads.Remove(id); err != nil {
 		return err
 	}
 	if err := ww.netfilter.DeleteChain(nfTableName, workloadName); err != nil {
@@ -113,6 +121,10 @@ func (ww workloadWrapper) Start(workload *v1.Pod) error {
 		return err
 	}
 	return nil
+}
+
+func (ww workloadWrapper) PersistConfiguration() error{
+	return ww.mappingRepository.Persist()
 }
 
 func getHostPorts(workload *v1.Pod) ([]int32, error) {
