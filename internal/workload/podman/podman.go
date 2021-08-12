@@ -31,6 +31,7 @@ func (p *Podman) List() ([]api2.WorkloadInfo, error) {
 	var workloads []api2.WorkloadInfo
 	for _, pod := range podList {
 		wi := api2.WorkloadInfo{
+			Id:     pod.Id,
 			Name:   pod.Name,
 			Status: pod.Status,
 		}
@@ -39,14 +40,14 @@ func (p *Podman) List() ([]api2.WorkloadInfo, error) {
 	return workloads, nil
 }
 
-func (p *Podman) Remove(workloadName string) error {
-	exists, err := pods.Exists(p.podmanConnection, workloadName)
+func (p *Podman) Remove(workloadId string) error {
+	exists, err := pods.Exists(p.podmanConnection, workloadId)
 	if err != nil {
 		return err
 	}
 	if exists {
 		force := true
-		_, err := pods.Remove(p.podmanConnection, workloadName, &force)
+		_, err := pods.Remove(p.podmanConnection, workloadId, &force)
 		if err != nil {
 			return err
 		}
@@ -54,16 +55,20 @@ func (p *Podman) Remove(workloadName string) error {
 	return nil
 }
 
-func (p *Podman) Run(manifestPath string) error {
-	_, err := play.Kube(p.podmanConnection, manifestPath, entities.PlayKubeOptions{})
+func (p *Podman) Run(manifestPath string) ([]string, error) {
+	report, err := play.Kube(p.podmanConnection, manifestPath, entities.PlayKubeOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	var podIds []string
+	for _, pod := range report.Pods {
+		podIds = append(podIds, pod.ID)
+	}
+	return podIds, nil
 }
 
-func (p *Podman) Start(workloadName string) error {
-	_, err := pods.Start(p.podmanConnection, workloadName)
+func (p *Podman) Start(workloadId string) error {
+	_, err := pods.Start(p.podmanConnection, workloadId)
 	if err != nil {
 		return err
 	}
