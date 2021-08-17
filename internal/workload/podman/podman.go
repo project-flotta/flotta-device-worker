@@ -2,6 +2,7 @@ package podman
 
 import (
 	"context"
+
 	"github.com/containers/podman/v2/pkg/bindings"
 	"github.com/containers/podman/v2/pkg/bindings/play"
 	"github.com/containers/podman/v2/pkg/bindings/pods"
@@ -13,8 +14,8 @@ type Podman struct {
 	podmanConnection context.Context
 }
 
-func NewPodman() (*Podman, error) {
-	podmanConnection, err := bindings.NewConnection(context.Background(), "unix://run/podman/podman.sock")
+func NewPodman(podmanSocketName string) (*Podman, error) {
+	podmanConnection, err := bindings.NewConnection(context.Background(), "unix://run/podman/"+podmanSocketName)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package workload
 
 import (
 	"fmt"
+
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
 
 	"git.sr.ht/~spc/go-log"
@@ -20,8 +21,8 @@ type workloadWrapper struct {
 	mappingRepository *mapping.MappingRepository
 }
 
-func newWorkloadWrapper(configDir string) (*workloadWrapper, error) {
-	newPodman, err := podman.NewPodman()
+func newWorkloadWrapper(configDir string, podmanSocketName string) (*workloadWrapper, error) {
+	newPodman, err := podman.NewPodman(podmanSocketName)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +124,7 @@ func (ww workloadWrapper) Start(workload *v1.Pod) error {
 	return nil
 }
 
-func (ww workloadWrapper) PersistConfiguration() error{
+func (ww workloadWrapper) PersistConfiguration() error {
 	return ww.mappingRepository.Persist()
 }
 

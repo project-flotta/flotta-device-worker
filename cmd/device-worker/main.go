@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
+	"path"
+	"time"
+
 	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
 	heartbeat2 "github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
@@ -10,10 +15,6 @@ import (
 	registration2 "github.com/jakub-dzon/k4e-device-worker/internal/registration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/server"
 	workload2 "github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"net"
-	"os"
-	"path"
-	"time"
 
 	"git.sr.ht/~spc/go-log"
 
@@ -41,6 +42,10 @@ func main() {
 	baseConfigDir, ok := os.LookupEnv("BASE_CONFIG_DIR")
 	if !ok {
 		log.Fatal("Missing BASE_CONFIG_DIR environment variable")
+	}
+	podmanSocketName, ok := os.LookupEnv("PODMAND_SOCKET_NAME")
+	if !ok {
+		log.Fatal("Missing PODMAND_SOCKET_NAME environment variable")
 	}
 
 	// Dial the dispatcher on its well-known address.
@@ -78,7 +83,7 @@ func main() {
 	}
 	configManager := configuration2.NewConfigurationManager(configDir)
 
-	wl, err := workload2.NewWorkloadManager(configDir)
+	wl, err := workload2.NewWorkloadManager(configDir, podmanSocketName)
 	if err != nil {
 		log.Fatal(err)
 	}

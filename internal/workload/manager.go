@@ -25,12 +25,12 @@ type podAndPath struct {
 	manifestPath string
 }
 
-func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
+func NewWorkloadManager(configDir string, podmanSocketName string) (*WorkloadManager, error) {
 	manifestsDir := path.Join(configDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	wrapper, err := newWorkloadWrapper(configDir)
+	wrapper, err := newWorkloadWrapper(configDir, podmanSocketName)
 	if err != nil {
 		return nil, err
 	}
