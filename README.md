@@ -13,6 +13,13 @@ Install following packages (Fedora):
 To build and install `device-worker` for yggdrasil (`/usr/local/libexec/yggdrasil`) run:
 `make install`.
 
+### RPM build and install
+RPM will be located at ~/rpmbuild/RPMS
+```
+make build
+make rpm
+```
+
 ## Clean start
 
 To start the device-worker in clean (pairing) mode, make sure that following files are not present before starting
