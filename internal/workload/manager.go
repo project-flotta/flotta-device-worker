@@ -27,16 +27,16 @@ type podAndPath struct {
 	manifestPath string
 }
 
-func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
-	manifestsDir := path.Join(configDir, "manifests")
+func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
+	manifestsDir := path.Join(dataDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	volumesDir := path.Join(configDir, "volumes")
+	volumesDir := path.Join(dataDir, "volumes")
 	if err := os.MkdirAll(volumesDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	wrapper, err := newWorkloadWrapper(configDir)
+	wrapper, err := newWorkloadWrapper(dataDir)
 	if err != nil {
 		return nil, err
 	}

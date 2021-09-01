@@ -23,6 +23,10 @@ import (
 
 var yggdDispatchSocketAddr string
 
+const (
+	defaultDataDir = "/var/local/yggdrasil"
+)
+
 func main() {
 	logLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if !ok {
@@ -38,9 +42,11 @@ func main() {
 	if !ok {
 		log.Fatal("Missing YGG_SOCKET_ADDR environment variable")
 	}
-	baseConfigDir, ok := os.LookupEnv("BASE_CONFIG_DIR")
+
+	baseDataDir, ok := os.LookupEnv("BASE_DATA_DIR")
 	if !ok {
-		log.Fatal("Missing BASE_CONFIG_DIR environment variable")
+		log.Warnf("Missing BASE_DATA_DIR environment variable. Using default: %s", defaultDataDir)
+		baseDataDir = defaultDataDir
 	}
 
 	// Dial the dispatcher on its well-known address.
@@ -71,14 +77,14 @@ func main() {
 	}
 
 	// Register as a Worker service with gRPC and start accepting connections.
-	configDir := path.Join(baseConfigDir, "device")
-	log.Infof("Config dir: %s", configDir)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	dataDir := path.Join(baseDataDir, "device")
+	log.Infof("Data directory: %s", dataDir)
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
-	configManager := configuration2.NewConfigurationManager(configDir)
+	configManager := configuration2.NewConfigurationManager(dataDir)
 
-	wl, err := workload2.NewWorkloadManager(configDir)
+	wl, err := workload2.NewWorkloadManager(dataDir)
 	if err != nil {
 		log.Fatal(err)
 	}
