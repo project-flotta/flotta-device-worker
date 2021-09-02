@@ -65,6 +65,10 @@ func (w *WorkloadManager) ListWorkloads() ([]api2.WorkloadInfo, error) {
 	return w.workloads.List()
 }
 
+func (w *WorkloadManager) GetExportedHostPath(workloadName string) string {
+	return volumes.HostPathVolumePath(w.volumesDir, workloadName)
+}
+
 func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage) error {
 	workloads := configuration.Workloads
 	if len(workloads) == 0 {

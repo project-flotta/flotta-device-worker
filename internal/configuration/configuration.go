@@ -70,6 +70,10 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 	return *m.deviceConfiguration.Configuration
 }
 
+func (m *Manager) GetWorkloads() models.WorkloadList{
+	return m.deviceConfiguration.Workloads
+}
+
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)

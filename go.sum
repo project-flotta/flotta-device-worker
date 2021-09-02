@@ -853,6 +853,8 @@ github.com/jakub-dzon/k4e-operator v0.0.0-20210713091856-199980fd3919 h1:vfP6WqP
 github.com/jakub-dzon/k4e-operator v0.0.0-20210713091856-199980fd3919/go.mod h1:W62toLfPijanT1QcK2EzN/YdOGIPnZmdNF+6dv3X/8w=
 github.com/jakub-dzon/k4e-operator v0.0.0-20210713154852-a10f2b1feb2e h1:6BGOqTmTNFfHQ9jmbyo2GKEPTauwcEKl/KXTowDa1SE=
 github.com/jakub-dzon/k4e-operator v0.0.0-20210713154852-a10f2b1feb2e/go.mod h1:W62toLfPijanT1QcK2EzN/YdOGIPnZmdNF+6dv3X/8w=
+github.com/jakub-dzon/k4e-operator v0.0.0-20210831102932-8715f324eaea h1:NVP2F7nG2Z+r5PFyGP/ASlz/Z75aKaDMhBDWQ73rfcQ=
+github.com/jakub-dzon/k4e-operator v0.0.0-20210831102932-8715f324eaea/go.mod h1:ee6+MS56Ay6q/s+QWq+VvXbMJtuQjPk/Gr/qFr/fv3g=
 github.com/jamescun/tuntap v0.0.0-20190712092105-cb1fb277045c/go.mod h1:zzwpsgcYhzzIP5WyF8g9ivCv38cY9uAV9Gu0m3lThhE=
 github.com/jaypipes/ghw v0.7.0 h1:DO0qK9hESxkOTWyd/93hjYBRL7MdVSFqaXdcR7n4pVY=
 github.com/jaypipes/ghw v0.7.0/go.mod h1:+gR9bjm3W/HnFi90liF+Fj9GpCe/Dsibl9Im8KmC7c4=
