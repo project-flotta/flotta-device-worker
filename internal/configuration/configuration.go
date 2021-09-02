@@ -35,8 +35,8 @@ type Manager struct {
 	initialConfig    atomic.Value
 }
 
-func NewConfigurationManager(configDir string) *Manager {
-	deviceConfigFile := path.Join(configDir, "device-config.json")
+func NewConfigurationManager(dataDir string) *Manager {
+	deviceConfigFile := path.Join(dataDir, "device-config.json")
 	log.Infof("Device config file: %s", deviceConfigFile)
 	file, err := ioutil.ReadFile(deviceConfigFile)
 	var deviceConfiguration models.DeviceConfigurationMessage

@@ -25,8 +25,8 @@ make rpm
 To start the device-worker in clean (pairing) mode, make sure that following files are not present before starting
 yggdrasil:
 
-- `/usr/local/etc/yggdrasil/device/device-config.json`
-- `/usr/local/etc/yggdrasil/device/manifests/*`
+- `/var/local/yggdrasil/device/device-config.json`
+- `/var/local/yggdrasil/device/manifests/*`
 
 # Running
 

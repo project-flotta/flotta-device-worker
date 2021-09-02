@@ -2,6 +2,7 @@ package workload
 
 import (
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/volumes"
 	"io/ioutil"
 	"os"
 	"path"
@@ -17,6 +18,7 @@ import (
 
 type WorkloadManager struct {
 	manifestsDir string
+	volumesDir   string
 	workloads    *workloadWrapper
 }
 
@@ -25,17 +27,22 @@ type podAndPath struct {
 	manifestPath string
 }
 
-func NewWorkloadManager(configDir string) (*WorkloadManager, error) {
-	manifestsDir := path.Join(configDir, "manifests")
+func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
+	manifestsDir := path.Join(dataDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	wrapper, err := newWorkloadWrapper(configDir)
+	volumesDir := path.Join(dataDir, "volumes")
+	if err := os.MkdirAll(volumesDir, 0755); err != nil {
+		return nil, fmt.Errorf("cannot create directory: %w", err)
+	}
+	wrapper, err := newWorkloadWrapper(dataDir)
 	if err != nil {
 		return nil, err
 	}
 	manager := WorkloadManager{
 		manifestsDir: manifestsDir,
+		volumesDir:   volumesDir,
 		workloads:    wrapper,
 	}
 	if err := manager.workloads.Init(); err != nil {
@@ -223,5 +230,17 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	}
 	pod.Kind = "Pod"
 	pod.Name = workload.Name
+	exportVolume := volumes.HostPathVolume(w.volumesDir, workload.Name)
+	pod.Spec.Volumes = append(pod.Spec.Volumes, exportVolume)
+	var containers []v1.Container
+	for _, container := range pod.Spec.Containers {
+		mount := v1.VolumeMount{
+			Name:      exportVolume.Name,
+			MountPath: "/export",
+		}
+		container.VolumeMounts = append(container.VolumeMounts, mount)
+		containers = append(containers, container)
+	}
+	pod.Spec.Containers = containers
 	return &pod, nil
 }
