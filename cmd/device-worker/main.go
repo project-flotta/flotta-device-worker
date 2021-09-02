@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
 	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
 	heartbeat2 "github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
 	os2 "github.com/jakub-dzon/k4e-device-worker/internal/os"
@@ -94,6 +95,9 @@ func main() {
 
 	hbs := heartbeat2.NewHeartbeatService(c, configManager, wl, &hw)
 	configManager.RegisterObserver(hbs)
+
+	dataMonitor := datatransfer.NewMonitor(wl, configManager)
+	dataMonitor.Start()
 
 	deviceOs := os2.OS{}
 	reg := registration2.NewRegistration(&hw, &deviceOs, c)

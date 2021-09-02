@@ -8,6 +8,7 @@ import (
 	"path"
 	"reflect"
 	"sync/atomic"
+	"time"
 )
 
 var (
@@ -70,7 +71,7 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 	return *m.deviceConfiguration.Configuration
 }
 
-func (m *Manager) GetWorkloads() models.WorkloadList{
+func (m *Manager) GetWorkloads() models.WorkloadList {
 	return m.deviceConfiguration.Workloads
 }
 
@@ -105,6 +106,10 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) GetDataTransferInterval() time.Duration {
+	return time.Second * 15
 }
 
 func (m *Manager) GetConfigurationVersion() string {
