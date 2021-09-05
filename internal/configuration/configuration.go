@@ -5,6 +5,7 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/jakub-dzon/k4e-operator/models"
 	"io/ioutil"
+	"os"
 	"path"
 	"reflect"
 	"sync/atomic"
@@ -120,4 +121,13 @@ func (m *Manager) GetConfigurationVersion() string {
 
 func (m *Manager) IsInitialConfig() bool {
 	return m.initialConfig.Load().(bool)
+}
+func (m *Manager) Deregister() error {
+	log.Infof("Removing device config file: %s", m.deviceConfigFile)
+	err := os.Remove(m.deviceConfigFile)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
 }

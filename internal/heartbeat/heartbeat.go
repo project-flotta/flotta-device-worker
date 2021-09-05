@@ -154,3 +154,11 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 		}
 	}()
 }
+
+func (s *Heartbeat) Deregister() error {
+	log.Info("Stopping ticker")
+	if s.ticker != nil {
+		s.ticker.Stop()
+	}
+	return nil
+}

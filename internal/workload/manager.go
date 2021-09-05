@@ -255,6 +255,82 @@ func (w *WorkloadManager) RegisterObserver(observer Observer) {
 	w.workloads.RegisterObserver(observer)
 }
 
+func (w *WorkloadManager) Deregister() error {
+	w.managementLock.Lock()
+	defer w.managementLock.Unlock()
+
+	err := w.removeAllWorkloads()
+	if err != nil {
+		log.Errorf("failed to remove workloads: %v", err)
+	}
+
+	err = w.deleteManifestsDir()
+	if err != nil {
+		log.Errorf("failed to delete manifests directory: %v", err)
+	}
+
+	err = w.deleteTable()
+	if err != nil {
+		log.Errorf("failed to delete table: %v", err)
+	}
+
+	err = w.deleteVolumeDir()
+	if err != nil {
+		log.Errorf("failed to delete volumes directory: %v", err)
+	}
+
+	return nil
+}
+
+func (w *WorkloadManager) removeAllWorkloads() error {
+	workloads, err := w.workloads.List()
+	if err != nil {
+		return err
+	}
+	for _, workload := range workloads {
+		log.Infof("Removing workload %s", workload.Name)
+		err := w.workloads.Remove(workload.Name)
+		if err != nil {
+			log.Errorf("Error removing workload %[1]s: %v", workload.Name, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *WorkloadManager) deleteManifestsDir() error {
+	log.Info("Deleting manifests directory")
+	err := os.RemoveAll(w.manifestsDir)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkloadManager) deleteVolumeDir() error {
+	log.Info("Deleting volumes directory")
+	err := os.RemoveAll(w.volumesDir)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkloadManager) deleteTable() error {
+	log.Info("Deleting nftable")
+	err := w.workloads.removeTable()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
 func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	podSpec := v1.PodSpec{}
 	err := yaml.Unmarshal([]byte(workload.Specification), &podSpec)
