@@ -8,21 +8,26 @@ import (
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
 	"github.com/jakub-dzon/k4e-operator/models"
 	"path"
+	"sync"
 	"time"
 )
 
 type Monitor struct {
-	workloads *workload.WorkloadManager
-	config    *configuration.Manager
-	ticker    *time.Ticker
+	workloads                   *workload.WorkloadManager
+	config                      *configuration.Manager
+	ticker                      *time.Ticker
+	lastSuccessfulSyncTimes     map[string]time.Time
+	lastSuccessfulSyncTimesLock sync.RWMutex
 }
 
 func NewMonitor(workloadsManager *workload.WorkloadManager, configManager *configuration.Manager) *Monitor {
 	ticker := time.NewTicker(configManager.GetDataTransferInterval())
 	monitor := Monitor{
-		workloads: workloadsManager,
-		config:    configManager,
-		ticker:    ticker,
+		workloads:               workloadsManager,
+		config:                  configManager,
+		ticker:                  ticker,
+		lastSuccessfulSyncTimes: make(map[string]time.Time),
+		lastSuccessfulSyncTimesLock: sync.RWMutex{},
 	}
 	return &monitor
 }
@@ -35,6 +40,20 @@ func (m *Monitor) Start() {
 	}()
 }
 
+func (m *Monitor) GetLastSuccessfulSyncTime(workloadName string) *time.Time {
+	m.lastSuccessfulSyncTimesLock.RLock()
+	defer m.lastSuccessfulSyncTimesLock.RUnlock()
+	if t, ok := m.lastSuccessfulSyncTimes[workloadName]; ok {
+		return &t
+	}
+	return nil
+}
+
+func (m *Monitor) WorkloadRemoved(workloadName string) {
+	m.lastSuccessfulSyncTimesLock.Lock()
+	defer m.lastSuccessfulSyncTimesLock.Unlock()
+	delete(m.lastSuccessfulSyncTimes, workloadName)
+}
 func (m *Monitor) syncPaths() {
 	workloads, err := m.workloads.ListWorkloads()
 	if err != nil {
@@ -67,7 +86,7 @@ func (m *Monitor) syncPaths() {
 		for _, wd := range workloads {
 			hostPath := m.workloads.GetExportedHostPath(wd.Name)
 			dataPaths := workloadToDataPaths[wd.Name]
-
+			success := true
 			for _, dp := range dataPaths {
 				source := path.Join(hostPath, dp.Source)
 				target := dp.Target
@@ -75,8 +94,18 @@ func (m *Monitor) syncPaths() {
 				log.Infof("Synchronizing [device]%s => [remote]%s", source, target)
 				if err := sync.SyncPath(source, target); err != nil {
 					log.Errorf("Error while synchronizing [device]%s => [remote]%s: %v", source, target, err)
+					success = false
 				}
+			}
+			if success {
+				m.storeLastUpdateTime(wd.Name)
 			}
 		}
 	}
+}
+
+func (m *Monitor) storeLastUpdateTime(workloadName string) {
+	m.lastSuccessfulSyncTimesLock.Lock()
+	defer m.lastSuccessfulSyncTimesLock.Unlock()
+	m.lastSuccessfulSyncTimes[workloadName] = time.Now()
 }

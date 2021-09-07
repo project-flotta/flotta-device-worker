@@ -13,11 +13,16 @@ import (
 
 const nfTableName string = "edge"
 
+type Observer interface {
+	WorkloadRemoved(workloadName string)
+}
+
 // workloadWrapper manages the workload and its configuration on the device
 type workloadWrapper struct {
 	workloads         *podman.Podman
 	netfilter         *network.Netfilter
 	mappingRepository *mapping.MappingRepository
+	observers         []Observer
 }
 
 func newWorkloadWrapper(configDir string) (*workloadWrapper, error) {
@@ -38,6 +43,10 @@ func newWorkloadWrapper(configDir string) (*workloadWrapper, error) {
 		netfilter:         netfilter,
 		mappingRepository: mappingRepository,
 	}, nil
+}
+
+func (ww *workloadWrapper) RegisterObserver(observer Observer) {
+	ww.observers = append(ww.observers, observer)
 }
 
 func (ww workloadWrapper) Init() error {
@@ -71,6 +80,9 @@ func (ww workloadWrapper) Remove(workloadName string) error {
 	}
 	if err := ww.mappingRepository.Remove(workloadName); err != nil {
 		return err
+	}
+	for _, observer := range ww.observers {
+		observer.WorkloadRemoved(workloadName)
 	}
 	return nil
 }
@@ -123,7 +135,7 @@ func (ww workloadWrapper) Start(workload *v1.Pod) error {
 	return nil
 }
 
-func (ww workloadWrapper) PersistConfiguration() error{
+func (ww workloadWrapper) PersistConfiguration() error {
 	return ww.mappingRepository.Persist()
 }
 

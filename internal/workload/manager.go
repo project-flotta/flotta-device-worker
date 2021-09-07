@@ -223,6 +223,10 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 	return nil
 }
 
+func (w *WorkloadManager) RegisterObserver(observer Observer) {
+	w.workloads.RegisterObserver(observer)
+}
+
 func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	podSpec := v1.PodSpec{}
 	err := yaml.Unmarshal([]byte(workload.Specification), &podSpec)

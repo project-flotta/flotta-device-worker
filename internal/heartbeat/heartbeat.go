@@ -7,6 +7,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
 	cfg "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
 	hw "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
 	workld "github.com/jakub-dzon/k4e-device-worker/internal/workload"
 	"github.com/jakub-dzon/k4e-operator/models"
@@ -19,16 +20,18 @@ type Heartbeat struct {
 	dispatcherClient pb.DispatcherClient
 	configManager    *cfg.Manager
 	workloadManager  *workld.WorkloadManager
+	dataMonitor      *datatransfer.Monitor
 	hardware         *hw.Hardware
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware) *Heartbeat {
+	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor) *Heartbeat {
 	return &Heartbeat{
 		dispatcherClient: dispatcherClient,
 		configManager:    configManager,
 		workloadManager:  workloadManager,
 		hardware:         hardware,
+		dataMonitor:      dataMonitor,
 	}
 }
 
@@ -80,6 +83,9 @@ func (s *Heartbeat) getHeartbeatInfo() models.Heartbeat {
 		workloadStatus := models.WorkloadStatus{
 			Name:   info.Name,
 			Status: info.Status,
+		}
+		if lastSyncTime := s.dataMonitor.GetLastSuccessfulSyncTime(info.Name); lastSyncTime != nil {
+			workloadStatus.LastDataUpload = strfmt.DateTime(*lastSyncTime)
 		}
 		workloadStatuses = append(workloadStatuses, &workloadStatus)
 	}

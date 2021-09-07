@@ -21,7 +21,7 @@ type Sync struct {
 	url       string
 }
 
-func NewSync(host string, port int64, accessKey, secretKey, bucket string) *Sync {
+func NewSync(host string, port int32, accessKey, secretKey, bucket string) *Sync {
 	return &Sync{
 		accessKey: accessKey,
 		secretKey: secretKey,
