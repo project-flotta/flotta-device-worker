@@ -1,7 +1,6 @@
 package datatransfer
 
 import (
-	"encoding/base64"
 	"git.sr.ht/~spc/go-log"
 	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer/s3"
@@ -23,10 +22,10 @@ type Monitor struct {
 func NewMonitor(workloadsManager *workload.WorkloadManager, configManager *configuration.Manager) *Monitor {
 	ticker := time.NewTicker(configManager.GetDataTransferInterval())
 	monitor := Monitor{
-		workloads:               workloadsManager,
-		config:                  configManager,
-		ticker:                  ticker,
-		lastSuccessfulSyncTimes: make(map[string]time.Time),
+		workloads:                   workloadsManager,
+		config:                      configManager,
+		ticker:                      ticker,
+		lastSuccessfulSyncTimes:     make(map[string]time.Time),
 		lastSuccessfulSyncTimesLock: sync.RWMutex{},
 	}
 	return &monitor
@@ -71,17 +70,11 @@ func (m *Monitor) syncPaths() {
 			}
 		}
 
-		s3Config := storage.S3
-		accessKeyBytes, err := base64.StdEncoding.DecodeString(s3Config.AwsAccessKeyID)
+		s3sync, err := s3.NewSync(*storage.S3)
 		if err != nil {
-			log.Errorf("Can't decode AWS Access Key: %v", err)
+			log.Errorf("Error while creating s3 synchronizer: %v", err)
+			return
 		}
-		secretKeyBytes, err := base64.StdEncoding.DecodeString(s3Config.AwsSecretAccessKey)
-		if err != nil {
-			log.Errorf("Can't decode AWS Access Key: %v", err)
-		}
-		sync := s3.NewSync(s3Config.BucketHost, s3Config.BucketPort, string(accessKeyBytes), string(secretKeyBytes), s3Config.BucketName)
-
 		// Monitor actual workloads and not ones expected by the configuration
 		for _, wd := range workloads {
 			hostPath := m.workloads.GetExportedHostPath(wd.Name)
@@ -90,9 +83,9 @@ func (m *Monitor) syncPaths() {
 			for _, dp := range dataPaths {
 				source := path.Join(hostPath, dp.Source)
 				target := dp.Target
+				log.Debugf("Synchronizing [device]%s => [remote]%s", source, target)
 
-				log.Infof("Synchronizing [device]%s => [remote]%s", source, target)
-				if err := sync.SyncPath(source, target); err != nil {
+				if err := s3sync.SyncPath(source, target); err != nil {
 					log.Errorf("Error while synchronizing [device]%s => [remote]%s: %v", source, target, err)
 					success = false
 				}
