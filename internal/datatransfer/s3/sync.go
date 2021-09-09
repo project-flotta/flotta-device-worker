@@ -43,7 +43,7 @@ func NewSync(s3Config models.S3StorageConfiguration) (*Sync, error) {
 		Region:           &ignoreRegion,
 		Endpoint:         &endpoint,
 		Credentials:      credentials.NewStaticCredentials(string(accessKeyBytes), string(secretKeyBytes), ""),
-		HTTPClient:       createHttpClient(caBundle, true),
+		HTTPClient:       createHttpClient(caBundle),
 		S3ForcePathStyle: &theTrue,
 	})
 	if err != nil {
@@ -56,16 +56,14 @@ func NewSync(s3Config models.S3StorageConfiguration) (*Sync, error) {
 	}, nil
 }
 
-func createHttpClient(caBundle []byte, skipVerify bool) *http.Client {
+func createHttpClient(caBundle []byte) *http.Client {
 	rootCAs, _ := x509.SystemCertPool()
 	if rootCAs == nil {
 		rootCAs = x509.NewCertPool()
 	}
 	rootCAs.AppendCertsFromPEM(caBundle)
 	tr := &http.Transport{
-		// TODO: Currently the CA bundle is valid for s3.openshift-storage.svc and s3.openshift-storage.svc.cluster.local
-		// and not its public URL. Enable certificate verification when correct cert is sent.
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipVerify, RootCAs: rootCAs},
+		TLSClientConfig: &tls.Config{RootCAs: rootCAs},
 	}
 	client := &http.Client{Transport: tr}
 	return client
