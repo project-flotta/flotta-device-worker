@@ -77,8 +77,11 @@ func (m *Monitor) syncPaths() {
 		}
 		// Monitor actual workloads and not ones expected by the configuration
 		for _, wd := range workloads {
-			hostPath := m.workloads.GetExportedHostPath(wd.Name)
 			dataPaths := workloadToDataPaths[wd.Name]
+			if len(dataPaths) == 0 {
+				continue
+			}
+			hostPath := m.workloads.GetExportedHostPath(wd.Name)
 			success := true
 			for _, dp := range dataPaths {
 				source := path.Join(hostPath, dp.Source)
