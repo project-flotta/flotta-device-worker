@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
+	github.com/aws/aws-sdk-go v1.35.28
 	github.com/containers/buildah v1.21.0 // indirect
 	github.com/containers/common v0.38.11 // indirect
 	github.com/containers/podman/v2 v2.2.1
@@ -13,9 +14,10 @@ require (
 	github.com/cri-o/ocicni v0.2.1-0.20210621164014-d0acc7862283 // indirect
 	github.com/go-openapi/strfmt v0.20.0
 	github.com/google/uuid v1.2.0
-	github.com/jakub-dzon/k4e-operator v0.0.0-20210713154852-a10f2b1feb2e
+	github.com/jakub-dzon/k4e-operator v0.0.0-20210906145819-9b8dd51cb679
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20210609144611-8a8c4c4c4969
 	github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a
+	github.com/seqsense/s3sync v1.8.0
 	google.golang.org/grpc v1.39.0
 	k8s.io/api v0.21.0
 	sigs.k8s.io/yaml v1.2.0

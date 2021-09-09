@@ -65,6 +65,10 @@ func (w *WorkloadManager) ListWorkloads() ([]api2.WorkloadInfo, error) {
 	return w.workloads.List()
 }
 
+func (w *WorkloadManager) GetExportedHostPath(workloadName string) string {
+	return volumes.HostPathVolumePath(w.volumesDir, workloadName)
+}
+
 func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage) error {
 	workloads := configuration.Workloads
 	if len(workloads) == 0 {
@@ -217,6 +221,10 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 		log.Errorf("failed to persist workload configuration: %v", err)
 	}
 	return nil
+}
+
+func (w *WorkloadManager) RegisterObserver(observer Observer) {
+	w.workloads.RegisterObserver(observer)
 }
 
 func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
