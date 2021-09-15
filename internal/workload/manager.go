@@ -1,6 +1,7 @@
 package workload
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/jakub-dzon/k4e-device-worker/internal/volumes"
 	"io/ioutil"
@@ -94,7 +95,16 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		if err != nil {
 			return err
 		}
-		manifestPath, err := w.storeManifest(pod)
+		manifestPath := w.getManifestPath(pod)
+		podYaml, err := w.toPodYaml(pod)
+		if err != nil {
+			return nil
+		}
+		if !w.podModified(manifestPath, podYaml) {
+			log.Tracef("Pod '%s' definition is unchanged (%s)", workload.Name, manifestPath)
+			continue
+		}
+		err = w.storeManifest(manifestPath, podYaml)
 		if err != nil {
 			return err
 		}
@@ -144,18 +154,21 @@ func (w *WorkloadManager) removeManifests() error {
 	return nil
 }
 
-func (w *WorkloadManager) storeManifest(pod *v1.Pod) (string, error) {
+func (w *WorkloadManager) storeManifest(filePath string, podYaml []byte) error {
+	return ioutil.WriteFile(filePath, podYaml, 0640)
+}
+
+func (w *WorkloadManager) getManifestPath(pod *v1.Pod) string {
+	fileName := strings.ReplaceAll(pod.Name, " ", "-") + ".yaml"
+	return path.Join(w.manifestsDir, fileName)
+}
+
+func (w *WorkloadManager) toPodYaml(pod *v1.Pod) ([]byte, error) {
 	podYaml, err := yaml.Marshal(pod)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	fileName := strings.ReplaceAll(pod.Name, " ", "-") + ".yaml"
-	filePath := path.Join(w.manifestsDir, fileName)
-	err = ioutil.WriteFile(filePath, podYaml, 0640)
-	if err != nil {
-		return "", err
-	}
-	return filePath, nil
+	return podYaml, nil
 }
 
 func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
@@ -251,4 +264,12 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	}
 	pod.Spec.Containers = containers
 	return &pod, nil
+}
+
+func (w *WorkloadManager) podModified(manifestPath string, podYaml []byte) bool {
+	file, err := ioutil.ReadFile(manifestPath)
+	if err != nil {
+		return true
+	}
+	return bytes.Compare(file, podYaml) != 0
 }
