@@ -1,7 +1,7 @@
 LIBEXECDIR ?= /usr/libexec
 build:
 	mkdir -p ./bin
-	go build -o ./bin ./cmd/device-worker
+	CGO_ENABLED=0 go build -tags containers_image_openpgp -o ./bin ./cmd/device-worker
 
 install: build
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
