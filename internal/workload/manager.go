@@ -71,31 +71,16 @@ func (w *WorkloadManager) GetExportedHostPath(workloadName string) string {
 }
 
 func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage) error {
-	workloads := configuration.Workloads
-	if len(workloads) == 0 {
-		log.Trace("No workloads")
-
-		// Purge all the workloads
-		err := w.purgeWorkloads()
-		if err != nil {
-			return err
-		}
-		// Remove manifests
-		err = w.removeManifests()
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	for _, workload := range workloads {
+	configuredWorkloadNameSet := make(map[string]struct{})
+	for _, workload := range configuration.Workloads {
 		log.Tracef("Deploying workload: %s", workload.Name)
+		configuredWorkloadNameSet[workload.Name] = struct{}{}
 		// TODO: change error handling from fail fast to best effort (deploy as many workloads as possible)
 		pod, err := w.toPod(workload)
 		if err != nil {
 			return err
 		}
-		manifestPath := w.getManifestPath(pod)
+		manifestPath := w.getManifestPath(pod.Name)
 		podYaml, err := w.toPodYaml(pod)
 		if err != nil {
 			return nil
@@ -120,35 +105,27 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			return err
 		}
 	}
-	return nil
-}
 
-func (w *WorkloadManager) purgeWorkloads() error {
-	podList, err := w.workloads.List()
+	deployedWorkloadByName, err := w.indexWorkloads()
 	if err != nil {
-		log.Errorf("Cannot list workloads: %v", err)
+		log.Errorf("Cannot get deployed workloads: %v", err)
 		return err
 	}
-	for _, podReport := range podList {
-		err := w.workloads.Remove(podReport.Name)
-		if err != nil {
-			log.Errorf("Error removing workload: %v", err)
-			return err
-		}
-	}
-	return nil
-}
+	// Remove any workloads that don't correspond to the configured ones
+	for name := range deployedWorkloadByName {
+		if _, ok := configuredWorkloadNameSet[name]; !ok {
+			log.Infof("Workload not found: %s. Removing", name)
+			manifestPath := w.getManifestPath(name)
+			err := os.Remove(manifestPath)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					return err
+				}
+			}
 
-func (w *WorkloadManager) removeManifests() error {
-	manifestInfo, err := ioutil.ReadDir(w.manifestsDir)
-	if err != nil {
-		return err
-	}
-	for _, fi := range manifestInfo {
-		filePath := path.Join(w.manifestsDir, fi.Name())
-		err := os.Remove(filePath)
-		if err != nil {
-			return err
+			if err := w.workloads.Remove(name); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -158,8 +135,8 @@ func (w *WorkloadManager) storeManifest(filePath string, podYaml []byte) error {
 	return ioutil.WriteFile(filePath, podYaml, 0640)
 }
 
-func (w *WorkloadManager) getManifestPath(pod *v1.Pod) string {
-	fileName := strings.ReplaceAll(pod.Name, " ", "-") + ".yaml"
+func (w *WorkloadManager) getManifestPath(workloadName string) string {
+	fileName := strings.ReplaceAll(workloadName, " ", "-") + ".yaml"
 	return path.Join(w.manifestsDir, fileName)
 }
 
@@ -172,19 +149,15 @@ func (w *WorkloadManager) toPodYaml(pod *v1.Pod) ([]byte, error) {
 }
 
 func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
+	nameToWorkload, err := w.indexWorkloads()
+	if err != nil {
+		return err
+	}
+
 	manifestInfo, err := ioutil.ReadDir(w.manifestsDir)
 	if err != nil {
 		return err
 	}
-	workloads, err := w.workloads.List()
-	if err != nil {
-		return err
-	}
-	nameToWorkload := make(map[string]api2.WorkloadInfo)
-	for _, workload := range workloads {
-		nameToWorkload[workload.Name] = workload
-	}
-
 	manifestNameToPodAndPath := make(map[string]podAndPath)
 	for _, fi := range manifestInfo {
 		filePath := path.Join(w.manifestsDir, fi.Name())
@@ -234,6 +207,18 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 		log.Errorf("failed to persist workload configuration: %v", err)
 	}
 	return nil
+}
+
+func (w *WorkloadManager) indexWorkloads() (map[string]api2.WorkloadInfo, error) {
+	workloads, err := w.workloads.List()
+	if err != nil {
+		return nil, err
+	}
+	nameToWorkload := make(map[string]api2.WorkloadInfo)
+	for _, workload := range workloads {
+		nameToWorkload[workload.Name] = workload
+	}
+	return nameToWorkload, nil
 }
 
 func (w *WorkloadManager) RegisterObserver(observer Observer) {
