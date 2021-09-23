@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -21,6 +22,7 @@ type WorkloadManager struct {
 	manifestsDir string
 	volumesDir   string
 	workloads    *workloadWrapper
+	managementLock sync.Locker
 }
 
 type podAndPath struct {
@@ -45,6 +47,7 @@ func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
 		manifestsDir: manifestsDir,
 		volumesDir:   volumesDir,
 		workloads:    wrapper,
+		managementLock: &sync.Mutex{},
 	}
 	if err := manager.workloads.Init(); err != nil {
 		return nil, err
@@ -71,6 +74,9 @@ func (w *WorkloadManager) GetExportedHostPath(workloadName string) string {
 }
 
 func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage) error {
+	w.managementLock.Lock()
+	defer w.managementLock.Unlock()
+
 	configuredWorkloadNameSet := make(map[string]struct{})
 	for _, workload := range configuration.Workloads {
 		log.Tracef("Deploying workload: %s", workload.Name)
@@ -149,6 +155,8 @@ func (w *WorkloadManager) toPodYaml(pod *v1.Pod) ([]byte, error) {
 }
 
 func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
+	w.managementLock.Lock()
+	defer w.managementLock.Unlock()
 	nameToWorkload, err := w.indexWorkloads()
 	if err != nil {
 		return err
