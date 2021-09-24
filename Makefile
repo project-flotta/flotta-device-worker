@@ -1,4 +1,11 @@
 LIBEXECDIR ?= /usr/libexec
+
+test-tools:
+	go get -t ./...
+
+test: test-tools
+	ginkgo ./internal/* ./cmd/*
+
 build:
 	mkdir -p ./bin
 	CGO_ENABLED=0 go build -tags containers_image_openpgp -o ./bin ./cmd/device-worker
