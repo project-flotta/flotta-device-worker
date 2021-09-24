@@ -1,4 +1,4 @@
-package volumes_test
+package mapping_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestVolumes(t *testing.T) {
+func TestMapping(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Volumes Spec")
+	RunSpecs(t, "Mapping Spec")
 }

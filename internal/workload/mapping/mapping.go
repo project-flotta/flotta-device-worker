@@ -87,6 +87,13 @@ func (m *MappingRepository) Persist() error {
 	return m.persist()
 }
 
+func (m *MappingRepository) Size() int {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	return len(m.nameToId)
+}
+
 func (m *MappingRepository) persist() error {
 	var mappings []mapping
 	for id, name := range m.idToName {
