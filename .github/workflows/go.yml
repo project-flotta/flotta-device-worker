@@ -19,7 +19,7 @@ jobs:
         go-version: 1.17
     - name: Install package
       run: |
-        sudo apt-get -y install btrfs-progs-dev gpgme-dev device-mapper-dev
+        sudo apt-get -y install btrfs-progs-devel gpgme-devel device-mapper-devel
 
     - name: Test
       run: make test
