@@ -19,7 +19,7 @@ jobs:
         go-version: 1.17
     - name: Install package
       run: |
-        sudo apt-get -y install libbtrfs-dev libgpgme-dev
+        sudo apt-get -y install libbtrfs-dev libgpgme-dev libdevmapper-dev
 
     - name: Test
       run: make test
