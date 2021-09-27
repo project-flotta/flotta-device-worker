@@ -1,7 +1,7 @@
 LIBEXECDIR ?= /usr/libexec
 
 test-tools:
-	go get -t ./...
+	go get github.com/onsi/ginkgo/ginkgo
 
 test: test-tools
 	ginkgo ./internal/* ./cmd/*
