@@ -1,0 +1,29 @@
+{
+    "extends": [
+        "config:base",
+        "schedule:weekends"
+    ],
+    "postUpdateOptions": [
+        "gomodTidy"
+    ],
+    "packageRules": [
+        {
+            "packagePatterns": [
+                "^golang.org/x/"
+            ],
+            "schedule": [
+                "on the first day of the month"
+            ]
+        },
+        {
+            "packagePatterns": [
+                "^github.com/aws/aws-sdk-go"
+            ],
+            "separateMinorPatch": true,
+            "patch": {
+                "automerge": true
+            }
+        }
+    ],
+    "timezone": "Asia/Tokyo"
+}

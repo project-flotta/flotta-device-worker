@@ -4,11 +4,15 @@ test-tools:
 	go get github.com/onsi/ginkgo/ginkgo
 
 test: test-tools
-	ginkgo ./internal/* ./cmd/*
+	ginkgo -mod=vendor ./internal/* ./cmd/*
+
+vendor:
+	go mod tidy
+	go mod vendor
 
 build:
 	mkdir -p ./bin
-	CGO_ENABLED=0 go build -tags containers_image_openpgp -o ./bin ./cmd/device-worker
+	CGO_ENABLED=0 go build -mod=vendor -tags containers_image_openpgp -o ./bin ./cmd/device-worker
 
 install: build
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
