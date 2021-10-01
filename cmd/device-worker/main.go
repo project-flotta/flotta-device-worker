@@ -93,7 +93,6 @@ func main() {
 
 	hw := hardware2.Hardware{}
 
-
 	dataMonitor := datatransfer.NewMonitor(wl, configManager)
 	wl.RegisterObserver(dataMonitor)
 	dataMonitor.Start()
@@ -102,17 +101,14 @@ func main() {
 	configManager.RegisterObserver(hbs)
 
 	deviceOs := os2.OS{}
-	reg := registration2.NewRegistration(&hw, &deviceOs, c)
+	reg := registration2.NewRegistration(&hw, &deviceOs, c, configManager)
 
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager))
-	if configManager.IsInitialConfig() {
-		err := reg.RegisterDevice()
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
+	if !configManager.IsInitialConfig() {
 		hbs.Start()
+	} else {
+		reg.RegisterDevice()
 	}
 
 	if err := s.Serve(l); err != nil {
