@@ -132,6 +132,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			if err := w.workloads.Remove(name); err != nil {
 				return err
 			}
+			log.Infof("Workload %s removed", name)
 		}
 	}
 	return nil
