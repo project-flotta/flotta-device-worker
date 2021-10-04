@@ -76,7 +76,7 @@ func (ww workloadWrapper) Remove(workloadName string) error {
 		return err
 	}
 	if err := ww.netfilter.DeleteChain(nfTableName, workloadName); err != nil {
-		log.Errorf("failed to delete chain %[1]s from %s table for workload %[1]s: %v", workloadName, nfTableName, err)
+		log.Errorf("failed to delete chain '%[1]s' from table '%[2]s' for workload '%[1]s': %[3]v", workloadName, nfTableName, err)
 	}
 	if err := ww.mappingRepository.Remove(workloadName); err != nil {
 		return err
@@ -140,7 +140,7 @@ func (ww workloadWrapper) PersistConfiguration() error {
 }
 
 func getHostPorts(workload *v1.Pod) ([]int32, error) {
-	hostPorts := []int32{}
+	var hostPorts []int32
 	for _, c := range workload.Spec.Containers {
 		for _, p := range c.Ports {
 			if p.HostPort > 0 && p.HostPort < 65536 {
