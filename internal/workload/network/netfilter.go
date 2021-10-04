@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -61,7 +62,19 @@ func (nft *Netfilter) AddChain(table, chain string) error {
 }
 
 func (nft *Netfilter) DeleteChain(table, chain string) error {
-	args := []string{"delete", "chain", family, table, chain}
+	// verify chain existence before attempting to delete it
+	args := []string{"list", "chain", family, table, chain}
+	if err := nft.run(args); err != nil {
+		v, ok := err.(*Error)
+		if ok {
+			if strings.Contains(v.msg, "No such file or directory") {
+				return nil
+			}
+		}
+		return err
+	}
+
+	args = []string{"delete", "chain", family, table, chain}
 	return nft.run(args)
 }
 
