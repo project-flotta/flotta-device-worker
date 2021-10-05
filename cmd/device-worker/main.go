@@ -68,7 +68,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if !r.GetRegistered() {
-		log.Fatalf("handler registration failed")
+		log.Fatal("handler registration failed")
 	}
 
 	// Listen on the provided socket address.
