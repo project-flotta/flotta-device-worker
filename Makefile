@@ -1,4 +1,10 @@
-LIBEXECDIR ?= /usr/libexec
+OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
+
+ifeq ($(OS),fedora)
+	LIBEXECDIR ?= /usr/local/libexec
+else
+	LIBEXECDIR ?= /usr/libexec
+endif
 
 test-tools:
 	go get github.com/onsi/ginkgo/ginkgo
