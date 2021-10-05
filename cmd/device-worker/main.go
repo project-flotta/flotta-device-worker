@@ -74,7 +74,7 @@ func main() {
 	// Listen on the provided socket address.
 	l, err := net.Listen("unix", r.GetAddress())
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Cannot start listening on %s err: %v", r.GetAddress(), err)
 	}
 
 	// Register as a Worker service with gRPC and start accepting connections.
@@ -87,7 +87,7 @@ func main() {
 
 	wl, err := workload2.NewWorkloadManager(dataDir)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Cannot start Workload Manager, err: ", err)
 	}
 	configManager.RegisterObserver(wl)
 
@@ -112,6 +112,6 @@ func main() {
 	}
 
 	if err := s.Serve(l); err != nil {
-		log.Fatal(err)
+		log.Fatal("Cannot start worker server, err:", err)
 	}
 }
