@@ -30,7 +30,7 @@ func (s *deviceServer) Send(ctx context.Context, d *pb.Data) (*pb.Receipt, error
 		}
 		err = s.configManager.Update(deviceConfigurationMessage)
 		if err != nil {
-			log.Warnf("Cannot unmarshal message: %v", err)
+			log.Warnf("Failed to process message: %v", err)
 		}
 	}()
 
