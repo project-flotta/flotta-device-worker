@@ -29,6 +29,7 @@ type WorkloadManager struct {
 	workloads      WorkloadWrapper
 	managementLock sync.Locker
 	ticker         *time.Ticker
+	deregistered   bool
 }
 
 type podAndPath struct {
@@ -60,6 +61,7 @@ func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*Workload
 		volumesDir:     volumesDir,
 		workloads:      ww,
 		managementLock: &sync.Mutex{},
+		deregistered:   false,
 	}
 	if err := manager.workloads.Init(); err != nil {
 		return nil, err
@@ -81,6 +83,10 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 	w.managementLock.Lock()
 	defer w.managementLock.Unlock()
 
+	if w.deregistered {
+		log.Info("Deregistration was finished, no need to update anymore")
+		return nil
+	}
 	configuredWorkloadNameSet := make(map[string]struct{})
 	for _, workload := range configuration.Workloads {
 		log.Tracef("Deploying workload: %s", workload.Name)
@@ -279,10 +285,25 @@ func (w *WorkloadManager) Deregister() error {
 		log.Errorf("failed to delete volumes directory: %v", err)
 	}
 
+	err = w.removeTicker()
+	if err != nil {
+		log.Errorf("failed to remove ticker: %v", err)
+	}
+
+	w.deregistered = true
+	return nil
+}
+
+func (w *WorkloadManager) removeTicker() error {
+	log.Info("Stopping ticker that ensure workloads from manifests are running")
+	if w.ticker != nil {
+		w.ticker.Stop()
+	}
 	return nil
 }
 
 func (w *WorkloadManager) removeAllWorkloads() error {
+	log.Info("Removing all workload")
 	workloads, err := w.workloads.List()
 	if err != nil {
 		return err
@@ -322,7 +343,7 @@ func (w *WorkloadManager) deleteVolumeDir() error {
 
 func (w *WorkloadManager) deleteTable() error {
 	log.Info("Deleting nftable")
-	err := w.workloads.removeTable()
+	err := w.workloads.RemoveTable()
 	if err != nil {
 		log.Error(err)
 		return err

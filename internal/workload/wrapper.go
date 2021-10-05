@@ -30,6 +30,8 @@ type WorkloadWrapper interface {
 	Run(*v1.Pod, string) error
 	Start(*v1.Pod) error
 	PersistConfiguration() error
+	RemoveTable() error
+
 }
 
 // Workload manages the workload and its configuration on the device
@@ -102,7 +104,7 @@ func (ww Workload) Remove(workloadName string) error {
 	return nil
 }
 
-func (ww Workload) removeTable() error {
+func (ww Workload) RemoveTable() error {
 	log.Infof("Deleting table %s", nfTableName)
 	if err := ww.netfilter.DeleteTable(nfTableName); err != nil {
 		log.Errorf("failed to delete table %s: %v", nfTableName, err)

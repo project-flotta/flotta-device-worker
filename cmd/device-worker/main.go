@@ -7,7 +7,6 @@ import (
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
 	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
 	heartbeat2 "github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
-	deregistration2 "github.com/jakub-dzon/k4e-device-worker/internal/deregistration"
 	os2 "github.com/jakub-dzon/k4e-device-worker/internal/os"
 	registration2 "github.com/jakub-dzon/k4e-device-worker/internal/registration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/server"
@@ -103,17 +102,11 @@ func main() {
 
 	configManager.RegisterObserver(hbs)
 
-	dr, err := deregistration2.NewDeregistration(wl, configManager, hbs)
-	if err != nil {
-		log.Fatal(err)
-	}
-	configManager.RegisterObserver(dr)
-
 	deviceOs := os2.OS{}
-	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager)
+	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor)
 
 	s := grpc.NewServer()
-	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, dr))
+	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg))
 	if !configManager.IsInitialConfig() {
 		hbs.Start()
 	} else {

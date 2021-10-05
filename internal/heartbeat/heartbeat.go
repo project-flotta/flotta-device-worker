@@ -153,10 +153,11 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 			}
 		}
 	}()
+	log.Info("The heartbeat was started")
 }
 
 func (s *Heartbeat) Deregister() error {
-	log.Info("Stopping ticker")
+	log.Info("Stopping heartbeat ticker")
 	if s.ticker != nil {
 		s.ticker.Stop()
 	}
