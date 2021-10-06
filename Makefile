@@ -13,10 +13,16 @@ endif
 export GOFLAGS=-mod=vendor -tags=containers_image_openpgp
 
 test-tools:
+ifeq (, $(shell which ginkgo))
 	go get github.com/onsi/ginkgo/ginkgo
+endif
+
 
 test: test-tools
-	ginkgo ./internal/* ./cmd/*
+	ginkgo -r ./internal/* ./cmd/*
+
+generate:
+	$(Q) go generate ./...
 
 vendor:
 	go mod tidy
