@@ -1,3 +1,7 @@
+VERSION = 1.0
+RELEASE = 1
+DIST_DIR = $(shell pwd)/dist
+
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
 
 ifeq ($(OS),fedora)
@@ -36,10 +40,12 @@ clean:
 	go mod tidy
 	rm -rf bin
 
-rpm: VERSION = 1.0
-rpm: RELEASE = 1
-rpm: RPM_BUILDROOT = $(shell rpmbuild -D "NAME k4e-agent" -D "VERSION $(VERSION)" -D "RELEASE $(RELEASE)" -E %buildroot)
 rpm:
-	install -D -m 755 ./bin/device-worker $(RPM_BUILDROOT)/$(LIBEXECDIR)/yggdrasil/device-worker
-	rpmbuild -bb -D "VERSION $(VERSION)" -D "RELEASE $(RELEASE)" -D "_libexecdir $(LIBEXECDIR)" ./k4e-agent.spec
-	rm -rf $(RPM_BUILDROOT)
+	install -D -m 755 ./bin/device-worker dist/$(LIBEXECDIR)/yggdrasil/device-worker
+	rpmbuild -bb -D "VERSION $(VERSION)" -D "RELEASE $(RELEASE)" -D "_libexecdir $(LIBEXECDIR)" --buildroot $(DIST_DIR) ./k4e-agent.spec
+
+rpm-arm64:
+	install -D -m 755 ./bin/device-worker-aarch64 dist/$(LIBEXECDIR)/yggdrasil/device-worker
+	rpmbuild -bb -D "VERSION $(VERSION)" -D "RELEASE $(RELEASE)" -D "_libexecdir $(LIBEXECDIR)" --target aarch64 --buildroot $(DIST_DIR) ./k4e-agent.spec
+
+dist: build build-arm64 rpm rpm-arm64
