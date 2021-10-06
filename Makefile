@@ -6,11 +6,13 @@ else
 	LIBEXECDIR ?= /usr/libexec
 endif
 
+export GOFLAGS=-mod=vendor -tags=containers_image_openpgp
+
 test-tools:
 	go get github.com/onsi/ginkgo/ginkgo
 
 test: test-tools
-	ginkgo -mod=vendor ./internal/* ./cmd/*
+	ginkgo ./internal/* ./cmd/*
 
 vendor:
 	go mod tidy
@@ -18,10 +20,17 @@ vendor:
 
 build:
 	mkdir -p ./bin
-	CGO_ENABLED=0 go build -mod=vendor -tags containers_image_openpgp -o ./bin ./cmd/device-worker
+	CGO_ENABLED=0 go build -o ./bin ./cmd/device-worker
+
+build-arm64:
+	mkdir -p ./bin
+	GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/device-worker-aarch64 ./cmd/device-worker
 
 install: build
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
+
+install-arm64: build-arm64
+	sudo install -D -m 755 ./bin/device-worker-aarch64 $(LIBEXECDIR)/yggdrasil/device-worker
 
 clean:
 	go mod tidy
