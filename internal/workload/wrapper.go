@@ -11,6 +11,8 @@ import (
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/network"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
 	v1 "k8s.io/api/core/v1"
+
+	_ "github.com/golang/mock/mockgen/model"
 )
 
 const nfTableName string = "edge"
@@ -19,7 +21,8 @@ type Observer interface {
 	WorkloadRemoved(workloadName string)
 }
 
-type workloadWrapper interface {
+//go:generate mockgen -package=workload -destination=mock_wrapper.go . WorkloadWrapper
+type WorkloadWrapper interface {
 	Init() error
 	RegisterObserver(Observer)
 	List() ([]api.WorkloadInfo, error)
