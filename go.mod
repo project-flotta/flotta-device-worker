@@ -14,7 +14,7 @@ require (
 	github.com/cri-o/ocicni v0.2.1-0.20210621164014-d0acc7862283 // indirect
 	github.com/go-openapi/strfmt v0.20.0
 	github.com/google/uuid v1.2.0
-	github.com/jakub-dzon/k4e-operator v0.0.0-20210906145819-9b8dd51cb679
+	github.com/jakub-dzon/k4e-operator v0.0.0-20211007063427-678c7225ae78
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20210609144611-8a8c4c4c4969
