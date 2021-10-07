@@ -134,8 +134,8 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		}
 	}
 	// Reset the interval of the current monitoring routine
-	if configuration.WorkloadsMonitoringInterval != nil {
-		w.ticker.Reset(time.Duration(*configuration.WorkloadsMonitoringInterval))
+	if configuration.WorkloadsMonitoringInterval > 0 {
+		w.ticker.Reset(time.Duration(configuration.WorkloadsMonitoringInterval))
 	}
 	return nil
 }
