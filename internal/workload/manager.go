@@ -3,13 +3,14 @@ package workload
 import (
 	"bytes"
 	"fmt"
-	"github.com/jakub-dzon/k4e-device-worker/internal/volumes"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jakub-dzon/k4e-device-worker/internal/volumes"
 
 	"git.sr.ht/~spc/go-log"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
@@ -18,11 +19,16 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	defaultWorkloadsMonitoringInterval = 15
+)
+
 type WorkloadManager struct {
-	manifestsDir string
-	volumesDir   string
-	workloads    *workloadWrapper
+	manifestsDir   string
+	volumesDir     string
+	workloads      *workloadWrapper
 	managementLock sync.Locker
+	ticker         *time.Ticker
 }
 
 type podAndPath struct {
@@ -44,24 +50,16 @@ func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
 		return nil, err
 	}
 	manager := WorkloadManager{
-		manifestsDir: manifestsDir,
-		volumesDir:   volumesDir,
-		workloads:    wrapper,
+		manifestsDir:   manifestsDir,
+		volumesDir:     volumesDir,
+		workloads:      wrapper,
 		managementLock: &sync.Mutex{},
 	}
 	if err := manager.workloads.Init(); err != nil {
 		return nil, err
 	}
-	go func() {
-		for {
-			err := manager.ensureWorkloadsFromManifestsAreRunning()
-			if err != nil {
-				log.Error(err)
-			}
-			time.Sleep(time.Second * 15)
-		}
-	}()
 
+	manager.initTicker(defaultWorkloadsMonitoringInterval)
 	return &manager, nil
 }
 
@@ -135,7 +133,24 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			log.Infof("Workload %s removed", name)
 		}
 	}
+	// Reset the interval of the current monitoring routine
+	if configuration.WorkloadsMonitoringInterval != nil {
+		w.ticker.Reset(time.Duration(*configuration.WorkloadsMonitoringInterval))
+	}
 	return nil
+}
+
+func (w *WorkloadManager) initTicker(periodSeconds int64) {
+	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
+	w.ticker = ticker
+	go func() {
+		for range ticker.C {
+			err := w.ensureWorkloadsFromManifestsAreRunning()
+			if err != nil {
+				log.Error(err)
+			}
+		}
+	}()
 }
 
 func (w *WorkloadManager) storeManifest(filePath string, podYaml []byte) error {
