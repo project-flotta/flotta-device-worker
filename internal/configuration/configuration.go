@@ -2,14 +2,17 @@ package configuration
 
 import (
 	"encoding/json"
-	"git.sr.ht/~spc/go-log"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
 	"sync/atomic"
 	"time"
+
+	"git.sr.ht/~spc/go-log"
+	"github.com/hashicorp/go-multierror"
+	"github.com/jakub-dzon/k4e-operator/models"
 )
 
 var (
@@ -80,33 +83,39 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
 	log.Tracef("Initial config: [%v]; workloads equal: [%v]; configurationEqual: [%v]", m.IsInitialConfig(), workloadsEqual, configurationEqual)
+	var errors error
+
 	if m.IsInitialConfig() || !(configurationEqual && workloadsEqual) {
 		log.Tracef("Updating configuration: %v", message)
 		for _, observer := range m.observers {
 			err := observer.Update(message)
 			if err != nil {
-				return err
+				errors = multierror.Append(errors, fmt.Errorf("cannot update observer: %s", err))
+				return errors
 			}
 		}
 
 		// TODO: handle all the failure scenarios correctly; i.e. compensate all the changes that has already been introduces.
 		file, err := json.MarshalIndent(message, "", " ")
 		if err != nil {
-			return err
+			errors = multierror.Append(errors, fmt.Errorf("cannot unmarshal JSON: %s", err))
+			return errors
 		}
 		log.Tracef("Writing config to %s: %v", m.deviceConfigFile, file)
 		err = ioutil.WriteFile(m.deviceConfigFile, file, 0640)
 		if err != nil {
 			log.Error(err)
-			return err
+			errors = multierror.Append(errors, fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
+			return errors
 		}
 		m.deviceConfiguration = &message
 		m.initialConfig.Store(false)
 	} else {
 		log.Trace("Configuration didn't change")
+		return nil
 	}
 
-	return nil
+	return errors
 }
 
 func (m *Manager) GetDataTransferInterval() time.Duration {

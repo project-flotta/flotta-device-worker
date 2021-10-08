@@ -104,7 +104,7 @@ var _ = Describe("Heartbeat", func() {
 			err := hb.Update(cfg)
 
 			// then
-			Expect(err).NotTo(HaveOccurred(), "Cannot update ticker")
+			Expect(err).NotTo(HaveOccurred())
 			Expect(hb.HasStarted()).To(BeTrue())
 		})
 
@@ -124,7 +124,7 @@ var _ = Describe("Heartbeat", func() {
 			err := hb.Update(cfg)
 
 			// then
-			Expect(err).NotTo(HaveOccurred(), "Cannot update ticker")
+			Expect(err).NotTo(HaveOccurred())
 			Expect(hb.HasStarted()).To(BeTrue())
 		})
 
