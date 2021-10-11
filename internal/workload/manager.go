@@ -26,7 +26,7 @@ const (
 type WorkloadManager struct {
 	manifestsDir   string
 	volumesDir     string
-	workloads      *workloadWrapper
+	workloads      WorkloadWrapper
 	managementLock sync.Locker
 	ticker         *time.Ticker
 }
@@ -37,6 +37,15 @@ type podAndPath struct {
 }
 
 func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
+	wrapper, err := newWorkloadInstance(dataDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewWorkloadManagerWithParams(dataDir, wrapper)
+}
+
+func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*WorkloadManager, error) {
 	manifestsDir := path.Join(dataDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
@@ -45,14 +54,11 @@ func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
 	if err := os.MkdirAll(volumesDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	wrapper, err := newWorkloadWrapper(dataDir)
-	if err != nil {
-		return nil, err
-	}
+
 	manager := WorkloadManager{
 		manifestsDir:   manifestsDir,
 		volumesDir:     volumesDir,
-		workloads:      wrapper,
+		workloads:      ww,
 		managementLock: &sync.Mutex{},
 	}
 	if err := manager.workloads.Init(); err != nil {

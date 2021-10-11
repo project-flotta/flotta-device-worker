@@ -2,6 +2,8 @@ package workload
 
 import (
 	"fmt"
+
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
 
 	"git.sr.ht/~spc/go-log"
@@ -9,6 +11,8 @@ import (
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/network"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
 	v1 "k8s.io/api/core/v1"
+
+	_ "github.com/golang/mock/mockgen/model"
 )
 
 const nfTableName string = "edge"
@@ -17,15 +21,26 @@ type Observer interface {
 	WorkloadRemoved(workloadName string)
 }
 
-// workloadWrapper manages the workload and its configuration on the device
-type workloadWrapper struct {
+//go:generate mockgen -package=workload -destination=mock_wrapper.go . WorkloadWrapper
+type WorkloadWrapper interface {
+	Init() error
+	RegisterObserver(Observer)
+	List() ([]api.WorkloadInfo, error)
+	Remove(string) error
+	Run(*v1.Pod, string) error
+	Start(*v1.Pod) error
+	PersistConfiguration() error
+}
+
+// Workload manages the workload and its configuration on the device
+type Workload struct {
 	workloads         *podman.Podman
 	netfilter         *network.Netfilter
 	mappingRepository *mapping.MappingRepository
 	observers         []Observer
 }
 
-func newWorkloadWrapper(configDir string) (*workloadWrapper, error) {
+func newWorkloadInstance(configDir string) (*Workload, error) {
 	newPodman, err := podman.NewPodman()
 	if err != nil {
 		return nil, err
@@ -38,22 +53,22 @@ func newWorkloadWrapper(configDir string) (*workloadWrapper, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &workloadWrapper{
+	return &Workload{
 		workloads:         newPodman,
 		netfilter:         netfilter,
 		mappingRepository: mappingRepository,
 	}, nil
 }
 
-func (ww *workloadWrapper) RegisterObserver(observer Observer) {
+func (ww *Workload) RegisterObserver(observer Observer) {
 	ww.observers = append(ww.observers, observer)
 }
 
-func (ww workloadWrapper) Init() error {
+func (ww Workload) Init() error {
 	return ww.netfilter.AddTable(nfTableName)
 }
 
-func (ww workloadWrapper) List() ([]api2.WorkloadInfo, error) {
+func (ww Workload) List() ([]api2.WorkloadInfo, error) {
 	infos, err := ww.workloads.List()
 	if err != nil {
 		return nil, err
@@ -67,7 +82,7 @@ func (ww workloadWrapper) List() ([]api2.WorkloadInfo, error) {
 	return infos, err
 }
 
-func (ww workloadWrapper) Remove(workloadName string) error {
+func (ww Workload) Remove(workloadName string) error {
 	id := ww.mappingRepository.GetId(workloadName)
 	if id == "" {
 		id = workloadName
@@ -87,7 +102,7 @@ func (ww workloadWrapper) Remove(workloadName string) error {
 	return nil
 }
 
-func (ww workloadWrapper) Run(workload *v1.Pod, manifestPath string) error {
+func (ww Workload) Run(workload *v1.Pod, manifestPath string) error {
 	if err := ww.applyNetworkConfiguration(workload); err != nil {
 		return err
 	}
@@ -98,7 +113,7 @@ func (ww workloadWrapper) Run(workload *v1.Pod, manifestPath string) error {
 	return ww.mappingRepository.Add(workload.Name, podIds[0])
 }
 
-func (ww workloadWrapper) applyNetworkConfiguration(workload *v1.Pod) error {
+func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {
 	hostPorts, err := getHostPorts(workload)
 	if err != nil {
 		log.Error(err)
@@ -122,7 +137,7 @@ func (ww workloadWrapper) applyNetworkConfiguration(workload *v1.Pod) error {
 	return nil
 }
 
-func (ww workloadWrapper) Start(workload *v1.Pod) error {
+func (ww Workload) Start(workload *v1.Pod) error {
 	ww.netfilter.DeleteChain(nfTableName, workload.Name)
 	if err := ww.applyNetworkConfiguration(workload); err != nil {
 		return err
@@ -135,7 +150,7 @@ func (ww workloadWrapper) Start(workload *v1.Pod) error {
 	return nil
 }
 
-func (ww workloadWrapper) PersistConfiguration() error {
+func (ww Workload) PersistConfiguration() error {
 	return ww.mappingRepository.Persist()
 }
 
