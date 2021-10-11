@@ -14,7 +14,7 @@ export GOFLAGS=-mod=vendor -tags=containers_image_openpgp
 
 test-tools:
 ifeq (, $(shell which ginkgo))
-	go get github.com/onsi/ginkgo/ginkgo
+	GO111MODULE=off go get github.com/onsi/ginkgo/ginkgo
 endif
 
 
