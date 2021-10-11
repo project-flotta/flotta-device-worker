@@ -1,6 +1,6 @@
 module github.com/jakub-dzon/k4e-device-worker
 
-go 1.14
+go 1.16
 
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
