@@ -17,3 +17,7 @@
 .idea
 *.iml
 bin
+
+# Coverage
+gover.coverprofile
+*.coverprofile
