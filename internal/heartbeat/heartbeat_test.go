@@ -2,6 +2,7 @@ package heartbeat_test
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/mock/gomock"
 	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
@@ -9,6 +10,7 @@ import (
 	"github.com/jakub-dzon/k4e-device-worker/internal/hardware"
 	"github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-operator/models"
 	"google.golang.org/grpc"
 
@@ -25,6 +27,7 @@ var _ = Describe("Heartbeat", func() {
 		mockCtrl      *gomock.Controller
 		wkManager     *workload.WorkloadManager
 		configManager *configuration.Manager
+		wkwMock       *workload.MockWorkloadWrapper
 		hw            = &hardware.Hardware{}
 		monitor       = &datatransfer.Monitor{}
 		hb            = &heartbeat.Heartbeat{}
@@ -34,10 +37,9 @@ var _ = Describe("Heartbeat", func() {
 
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
-		wkwMock := workload.NewMockWorkloadWrapper(mockCtrl)
+		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
-		wkwMock.EXPECT().List().AnyTimes()
 		wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 
 		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
@@ -57,8 +59,9 @@ var _ = Describe("Heartbeat", func() {
 	})
 
 	Context("HeartBeatData test", func() {
-		It("report empty workloads an up status", func() {
+		It("Report empty workloads an up status", func() {
 			//given
+			wkwMock.EXPECT().List().Times(1)
 			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor)
 
 			//when
@@ -69,8 +72,41 @@ var _ = Describe("Heartbeat", func() {
 			Expect(heartbeatInfo.Workloads).To(BeEmpty())
 		})
 
-		// @TODO added worloads to the workloadManager, so workloads data can be
-		// checked
+		It("Report workload correctly", func() {
+			//given
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor)
+
+			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{{
+				Id:     "test",
+				Name:   "test",
+				Status: "Running",
+			}}, nil).AnyTimes()
+
+			//when
+			heartbeatInfo := hbData.RetrieveInfo()
+
+			//then
+			Expect(heartbeatInfo.Status).To(Equal("up"))
+
+			// Workload checks
+			Expect(heartbeatInfo.Workloads).To(HaveLen(1))
+			Expect(heartbeatInfo.Workloads[0].Name).To(Equal("test"))
+			Expect(heartbeatInfo.Workloads[0].Status).To(Equal("Running"))
+		})
+
+		It("Cannot retrieve the list of workloads", func() {
+			//given
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor)
+
+			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{}, fmt.Errorf("Invalid list")).AnyTimes()
+
+			//when
+			heartbeatInfo := hbData.RetrieveInfo()
+
+			//then
+			Expect(heartbeatInfo.Status).To(Equal("up"))
+			Expect(heartbeatInfo.Workloads).To(HaveLen(0))
+		})
 	})
 
 	Context("Start", func() {
@@ -87,6 +123,10 @@ var _ = Describe("Heartbeat", func() {
 	})
 
 	Context("Update", func() {
+
+		BeforeEach(func() {
+			wkwMock.EXPECT().List().AnyTimes()
+		})
 
 		It("Ticker is created", func() {
 
