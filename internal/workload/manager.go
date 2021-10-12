@@ -290,6 +290,11 @@ func (w *WorkloadManager) Deregister() error {
 		log.Errorf("failed to remove ticker: %v", err)
 	}
 
+	err = w.removeMappingFile()
+	if err != nil {
+		log.Errorf("failed to remove mapping file: %v", err)
+	}
+
 	w.deregistered = true
 	return nil
 }
@@ -344,6 +349,17 @@ func (w *WorkloadManager) deleteVolumeDir() error {
 func (w *WorkloadManager) deleteTable() error {
 	log.Info("Deleting nftable")
 	err := w.workloads.RemoveTable()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkloadManager) removeMappingFile() error {
+	log.Info("Deleting mapping file")
+	err := w.workloads.RemoveMappingFile()
 	if err != nil {
 		log.Error(err)
 		return err

@@ -2,7 +2,9 @@ package mapping
 
 import (
 	"encoding/json"
+	"git.sr.ht/~spc/go-log"
 	"io/ioutil"
+	"os"
 	"path"
 	"sync"
 )
@@ -65,6 +67,20 @@ func (m *MappingRepository) Remove(name string) error {
 	delete(m.nameToId, name)
 
 	return m.persist()
+}
+
+func (m *MappingRepository) RemoveMappingFile() error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	log.Infof("Deleting %s file", m.mappingFilePath)
+	err := os.Remove(m.mappingFilePath)
+	if err != nil {
+		log.Errorf("failed to delete %s: %v",m.mappingFilePath, err)
+		return err
+	}
+
+	return nil
 }
 
 func (m *MappingRepository) GetId(name string) string {

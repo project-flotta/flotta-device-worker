@@ -92,6 +92,20 @@ func (mr *MockWorkloadWrapperMockRecorder) RemoveTable() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveTable", reflect.TypeOf((*MockWorkloadWrapper)(nil).RemoveTable))
 }
 
+// RemoveTable mocks base method.
+func (m *MockWorkloadWrapper) RemoveMappingFile() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveMappingFile")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveTable indicates an expected call of RemoveTable.
+func (mr *MockWorkloadWrapperMockRecorder) RemoveMappingFile() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveMappingFile", reflect.TypeOf((*MockWorkloadWrapper)(nil).RemoveMappingFile))
+}
+
 // RegisterObserver mocks base method.
 func (m *MockWorkloadWrapper) RegisterObserver(arg0 Observer) {
 	m.ctrl.T.Helper()
