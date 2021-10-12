@@ -29,6 +29,7 @@ type WorkloadManager struct {
 	workloads      WorkloadWrapper
 	managementLock sync.Locker
 	ticker         *time.Ticker
+	deregistered   bool
 }
 
 type podAndPath struct {
@@ -60,6 +61,7 @@ func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*Workload
 		volumesDir:     volumesDir,
 		workloads:      ww,
 		managementLock: &sync.Mutex{},
+		deregistered:   false,
 	}
 	if err := manager.workloads.Init(); err != nil {
 		return nil, err
@@ -81,6 +83,10 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 	w.managementLock.Lock()
 	defer w.managementLock.Unlock()
 
+	if w.deregistered {
+		log.Info("Deregistration was finished, no need to update anymore")
+		return nil
+	}
 	configuredWorkloadNameSet := make(map[string]struct{})
 	for _, workload := range configuration.Workloads {
 		log.Tracef("Deploying workload: %s", workload.Name)
@@ -253,6 +259,97 @@ func (w *WorkloadManager) indexWorkloads() (map[string]api2.WorkloadInfo, error)
 
 func (w *WorkloadManager) RegisterObserver(observer Observer) {
 	w.workloads.RegisterObserver(observer)
+}
+
+func (w *WorkloadManager) Deregister() error {
+	w.managementLock.Lock()
+	defer w.managementLock.Unlock()
+
+	err := w.removeAllWorkloads()
+	if err != nil {
+		log.Errorf("failed to remove workloads: %v", err)
+	}
+
+	err = w.deleteManifestsDir()
+	if err != nil {
+		log.Errorf("failed to delete manifests directory: %v", err)
+	}
+
+	err = w.deleteTable()
+	if err != nil {
+		log.Errorf("failed to delete table: %v", err)
+	}
+
+	err = w.deleteVolumeDir()
+	if err != nil {
+		log.Errorf("failed to delete volumes directory: %v", err)
+	}
+
+	err = w.removeTicker()
+	if err != nil {
+		log.Errorf("failed to remove ticker: %v", err)
+	}
+
+	w.deregistered = true
+	return nil
+}
+
+func (w *WorkloadManager) removeTicker() error {
+	log.Info("Stopping ticker that ensure workloads from manifests are running")
+	if w.ticker != nil {
+		w.ticker.Stop()
+	}
+	return nil
+}
+
+func (w *WorkloadManager) removeAllWorkloads() error {
+	log.Info("Removing all workload")
+	workloads, err := w.workloads.List()
+	if err != nil {
+		return err
+	}
+	for _, workload := range workloads {
+		log.Infof("Removing workload %s", workload.Name)
+		err := w.workloads.Remove(workload.Name)
+		if err != nil {
+			log.Errorf("Error removing workload %[1]s: %v", workload.Name, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *WorkloadManager) deleteManifestsDir() error {
+	log.Info("Deleting manifests directory")
+	err := os.RemoveAll(w.manifestsDir)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkloadManager) deleteVolumeDir() error {
+	log.Info("Deleting volumes directory")
+	err := os.RemoveAll(w.volumesDir)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkloadManager) deleteTable() error {
+	log.Info("Deleting nftable")
+	err := w.workloads.RemoveTable()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
 }
 
 func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {

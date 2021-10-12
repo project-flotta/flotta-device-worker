@@ -36,7 +36,16 @@ func (m *Monitor) Start() {
 		for range m.ticker.C {
 			m.syncPaths()
 		}
+		log.Info("The monitor was stopped")
 	}()
+}
+
+func (m *Monitor) Deregister() error {
+	log.Info("Stopping monitor ticker")
+	if m.ticker != nil {
+		m.ticker.Stop()
+	}
+	return nil
 }
 
 func (m *Monitor) GetLastSuccessfulSyncTime(workloadName string) *time.Time {
@@ -49,10 +58,61 @@ func (m *Monitor) GetLastSuccessfulSyncTime(workloadName string) *time.Time {
 }
 
 func (m *Monitor) WorkloadRemoved(workloadName string) {
+	m.syncPathsWorkload(workloadName)
+
 	m.lastSuccessfulSyncTimesLock.Lock()
 	defer m.lastSuccessfulSyncTimesLock.Unlock()
 	delete(m.lastSuccessfulSyncTimes, workloadName)
 }
+
+func (m *Monitor) syncPathsWorkload(workloadName string) {
+	storage := m.config.GetDeviceConfiguration().Storage
+	if storage == nil || storage.S3 == nil {
+		return
+	}
+
+	dataPaths := m.getPathsOfWorkload(workloadName)
+	if len(dataPaths) == 0 {
+		return
+	}
+
+	s3sync, err := s3.NewSync(*storage.S3)
+	if err != nil {
+		log.Errorf("Error while creating s3 synchronizer: %v", err)
+		return
+	}
+
+	hostPath := m.workloads.GetExportedHostPath(workloadName)
+	success := true
+	for _, dp := range dataPaths {
+		source := path.Join(hostPath, dp.Source)
+		target := dp.Target
+		log.Debugf("Synchronizing [device]%s => [remote]%s", source, target)
+
+		if err := s3sync.SyncPath(source, target); err != nil {
+			log.Errorf("Error while synchronizing [device]%s => [remote]%s: %v", source, target, err)
+			success = false
+		}
+	}
+	if success {
+		m.storeLastUpdateTime(workloadName)
+	}
+}
+
+func (m *Monitor) getPathsOfWorkload(workloadName string) []*models.DataPath {
+	dataPaths := []*models.DataPath{}
+	for _, wd := range m.config.GetWorkloads() {
+		if wd.Name == workloadName {
+			if wd.Data != nil && len(wd.Data.Paths) > 0 {
+				dataPaths = wd.Data.Paths
+			}
+			break
+		}
+	}
+	return dataPaths
+}
+
+
 func (m *Monitor) syncPaths() {
 	workloads, err := m.workloads.ListWorkloads()
 	if err != nil {

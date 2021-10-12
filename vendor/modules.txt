@@ -641,7 +641,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a
+# github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a => github.com/bardielle/yggdrasil v0.0.0-20211003122930-1782a292da22
 ## explicit
 github.com/redhatinsights/yggdrasil/protocol
 # github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
@@ -916,3 +916,4 @@ sigs.k8s.io/yaml
 # k8s.io/client-go => k8s.io/client-go v0.21.0
 # sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820
 # sigs.k8s.io/cluster-api-provider-azure => github.com/openshift/cluster-api-provider-azure v0.1.0-alpha.3.0.20201016155852-4090a6970205
+# github.com/redhatinsights/yggdrasil => github.com/bardielle/yggdrasil v0.0.0-20211003122930-1782a292da22

@@ -10,6 +10,9 @@ import (
 	os2 "github.com/jakub-dzon/k4e-device-worker/internal/os"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
+	"github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
+	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
 	"time"
 )
 
@@ -23,15 +26,21 @@ type Registration struct {
 	dispatcherClient pb.DispatcherClient
 	config           *configuration.Manager
 	RetryAfter       int64
+	heartbeat        *heartbeat.Heartbeat
+	workloads        *workload.WorkloadManager
+	monitor          *datatransfer.Monitor
 }
 
-func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient pb.DispatcherClient, config *configuration.Manager) *Registration {
+func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient pb.DispatcherClient, config *configuration.Manager, heartbeatManager *heartbeat.Heartbeat, workloadsManager *workload.WorkloadManager, monitorManager *datatransfer.Monitor) *Registration {
 	return &Registration{
 		hardware:         hardware,
 		os:               os,
 		dispatcherClient: dispatcherClient,
 		config:           config,
 		RetryAfter:       retryAfter,
+		heartbeat:        heartbeatManager,
+		workloads:        workloadsManager,
+		monitor:          monitorManager,
 	}
 }
 
@@ -84,6 +93,29 @@ func (r *Registration) registerDeviceOnce() error {
 	// Call "Send"
 	if _, err := r.dispatcherClient.Send(ctx, data); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (r *Registration) Deregister() error {
+	err := r.workloads.Deregister()
+	if err != nil {
+		log.Errorf("failed to deregister workloads: %v", err)
+	}
+
+	err = r.config.Deregister()
+	if err != nil {
+		log.Errorf("failed to deregister configuration: %v", err)
+	}
+
+	err = r.heartbeat.Deregister()
+	if err != nil {
+		log.Errorf("failed to deregister heartbeat: %v", err)
+	}
+
+	err = r.monitor.Deregister()
+	if err != nil {
+		log.Errorf("failed to deregister monitor: %v", err)
 	}
 	return nil
 }

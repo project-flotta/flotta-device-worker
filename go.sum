@@ -157,6 +157,8 @@ github.com/aws/aws-sdk-go v1.34.28/go.mod h1:H7NKnBqNVzoTJpGfLrQkkD+ytBA93eiDYi/
 github.com/aws/aws-sdk-go v1.35.28 h1:S2LuRnfC8X05zgZLC8gy/Sb82TGv2Cpytzbzz7tkeHc=
 github.com/aws/aws-sdk-go v1.35.28/go.mod h1:tlPOdRjfxPBpNIwqDj61rmsnA85v9jc0Ps9+muhnW+k=
 github.com/aws/aws-sdk-go-v2 v0.18.0/go.mod h1:JWVYvqSMppoMJC0x5wdwiImzgXTI9FuZwxzkQq9wy+g=
+github.com/bardielle/yggdrasil v0.0.0-20211003122930-1782a292da22 h1:fQVZji3fGCRiXN6+YwQ36BYJPCSJOLy5i1UTmvsFyN8=
+github.com/bardielle/yggdrasil v0.0.0-20211003122930-1782a292da22/go.mod h1:tH7J+FiCyzrZvjI4Hn/hRf5s1m5xFxUXqKQwY1tA9lA=
 github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
@@ -1308,8 +1310,6 @@ github.com/quasilyte/go-consistent v0.0.0-20190521200055-c6f3937de18c/go.mod h1:
 github.com/quasilyte/go-ruleguard v0.2.0/go.mod h1:2RT/tf0Ce0UDj5y243iWKosQogJd8+1G3Rs2fxmlYnw=
 github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95/go.mod h1:rlzQ04UMyJXu/aOvhd8qT+hvDrFpiwqp8MRXDY9szc0=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
-github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a h1:cfYZh0CEdbi7FAX+fCTLo3Qq/i9FsRtt6Hb1usHacq4=
-github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a/go.mod h1:tH7J+FiCyzrZvjI4Hn/hRf5s1m5xFxUXqKQwY1tA9lA=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
 github.com/rjeczalik/notify v0.9.2/go.mod h1:aErll2f0sUX9PXZnVNyeiObbmTlk5jnMoCa4QEjJeqM=
 github.com/robfig/cron v1.2.0/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=

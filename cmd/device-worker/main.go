@@ -11,6 +11,7 @@ import (
 	registration2 "github.com/jakub-dzon/k4e-device-worker/internal/registration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/server"
 	workload2 "github.com/jakub-dzon/k4e-device-worker/internal/workload"
+
 	"net"
 	"os"
 	"path"
@@ -58,12 +59,12 @@ func main() {
 	defer conn.Close()
 
 	// Create a dispatcher client
-	c := pb.NewDispatcherClient(conn)
+	dispatcherClient := pb.NewDispatcherClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	// Register as a handler of the "device" type.
-	r, err := c.Register(ctx, &pb.RegistrationRequest{Handler: "device", Pid: int64(os.Getpid())})
+	r, err := dispatcherClient.Register(ctx, &pb.RegistrationRequest{Handler: "device", Pid: int64(os.Getpid())})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,14 +98,15 @@ func main() {
 	wl.RegisterObserver(dataMonitor)
 	dataMonitor.Start()
 
-	hbs := heartbeat2.NewHeartbeatService(c, configManager, wl, &hw, dataMonitor)
+	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor)
+
 	configManager.RegisterObserver(hbs)
 
 	deviceOs := os2.OS{}
-	reg := registration2.NewRegistration(&hw, &deviceOs, c, configManager)
+	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor)
 
 	s := grpc.NewServer()
-	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager))
+	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg))
 	if !configManager.IsInitialConfig() {
 		hbs.Start()
 	} else {
