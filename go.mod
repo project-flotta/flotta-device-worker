@@ -35,4 +35,4 @@ replace (
 
 )
 
-replace github.com/redhatinsights/yggdrasil => github.com/bardielle/yggdrasil v0.0.0-20211003122930-1782a292da22
+replace github.com/redhatinsights/yggdrasil => github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e
