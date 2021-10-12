@@ -16,10 +16,21 @@ test-tools:
 ifeq (, $(shell which ginkgo))
 	GO111MODULE=off go get github.com/onsi/ginkgo/ginkgo
 endif
-
+ifeq (, $(shell which gover))
+	GO111MODULE=off go get github.com/sozorogami/gover
+endif
 
 test: test-tools
-	ginkgo -r ./internal/* ./cmd/*
+	ginkgo -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
+
+test-coverage:
+test-coverage: GINKGO_OPTIONS ?= --cover
+test-coverage: test
+	gover
+	go tool cover -html gover.coverprofile
+
+test-coverage-clean:
+	git ls-files --others --ignored --exclude-standard | grep "coverprofile$$" | xargs rm
 
 generate:
 	$(Q) go generate ./...
