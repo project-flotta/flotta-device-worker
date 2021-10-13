@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"git.sr.ht/~spc/go-log"
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/jakub-dzon/k4e-operator/models"
 )
@@ -28,6 +29,7 @@ var (
 	}
 )
 
+//go:generate mockgen -package=configuration -destination=configuration_mock.go . Observer
 type Observer interface {
 	Update(configuration models.DeviceConfigurationMessage) error
 }
@@ -80,40 +82,47 @@ func (m *Manager) GetWorkloads() models.WorkloadList {
 }
 
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
+
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
-	log.Tracef("Initial config: [%v]; workloads equal: [%v]; configurationEqual: [%v]", m.IsInitialConfig(), workloadsEqual, configurationEqual)
-	var errors error
+	log.Tracef("Workloads equal: [%v]; configurationEqual: [%v]", workloadsEqual, configurationEqual)
 
-	if m.IsInitialConfig() || !(configurationEqual && workloadsEqual) {
-		log.Tracef("Updating configuration: %v", message)
-		for _, observer := range m.observers {
-			err := observer.Update(message)
-			if err != nil {
-				errors = multierror.Append(errors, fmt.Errorf("cannot update observer: %s", err))
-				return errors
-			}
-		}
+	shouldUpdate := !(configurationEqual && workloadsEqual)
 
-		// TODO: handle all the failure scenarios correctly; i.e. compensate all the changes that has already been introduces.
-		file, err := json.MarshalIndent(message, "", " ")
-		if err != nil {
-			errors = multierror.Append(errors, fmt.Errorf("cannot unmarshal JSON: %s", err))
-			return errors
-		}
-		log.Tracef("Writing config to %s: %v", m.deviceConfigFile, file)
-		err = ioutil.WriteFile(m.deviceConfigFile, file, 0640)
-		if err != nil {
-			log.Error(err)
-			errors = multierror.Append(errors, fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
-			return errors
-		}
-		m.deviceConfiguration = &message
-		m.initialConfig.Store(false)
-	} else {
+	if m.IsInitialConfig() {
+		log.Trace("Force update because it's init phase")
+		shouldUpdate = true
+	}
+
+	if !shouldUpdate {
 		log.Trace("Configuration didn't change")
 		return nil
 	}
+
+	log.Tracef("Updating configuration: %v", message)
+	var errors error
+	for _, observer := range m.observers {
+		err := observer.Update(message)
+		if err != nil {
+			errors = multierror.Append(errors, fmt.Errorf("running config observer failed: %s", err))
+		}
+	}
+
+	file, err := json.MarshalIndent(message, "", " ")
+	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("cannot unmarshal message JSON: %s", err))
+		return errors
+	}
+
+	log.Tracef("Writing config to %s: %v", m.deviceConfigFile, file)
+	err = ioutil.WriteFile(m.deviceConfigFile, file, 0640)
+	if err != nil {
+		errors = multierror.Append(fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
+		return errors
+	}
+
+	m.deviceConfiguration = &message
+	m.initialConfig.Store(false)
 
 	return errors
 }
@@ -131,6 +140,7 @@ func (m *Manager) GetConfigurationVersion() string {
 func (m *Manager) IsInitialConfig() bool {
 	return m.initialConfig.Load().(bool)
 }
+
 func (m *Manager) Deregister() error {
 	log.Infof("Removing device config file: %s", m.deviceConfigFile)
 	err := os.Remove(m.deviceConfigFile)
