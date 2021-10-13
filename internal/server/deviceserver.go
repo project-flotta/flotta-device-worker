@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+
 	"git.sr.ht/~spc/go-log"
 	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	registration2 "github.com/jakub-dzon/k4e-device-worker/internal/registration"
@@ -12,13 +13,13 @@ import (
 
 type deviceServer struct {
 	pb.UnimplementedWorkerServer
-	configManager *configuration2.Manager
+	configManager       *configuration2.Manager
 	registrationManager *registration2.Registration
 }
 
 func NewDeviceServer(configManager *configuration2.Manager, registrationManager *registration2.Registration) *deviceServer {
 	return &deviceServer{
-		configManager: configManager,
+		configManager:       configManager,
 		registrationManager: registrationManager,
 	}
 }
