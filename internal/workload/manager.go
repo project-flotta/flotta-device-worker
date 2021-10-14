@@ -276,38 +276,45 @@ func (w *WorkloadManager) Deregister() error {
 	w.managementLock.Lock()
 	defer w.managementLock.Unlock()
 
+	var errors error
 	err := w.removeAllWorkloads()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to remove workloads: %v", err))
 		log.Errorf("failed to remove workloads: %v", err)
 	}
 
 	err = w.deleteManifestsDir()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to delete manifests directory: %v", err))
 		log.Errorf("failed to delete manifests directory: %v", err)
 	}
 
 	err = w.deleteTable()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to delete table: %v", err))
 		log.Errorf("failed to delete table: %v", err)
 	}
 
 	err = w.deleteVolumeDir()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to delete volumes directory: %v", err))
 		log.Errorf("failed to delete volumes directory: %v", err)
 	}
 
 	err = w.removeTicker()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to remove ticker: %v", err))
 		log.Errorf("failed to remove ticker: %v", err)
 	}
 
 	err = w.removeMappingFile()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to remove mapping file: %v", err))
 		log.Errorf("failed to remove mapping file: %v", err)
 	}
 
 	w.deregistered = true
-	return nil
+	return errors
 }
 
 func (w *WorkloadManager) removeTicker() error {

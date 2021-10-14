@@ -3,17 +3,20 @@ package registration
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"time"
+
 	"git.sr.ht/~spc/go-log"
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-multierror"
 	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
 	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
+	"github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
 	os2 "github.com/jakub-dzon/k4e-device-worker/internal/os"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
-	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
-	"time"
 )
 
 const (
@@ -29,9 +32,10 @@ type Registration struct {
 	heartbeat        *heartbeat.Heartbeat
 	workloads        *workload.WorkloadManager
 	monitor          *datatransfer.Monitor
+	registered       bool
 }
 
-func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient pb.DispatcherClient, config *configuration.Manager, heartbeatManager *heartbeat.Heartbeat, workloadsManager *workload.WorkloadManager, monitorManager *datatransfer.Monitor) *Registration {
+func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient DispatcherClient, config *configuration.Manager, heartbeatManager *heartbeat.Heartbeat, workloadsManager *workload.WorkloadManager, monitorManager *datatransfer.Monitor) *Registration {
 	return &Registration{
 		hardware:         hardware,
 		os:               os,
@@ -94,28 +98,41 @@ func (r *Registration) registerDeviceOnce() error {
 	if _, err := r.dispatcherClient.Send(ctx, data); err != nil {
 		return err
 	}
+	r.registered = true
 	return nil
 }
 
+func (r *Registration) IsRegistered() bool {
+	return r.registered
+}
+
 func (r *Registration) Deregister() error {
+
+	var errors error
 	err := r.workloads.Deregister()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to deregister workloads: %v", err))
 		log.Errorf("failed to deregister workloads: %v", err)
 	}
 
 	err = r.config.Deregister()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to deregister configuration: %v", err))
 		log.Errorf("failed to deregister configuration: %v", err)
 	}
 
 	err = r.heartbeat.Deregister()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to deregister heartbeat: %v", err))
 		log.Errorf("failed to deregister heartbeat: %v", err)
 	}
 
 	err = r.monitor.Deregister()
 	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to deregister monitor: %v", err))
 		log.Errorf("failed to deregister monitor: %v", err)
 	}
-	return nil
+
+	r.registered = false
+	return errors
 }
