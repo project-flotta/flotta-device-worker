@@ -42,6 +42,12 @@ type ClusterUpdateParams struct {
 	// Minimum: 1
 	ClusterNetworkHostPrefix *int64 `json:"cluster_network_host_prefix,omitempty"`
 
+	// Cluster networks that are associated with this cluster.
+	ClusterNetworks []*ClusterNetwork `json:"cluster_networks"`
+
+	// Installation disks encryption mode and host roles to be applied.
+	DiskEncryption *DiskEncryption `json:"disk_encryption,omitempty"`
+
 	// disks selected config
 	DisksSelectedConfig []*ClusterUpdateParamsDisksSelectedConfigItems0 `json:"disks_selected_config"`
 
@@ -76,10 +82,17 @@ type ClusterUpdateParams struct {
 	// Pattern: ^(?:(?:(?:[0-9]{1,3}\.){3}[0-9]{1,3}\/(?:(?:[0-9])|(?:[1-2][0-9])|(?:3[0-2])))|(?:(?:[0-9a-fA-F]*:[0-9a-fA-F]*){2,})/(?:(?:[0-9])|(?:[1-9][0-9])|(?:1[0-1][0-9])|(?:12[0-8])))$
 	MachineNetworkCidr *string `json:"machine_network_cidr,omitempty"`
 
+	// Machine networks that are associated with this cluster.
+	MachineNetworks []*MachineNetwork `json:"machine_networks"`
+
 	// OpenShift cluster name.
 	// Max Length: 54
 	// Min Length: 1
 	Name *string `json:"name,omitempty"`
+
+	// The desired network type used.
+	// Enum: [OpenShiftSDN OVNKubernetes]
+	NetworkType *string `json:"network_type,omitempty"`
 
 	// An "*" or a comma-separated list of destination domain names, domains, IP addresses, or other network CIDRs to exclude from proxying.
 	NoProxy *string `json:"no_proxy,omitempty"`
@@ -87,12 +100,21 @@ type ClusterUpdateParams struct {
 	// List of OLM operators to be installed.
 	OlmOperators []*OperatorCreateParams `json:"olm_operators"`
 
+	// platform
+	Platform *Platform `json:"platform,omitempty"`
+
 	// The pull secret obtained from Red Hat OpenShift Cluster Manager at cloud.redhat.com/openshift/install/pull-secret.
 	PullSecret *string `json:"pull_secret,omitempty"`
+
+	// Schedule workloads on masters
+	SchedulableMasters *bool `json:"schedulable_masters,omitempty"`
 
 	// The IP address pool to use for service IP addresses. You can enter only one IP address pool. If you need to access the services from an external network, configure load balancers and routers to manage the traffic.
 	// Pattern: ^(?:(?:(?:[0-9]{1,3}\.){3}[0-9]{1,3}\/(?:(?:[0-9])|(?:[1-2][0-9])|(?:3[0-2])))|(?:(?:[0-9a-fA-F]*:[0-9a-fA-F]*){2,})/(?:(?:[0-9])|(?:[1-9][0-9])|(?:1[0-1][0-9])|(?:12[0-8])))$
 	ServiceNetworkCidr *string `json:"service_network_cidr,omitempty"`
+
+	// Service networks that are associated with this cluster.
+	ServiceNetworks []*ServiceNetwork `json:"service_networks"`
 
 	// SSH public key for debugging OpenShift nodes.
 	SSHPublicKey *string `json:"ssh_public_key,omitempty"`
@@ -117,6 +139,14 @@ func (m *ClusterUpdateParams) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateClusterNetworkHostPrefix(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateClusterNetworks(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateDiskEncryption(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -148,7 +178,15 @@ func (m *ClusterUpdateParams) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateMachineNetworks(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateName(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateNetworkType(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -156,7 +194,15 @@ func (m *ClusterUpdateParams) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validatePlatform(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateServiceNetworkCidr(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateServiceNetworks(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -204,6 +250,49 @@ func (m *ClusterUpdateParams) validateClusterNetworkHostPrefix(formats strfmt.Re
 
 	if err := validate.MaximumInt("cluster_network_host_prefix", "body", int64(*m.ClusterNetworkHostPrefix), 128, false); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *ClusterUpdateParams) validateClusterNetworks(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ClusterNetworks) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.ClusterNetworks); i++ {
+		if swag.IsZero(m.ClusterNetworks[i]) { // not required
+			continue
+		}
+
+		if m.ClusterNetworks[i] != nil {
+			if err := m.ClusterNetworks[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("cluster_networks" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *ClusterUpdateParams) validateDiskEncryption(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.DiskEncryption) { // not required
+		return nil
+	}
+
+	if m.DiskEncryption != nil {
+		if err := m.DiskEncryption.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("disk_encryption")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -384,6 +473,31 @@ func (m *ClusterUpdateParams) validateMachineNetworkCidr(formats strfmt.Registry
 	return nil
 }
 
+func (m *ClusterUpdateParams) validateMachineNetworks(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.MachineNetworks) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.MachineNetworks); i++ {
+		if swag.IsZero(m.MachineNetworks[i]) { // not required
+			continue
+		}
+
+		if m.MachineNetworks[i] != nil {
+			if err := m.MachineNetworks[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("machine_networks" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
 func (m *ClusterUpdateParams) validateName(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.Name) { // not required
@@ -395,6 +509,49 @@ func (m *ClusterUpdateParams) validateName(formats strfmt.Registry) error {
 	}
 
 	if err := validate.MaxLength("name", "body", string(*m.Name), 54); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var clusterUpdateParamsTypeNetworkTypePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["OpenShiftSDN","OVNKubernetes"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		clusterUpdateParamsTypeNetworkTypePropEnum = append(clusterUpdateParamsTypeNetworkTypePropEnum, v)
+	}
+}
+
+const (
+
+	// ClusterUpdateParamsNetworkTypeOpenShiftSDN captures enum value "OpenShiftSDN"
+	ClusterUpdateParamsNetworkTypeOpenShiftSDN string = "OpenShiftSDN"
+
+	// ClusterUpdateParamsNetworkTypeOVNKubernetes captures enum value "OVNKubernetes"
+	ClusterUpdateParamsNetworkTypeOVNKubernetes string = "OVNKubernetes"
+)
+
+// prop value enum
+func (m *ClusterUpdateParams) validateNetworkTypeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, clusterUpdateParamsTypeNetworkTypePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ClusterUpdateParams) validateNetworkType(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.NetworkType) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateNetworkTypeEnum("network_type", "body", *m.NetworkType); err != nil {
 		return err
 	}
 
@@ -426,6 +583,24 @@ func (m *ClusterUpdateParams) validateOlmOperators(formats strfmt.Registry) erro
 	return nil
 }
 
+func (m *ClusterUpdateParams) validatePlatform(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Platform) { // not required
+		return nil
+	}
+
+	if m.Platform != nil {
+		if err := m.Platform.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("platform")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *ClusterUpdateParams) validateServiceNetworkCidr(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.ServiceNetworkCidr) { // not required
@@ -434,6 +609,31 @@ func (m *ClusterUpdateParams) validateServiceNetworkCidr(formats strfmt.Registry
 
 	if err := validate.Pattern("service_network_cidr", "body", string(*m.ServiceNetworkCidr), `^(?:(?:(?:[0-9]{1,3}\.){3}[0-9]{1,3}\/(?:(?:[0-9])|(?:[1-2][0-9])|(?:3[0-2])))|(?:(?:[0-9a-fA-F]*:[0-9a-fA-F]*){2,})/(?:(?:[0-9])|(?:[1-9][0-9])|(?:1[0-1][0-9])|(?:12[0-8])))$`); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *ClusterUpdateParams) validateServiceNetworks(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ServiceNetworks) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.ServiceNetworks); i++ {
+		if swag.IsZero(m.ServiceNetworks[i]) { // not required
+			continue
+		}
+
+		if m.ServiceNetworks[i] != nil {
+			if err := m.ServiceNetworks[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("service_networks" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
 	}
 
 	return nil

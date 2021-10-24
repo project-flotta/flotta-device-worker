@@ -8,8 +8,8 @@ import (
 	"github.com/openshift/assisted-service/models"
 )
 
-func ReadInventory() *models.Inventory {
-	d := util.NewDependencies()
+func ReadInventory(c *Options) *models.Inventory {
+	d := util.NewDependencies(c.GhwChrootRoot)
 	ret := models.Inventory{
 		BmcAddress:   GetBmcAddress(d),
 		BmcV6address: GetBmcV6Address(d),
@@ -23,12 +23,17 @@ func ReadInventory() *models.Inventory {
 		SystemVendor: GetVendor(d),
 		Timestamp:    time.Now().Unix(),
 		Routes:       GetRoutes(d),
+		TpmVersion:   GetTPM(d),
 	}
 	return &ret
 }
 
 func CreateInventoryInfo() []byte {
-	in := ReadInventory()
+	in := ReadInventory(&Options{GhwChrootRoot: "/host"})
 	b, _ := json.Marshal(&in)
 	return b
+}
+
+type Options struct {
+	GhwChrootRoot string
 }

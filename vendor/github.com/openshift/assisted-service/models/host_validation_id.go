@@ -59,8 +59,8 @@ const (
 	// HostValidationIDBelongsToMajorityGroup captures enum value "belongs-to-majority-group"
 	HostValidationIDBelongsToMajorityGroup HostValidationID = "belongs-to-majority-group"
 
-	// HostValidationIDValidPlatform captures enum value "valid-platform"
-	HostValidationIDValidPlatform HostValidationID = "valid-platform"
+	// HostValidationIDValidPlatformNetworkSettings captures enum value "valid-platform-network-settings"
+	HostValidationIDValidPlatformNetworkSettings HostValidationID = "valid-platform-network-settings"
 
 	// HostValidationIDNtpSynced captures enum value "ntp-synced"
 	HostValidationIDNtpSynced HostValidationID = "ntp-synced"
@@ -85,6 +85,27 @@ const (
 
 	// HostValidationIDSufficientPacketLossRequirementForRole captures enum value "sufficient-packet-loss-requirement-for-role"
 	HostValidationIDSufficientPacketLossRequirementForRole HostValidationID = "sufficient-packet-loss-requirement-for-role"
+
+	// HostValidationIDHasDefaultRoute captures enum value "has-default-route"
+	HostValidationIDHasDefaultRoute HostValidationID = "has-default-route"
+
+	// HostValidationIDAPIDomainNameResolvedCorrectly captures enum value "api-domain-name-resolved-correctly"
+	HostValidationIDAPIDomainNameResolvedCorrectly HostValidationID = "api-domain-name-resolved-correctly"
+
+	// HostValidationIDAPIIntDomainNameResolvedCorrectly captures enum value "api-int-domain-name-resolved-correctly"
+	HostValidationIDAPIIntDomainNameResolvedCorrectly HostValidationID = "api-int-domain-name-resolved-correctly"
+
+	// HostValidationIDAppsDomainNameResolvedCorrectly captures enum value "apps-domain-name-resolved-correctly"
+	HostValidationIDAppsDomainNameResolvedCorrectly HostValidationID = "apps-domain-name-resolved-correctly"
+
+	// HostValidationIDCompatibleWithClusterPlatform captures enum value "compatible-with-cluster-platform"
+	HostValidationIDCompatibleWithClusterPlatform HostValidationID = "compatible-with-cluster-platform"
+
+	// HostValidationIDDNSWildcardNotConfigured captures enum value "dns-wildcard-not-configured"
+	HostValidationIDDNSWildcardNotConfigured HostValidationID = "dns-wildcard-not-configured"
+
+	// HostValidationIDDiskEncryptionRequirementsSatisfied captures enum value "disk-encryption-requirements-satisfied"
+	HostValidationIDDiskEncryptionRequirementsSatisfied HostValidationID = "disk-encryption-requirements-satisfied"
 )
 
 // for schema
@@ -92,7 +113,7 @@ var hostValidationIdEnum []interface{}
 
 func init() {
 	var res []HostValidationID
-	if err := json.Unmarshal([]byte(`["connected","has-inventory","has-min-cpu-cores","has-min-valid-disks","has-min-memory","machine-cidr-defined","has-cpu-cores-for-role","has-memory-for-role","hostname-unique","hostname-valid","belongs-to-machine-cidr","api-vip-connected","belongs-to-majority-group","valid-platform","ntp-synced","container-images-available","lso-requirements-satisfied","ocs-requirements-satisfied","sufficient-installation-disk-speed","cnv-requirements-satisfied","sufficient-network-latency-requirement-for-role","sufficient-packet-loss-requirement-for-role"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["connected","has-inventory","has-min-cpu-cores","has-min-valid-disks","has-min-memory","machine-cidr-defined","has-cpu-cores-for-role","has-memory-for-role","hostname-unique","hostname-valid","belongs-to-machine-cidr","api-vip-connected","belongs-to-majority-group","valid-platform-network-settings","ntp-synced","container-images-available","lso-requirements-satisfied","ocs-requirements-satisfied","sufficient-installation-disk-speed","cnv-requirements-satisfied","sufficient-network-latency-requirement-for-role","sufficient-packet-loss-requirement-for-role","has-default-route","api-domain-name-resolved-correctly","api-int-domain-name-resolved-correctly","apps-domain-name-resolved-correctly","compatible-with-cluster-platform","dns-wildcard-not-configured","disk-encryption-requirements-satisfied"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {

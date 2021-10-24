@@ -32,7 +32,7 @@ type Host struct {
 
 	// The cluster that this host is associated with.
 	// Format: uuid
-	ClusterID strfmt.UUID `json:"cluster_id,omitempty" gorm:"primary_key;foreignkey:Cluster"`
+	ClusterID *strfmt.UUID `json:"cluster_id,omitempty" gorm:"foreignkey:Cluster"`
 
 	// connectivity
 	Connectivity string `json:"connectivity,omitempty" gorm:"type:text"`
@@ -51,6 +51,9 @@ type Host struct {
 	// Additional information about disks, formatted as JSON.
 	DisksInfo string `json:"disks_info,omitempty" gorm:"type:text"`
 
+	// The domain name resolution result.
+	DomainNameResolutions string `json:"domain_name_resolutions,omitempty" gorm:"type:text"`
+
 	// free addresses
 	FreeAddresses string `json:"free_addresses,omitempty" gorm:"type:text"`
 
@@ -68,6 +71,10 @@ type Host struct {
 
 	// Array of image statuses.
 	ImagesStatus string `json:"images_status,omitempty" gorm:"type:text"`
+
+	// The InfraEnv that this host is associated with.
+	// Format: uuid
+	InfraEnvID strfmt.UUID `json:"infra_env_id,omitempty" gorm:"primary_key;foreignkey:InfraEnvID"`
 
 	// Contains the inventory disk id to install on.
 	InstallationDiskID string `json:"installation_disk_id,omitempty"`
@@ -130,7 +137,7 @@ type Host struct {
 
 	// status
 	// Required: true
-	// Enum: [discovering known disconnected insufficient disabled preparing-for-installation preparing-successful pending-for-input installing installing-in-progress installing-pending-user-action resetting-pending-user-action installed error resetting added-to-existing-cluster cancelled]
+	// Enum: [discovering known disconnected insufficient disabled preparing-for-installation preparing-successful pending-for-input installing installing-in-progress installing-pending-user-action resetting-pending-user-action installed error resetting added-to-existing-cluster cancelled binding unbinding known-unbound disconnected-unbound insufficient-unbound disabled-unbound discovering-unbound]
 	Status *string `json:"status"`
 
 	// status info
@@ -140,6 +147,9 @@ type Host struct {
 	// The last time that the host status was updated.
 	// Format: date-time
 	StatusUpdatedAt strfmt.DateTime `json:"status_updated_at,omitempty" gorm:"type:timestamp with time zone"`
+
+	// suggested role
+	SuggestedRole HostRole `json:"suggested_role,omitempty"`
 
 	// updated at
 	// Format: date-time
@@ -177,6 +187,10 @@ func (m *Host) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateID(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateInfraEnvID(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -225,6 +239,10 @@ func (m *Host) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateStatusUpdatedAt(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSuggestedRole(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -306,6 +324,19 @@ func (m *Host) validateID(formats strfmt.Registry) error {
 	}
 
 	if err := validate.FormatOf("id", "body", "uuid", m.ID.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Host) validateInfraEnvID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.InfraEnvID) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("infra_env_id", "body", "uuid", m.InfraEnvID.String(), formats); err != nil {
 		return err
 	}
 
@@ -481,7 +512,7 @@ var hostTypeStatusPropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["discovering","known","disconnected","insufficient","disabled","preparing-for-installation","preparing-successful","pending-for-input","installing","installing-in-progress","installing-pending-user-action","resetting-pending-user-action","installed","error","resetting","added-to-existing-cluster","cancelled"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["discovering","known","disconnected","insufficient","disabled","preparing-for-installation","preparing-successful","pending-for-input","installing","installing-in-progress","installing-pending-user-action","resetting-pending-user-action","installed","error","resetting","added-to-existing-cluster","cancelled","binding","unbinding","known-unbound","disconnected-unbound","insufficient-unbound","disabled-unbound","discovering-unbound"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -541,6 +572,27 @@ const (
 
 	// HostStatusCancelled captures enum value "cancelled"
 	HostStatusCancelled string = "cancelled"
+
+	// HostStatusBinding captures enum value "binding"
+	HostStatusBinding string = "binding"
+
+	// HostStatusUnbinding captures enum value "unbinding"
+	HostStatusUnbinding string = "unbinding"
+
+	// HostStatusKnownUnbound captures enum value "known-unbound"
+	HostStatusKnownUnbound string = "known-unbound"
+
+	// HostStatusDisconnectedUnbound captures enum value "disconnected-unbound"
+	HostStatusDisconnectedUnbound string = "disconnected-unbound"
+
+	// HostStatusInsufficientUnbound captures enum value "insufficient-unbound"
+	HostStatusInsufficientUnbound string = "insufficient-unbound"
+
+	// HostStatusDisabledUnbound captures enum value "disabled-unbound"
+	HostStatusDisabledUnbound string = "disabled-unbound"
+
+	// HostStatusDiscoveringUnbound captures enum value "discovering-unbound"
+	HostStatusDiscoveringUnbound string = "discovering-unbound"
 )
 
 // prop value enum
@@ -581,6 +633,22 @@ func (m *Host) validateStatusUpdatedAt(formats strfmt.Registry) error {
 	}
 
 	if err := validate.FormatOf("status_updated_at", "body", "date-time", m.StatusUpdatedAt.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Host) validateSuggestedRole(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SuggestedRole) { // not required
+		return nil
+	}
+
+	if err := m.SuggestedRole.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("suggested_role")
+		}
 		return err
 	}
 

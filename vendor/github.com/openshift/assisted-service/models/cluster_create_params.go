@@ -35,6 +35,15 @@ type ClusterCreateParams struct {
 	// Minimum: 1
 	ClusterNetworkHostPrefix int64 `json:"cluster_network_host_prefix,omitempty"`
 
+	// Cluster networks that are associated with this cluster.
+	ClusterNetworks []*ClusterNetwork `json:"cluster_networks"`
+
+	// The CPU architecture of the image (x86_64/arm64/etc).
+	CPUArchitecture string `json:"cpu_architecture,omitempty"`
+
+	// Installation disks encryption mode and host roles to be applied.
+	DiskEncryption *DiskEncryption `json:"disk_encryption,omitempty"`
+
 	// Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster
 	// over multiple master nodes whereas 'None' installs a full cluster over one node.
 	//
@@ -59,11 +68,18 @@ type ClusterCreateParams struct {
 	// Pattern: ^(?:(?:(?:[0-9]{1,3}\.){3}[0-9]{1,3})|(?:(?:[0-9a-fA-F]*:[0-9a-fA-F]*){2,}))$
 	IngressVip string `json:"ingress_vip,omitempty"`
 
+	// Machine networks that are associated with this cluster.
+	MachineNetworks []*MachineNetwork `json:"machine_networks"`
+
 	// Name of the OpenShift cluster.
 	// Required: true
 	// Max Length: 54
 	// Min Length: 1
 	Name *string `json:"name"`
+
+	// The desired network type used.
+	// Enum: [OpenShiftSDN OVNKubernetes]
+	NetworkType *string `json:"network_type,omitempty"`
 
 	// An "*" or a comma-separated list of destination domain names, domains, IP addresses, or other network CIDRs to exclude from proxying.
 	NoProxy *string `json:"no_proxy,omitempty"`
@@ -78,13 +94,22 @@ type ClusterCreateParams struct {
 	// Required: true
 	OpenshiftVersion *string `json:"openshift_version"`
 
+	// platform
+	Platform *Platform `json:"platform,omitempty"`
+
 	// The pull secret obtained from Red Hat OpenShift Cluster Manager at cloud.redhat.com/openshift/install/pull-secret.
 	// Required: true
 	PullSecret *string `json:"pull_secret"`
 
+	// Schedule workloads on masters
+	SchedulableMasters *bool `json:"schedulable_masters,omitempty"`
+
 	// The IP address pool to use for service IP addresses. You can enter only one IP address pool. If you need to access the services from an external network, configure load balancers and routers to manage the traffic.
 	// Pattern: ^(?:(?:(?:[0-9]{1,3}\.){3}[0-9]{1,3}\/(?:(?:[0-9])|(?:[1-2][0-9])|(?:3[0-2])))|(?:(?:[0-9a-fA-F]*:[0-9a-fA-F]*){2,})/(?:(?:[0-9])|(?:[1-9][0-9])|(?:1[0-1][0-9])|(?:12[0-8])))$
 	ServiceNetworkCidr *string `json:"service_network_cidr,omitempty"`
+
+	// Service networks that are associated with this cluster.
+	ServiceNetworks []*ServiceNetwork `json:"service_networks"`
 
 	// SSH public key for debugging OpenShift nodes.
 	SSHPublicKey string `json:"ssh_public_key,omitempty"`
@@ -108,6 +133,14 @@ func (m *ClusterCreateParams) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateClusterNetworks(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateDiskEncryption(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateHighAvailabilityMode(formats); err != nil {
 		res = append(res, err)
 	}
@@ -120,7 +153,15 @@ func (m *ClusterCreateParams) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateMachineNetworks(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateName(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateNetworkType(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -132,11 +173,19 @@ func (m *ClusterCreateParams) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validatePlatform(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validatePullSecret(formats); err != nil {
 		res = append(res, err)
 	}
 
 	if err := m.validateServiceNetworkCidr(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateServiceNetworks(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -171,6 +220,49 @@ func (m *ClusterCreateParams) validateClusterNetworkHostPrefix(formats strfmt.Re
 
 	if err := validate.MaximumInt("cluster_network_host_prefix", "body", int64(m.ClusterNetworkHostPrefix), 128, false); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *ClusterCreateParams) validateClusterNetworks(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ClusterNetworks) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.ClusterNetworks); i++ {
+		if swag.IsZero(m.ClusterNetworks[i]) { // not required
+			continue
+		}
+
+		if m.ClusterNetworks[i] != nil {
+			if err := m.ClusterNetworks[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("cluster_networks" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *ClusterCreateParams) validateDiskEncryption(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.DiskEncryption) { // not required
+		return nil
+	}
+
+	if m.DiskEncryption != nil {
+		if err := m.DiskEncryption.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("disk_encryption")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -281,6 +373,31 @@ func (m *ClusterCreateParams) validateIngressVip(formats strfmt.Registry) error 
 	return nil
 }
 
+func (m *ClusterCreateParams) validateMachineNetworks(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.MachineNetworks) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.MachineNetworks); i++ {
+		if swag.IsZero(m.MachineNetworks[i]) { // not required
+			continue
+		}
+
+		if m.MachineNetworks[i] != nil {
+			if err := m.MachineNetworks[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("machine_networks" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
 func (m *ClusterCreateParams) validateName(formats strfmt.Registry) error {
 
 	if err := validate.Required("name", "body", m.Name); err != nil {
@@ -292,6 +409,49 @@ func (m *ClusterCreateParams) validateName(formats strfmt.Registry) error {
 	}
 
 	if err := validate.MaxLength("name", "body", string(*m.Name), 54); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var clusterCreateParamsTypeNetworkTypePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["OpenShiftSDN","OVNKubernetes"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		clusterCreateParamsTypeNetworkTypePropEnum = append(clusterCreateParamsTypeNetworkTypePropEnum, v)
+	}
+}
+
+const (
+
+	// ClusterCreateParamsNetworkTypeOpenShiftSDN captures enum value "OpenShiftSDN"
+	ClusterCreateParamsNetworkTypeOpenShiftSDN string = "OpenShiftSDN"
+
+	// ClusterCreateParamsNetworkTypeOVNKubernetes captures enum value "OVNKubernetes"
+	ClusterCreateParamsNetworkTypeOVNKubernetes string = "OVNKubernetes"
+)
+
+// prop value enum
+func (m *ClusterCreateParams) validateNetworkTypeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, clusterCreateParamsTypeNetworkTypePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ClusterCreateParams) validateNetworkType(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.NetworkType) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateNetworkTypeEnum("network_type", "body", *m.NetworkType); err != nil {
 		return err
 	}
 
@@ -332,6 +492,24 @@ func (m *ClusterCreateParams) validateOpenshiftVersion(formats strfmt.Registry) 
 	return nil
 }
 
+func (m *ClusterCreateParams) validatePlatform(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Platform) { // not required
+		return nil
+	}
+
+	if m.Platform != nil {
+		if err := m.Platform.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("platform")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *ClusterCreateParams) validatePullSecret(formats strfmt.Registry) error {
 
 	if err := validate.Required("pull_secret", "body", m.PullSecret); err != nil {
@@ -349,6 +527,31 @@ func (m *ClusterCreateParams) validateServiceNetworkCidr(formats strfmt.Registry
 
 	if err := validate.Pattern("service_network_cidr", "body", string(*m.ServiceNetworkCidr), `^(?:(?:(?:[0-9]{1,3}\.){3}[0-9]{1,3}\/(?:(?:[0-9])|(?:[1-2][0-9])|(?:3[0-2])))|(?:(?:[0-9a-fA-F]*:[0-9a-fA-F]*){2,})/(?:(?:[0-9])|(?:[1-9][0-9])|(?:1[0-1][0-9])|(?:12[0-8])))$`); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *ClusterCreateParams) validateServiceNetworks(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ServiceNetworks) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.ServiceNetworks); i++ {
+		if swag.IsZero(m.ServiceNetworks[i]) { // not required
+			continue
+		}
+
+		if m.ServiceNetworks[i] != nil {
+			if err := m.ServiceNetworks[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("service_networks" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
 	}
 
 	return nil
