@@ -1,20 +1,18 @@
 package inventory
 
 import (
+	"net"
+
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/openshift/assisted-service/models"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-)
-
-const (
-	familyIPv4 int = 4
-	familyIPv6 int = 6
+	"golang.org/x/sys/unix"
 )
 
 type handler interface {
 	getRouteList() ([]netlink.Route, error)
-	getLinkName(linkIndex int) (string, error)
+	getLinkName(netlink.Route) (string, error)
 	getFamily() int
 }
 
@@ -26,7 +24,11 @@ func (rh routeHandler) getRouteList() ([]netlink.Route, error) {
 	return netlink.RouteList(nil, rh.family)
 }
 
-func (rh routeHandler) getLinkName(linkIndex int) (string, error) {
+func (rh routeHandler) getLinkName(route netlink.Route) (string, error) {
+	linkIndex := route.LinkIndex
+	if len(route.MultiPath) > 0 {
+		linkIndex = route.MultiPath[0].LinkIndex // get the index of the first element.
+	}
 	link, err := netlink.LinkByIndex(linkIndex)
 	if err != nil {
 		return "", err
@@ -38,25 +40,30 @@ func (rh routeHandler) getFamily() int {
 	return rh.family
 }
 
+func getIPZero(family int) *net.IP {
+	if family == unix.AF_INET {
+		return &net.IPv4zero
+	}
+	return &net.IPv6zero
+}
 func GetRoutes(dependencies util.IDependencies) []*models.Route {
 
-	rh4 := routeHandler{family: familyIPv4}
-	rh6 := routeHandler{family: familyIPv6}
-	routes, err := getIPDefaultRoutes(rh4)
+	rh4 := routeHandler{family: unix.AF_INET}
+	rh6 := routeHandler{family: unix.AF_INET6}
+	routes, err := getIPRoutes(rh4)
 	if err != nil {
-		logrus.Errorf("Unable to determine the IPv4 routes: %s", err)
-		return []*models.Route{}
+		logrus.Warnf("Unable to determine the IPv4 routes: %s", err)
 	}
-	ipv6Routes, err := getIPDefaultRoutes(rh6)
+	ipv6Routes, err := getIPRoutes(rh6)
 	if err != nil {
-		logrus.Errorf("Unable to determine the IPv6 routes: %s", err)
-		return routes //If ipv6 failed, we still return the ipv4 default route(s) since that could be sufficient.
+		logrus.Warnf("Unable to determine the IPv6 routes: %s", err)
+		return routes
 	}
 	routes = append(routes, ipv6Routes...)
 	return routes
 }
 
-func getIPDefaultRoutes(h handler) ([]*models.Route, error) {
+func getIPRoutes(h handler) ([]*models.Route, error) {
 	rList, err := h.getRouteList()
 	if err != nil {
 		logrus.Errorf("Unable to retrieve the IPv%d routes: %s", h.getFamily(), err)
@@ -64,18 +71,26 @@ func getIPDefaultRoutes(h handler) ([]*models.Route, error) {
 	}
 	routes := []*models.Route{}
 	for _, r := range rList {
-		if r.Dst == nil || !r.Dst.IP.IsUnspecified() || r.Gw.IsUnspecified() {
-			continue
-		}
-		linkName, err := h.getLinkName(r.LinkIndex)
+		linkName, err := h.getLinkName(r)
 		if err != nil {
 			logrus.Errorf("Unable to retrieve the link name for index %d: %s", r.LinkIndex, err)
 			return nil, err
 		}
+		var dst, gw string
+		if r.Dst == nil {
+			dst = getIPZero(h.getFamily()).String()
+		} else {
+			dst = r.Dst.IP.String()
+		}
+		if len(r.MultiPath) > 0 && r.MultiPath[0].Gw != nil {
+			gw = r.MultiPath[0].Gw.String()
+		} else if r.Gw != nil {
+			gw = r.Gw.String()
+		}
 		routes = append(routes, &models.Route{
 			Interface:   linkName,
-			Destination: r.Dst.IP.String(),
-			Gateway:     r.Gw.String(),
+			Destination: dst,
+			Gateway:     gw,
 			Family:      int32(h.getFamily()),
 		})
 	}

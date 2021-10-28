@@ -10,7 +10,9 @@ type Hardware struct {
 }
 
 func (s *Hardware) GetHardwareInformation() (*models.HardwareInfo, error) {
-	inv := inventory.ReadInventory()
+	inv := inventory.ReadInventory(&inventory.Options{
+		GhwChrootRoot: "/",
+	})
 
 	// Instead of copying field-by-field marshal to JSON and unmarshal to other struct
 	inventoryJson, err := json.Marshal(inv)

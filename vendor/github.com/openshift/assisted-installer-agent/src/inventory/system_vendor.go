@@ -17,6 +17,7 @@ func isVirtual(product string) bool {
 		"Virtual Machine",
 		"AHV",
 		"HVM domU",
+		"oVirt",
 	} {
 		if strings.Contains(product, vmTech) {
 			return true
@@ -26,10 +27,17 @@ func isVirtual(product string) bool {
 	return false
 }
 
+// For oVirt VMs the correct platform can be detected only by the Family value,
+// this function is used to check that and update the productName accordingly.
+func isOVirtPlatform(family string) bool {
+	return family == "oVirt" || family == "RHV"
+}
+
 func GetVendor(dependencies util.IDependencies) *models.SystemVendor {
 	var ret models.SystemVendor
-
-	product, err := dependencies.Product(ghw.WithChroot("/host"))
+	var product *ghw.ProductInfo
+	var err error
+	product, err = dependencies.Product(ghw.WithChroot(dependencies.GetGhwChrootRoot()))
 
 	if err != nil {
 		logrus.Errorf("Error running ghw.Product with /host chroot:: %s", err)
@@ -39,7 +47,10 @@ func GetVendor(dependencies util.IDependencies) *models.SystemVendor {
 	ret.SerialNumber = product.SerialNumber
 	ret.ProductName = product.Name
 	ret.Manufacturer = product.Vendor
-	ret.Virtual = isVirtual(product.Name)
+	if isOVirtPlatform(product.Family){
+		ret.ProductName = "oVirt"
+	}
+	ret.Virtual = isVirtual(ret.ProductName)
 
 	return &ret
 }
