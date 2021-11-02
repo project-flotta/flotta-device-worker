@@ -57,6 +57,21 @@ clean:
 	go mod tidy
 	rm -rf bin
 
+rpm-tarball:
+	 (git archive --prefix k4e-agent-$(VERSION)/ HEAD ) \
+	    | gzip > k4e-agent-$(VERSION).tar.gz
+
+rpm-src:
+	cp k4e-agent-$(VERSION).tar.gz $(HOME)/rpmbuild/SOURCES/
+	rpmbuild -bs \
+		-D "VERSION $(VERSION)" \
+		-D "RELEASE $(RELEASE)" \
+		-D "_libexecdir $(LIBEXECDIR)" \
+		--buildroot $(DIST_DIR) ./k4e-agent.spec
+
+rpm-copr: rpm-src
+	copr build eloyocoto/k4e-test $(HOME)/rpmbuild/SRPMS/k4e-agent-1.0-1.fc34.src.rpm
+
 rpm:
 	install -D -m 755 ./bin/device-worker dist/$(LIBEXECDIR)/yggdrasil/device-worker
 	rpmbuild -bb -D "VERSION $(VERSION)" -D "RELEASE $(RELEASE)" -D "_libexecdir $(LIBEXECDIR)" --buildroot $(DIST_DIR) ./k4e-agent.spec
