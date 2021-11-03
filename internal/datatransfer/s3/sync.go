@@ -5,18 +5,18 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+
 	"git.sr.ht/~spc/go-log"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/jakub-dzon/k4e-operator/models"
 	"github.com/seqsense/s3sync"
-	"net/http"
 )
 
 var (
-	theTrue      = true
-	ignoreRegion = "ignore"
+	theTrue = true
 )
 
 type Sync struct {
@@ -40,7 +40,7 @@ func NewSync(s3Config models.S3StorageConfiguration) (*Sync, error) {
 
 	endpoint := fmt.Sprintf("https://%s:%d", s3Config.BucketHost, s3Config.BucketPort)
 	sess, err := session.NewSession(&aws.Config{
-		Region:           &ignoreRegion,
+		Region:           &s3Config.BucketRegion,
 		Endpoint:         &endpoint,
 		Credentials:      credentials.NewStaticCredentials(string(accessKeyBytes), string(secretKeyBytes), ""),
 		HTTPClient:       createHttpClient(caBundle),
