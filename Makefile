@@ -61,7 +61,7 @@ rpm-tarball:
 	 (git archive --prefix k4e-agent-$(VERSION)/ HEAD ) \
 	    | gzip > k4e-agent-$(VERSION).tar.gz
 
-rpm-src:
+rpm-src: rpm-tarball
 	cp k4e-agent-$(VERSION).tar.gz $(HOME)/rpmbuild/SOURCES/
 	rpmbuild -bs \
 		-D "VERSION $(VERSION)" \
