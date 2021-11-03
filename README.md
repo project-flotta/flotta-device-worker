@@ -39,4 +39,4 @@ Generate client certificate (`cert.pem`) and key (`key.pem`) and put them in `/e
 To run yggdrasil configured to communicate with the k4e-operator HTTP API running on localhost:8888 execute in yggdrasil
 repo (https://github.com/jakub-dzon/yggdrasil) directory :
 
-`sudo go run ./cmd/yggd --log-level info --transport http --cert-file /etc/pki/consumer/cert.pem --key-file /etc/pki/consumer/key.pem --client-id-source machine-id`
+`sudo go run ./cmd/yggd --log-level info --transport http --cert-file /etc/pki/consumer/cert.pem --key-file /etc/pki/consumer/key.pem --client-id-source machine-id --http-server <your.k8s-ingress:8888>`
