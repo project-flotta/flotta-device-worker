@@ -70,10 +70,10 @@ rpm-src:
 		--buildroot $(DIST_DIR) ./k4e-agent.spec
 
 rpm-copr: rpm-src
-	copr build eloyocoto/k4e-test $(HOME)/rpmbuild/SRPMS/k4e-agent-1.0-1.fc34.src.rpm
+	copr build eloyocoto/k4e-test $(HOME)/rpmbuild/SRPMS/k4e-agent-$(VERSION)-$(RELEASE).*.src.rpm
 
 rpm-build: rpm-src
-	rpmbuild $(RPMBUILD_OPTS) --rebuild $(HOME)/rpmbuild/SRPMS/k4e-agent-1.0-1.fc34.src.rpm
+	rpmbuild $(RPMBUILD_OPTS) --rebuild $(HOME)/rpmbuild/SRPMS/k4e-agent-$(VERSION)-$(RELEASE).*.src.rpm
 
 rpm: rpm-build
 
