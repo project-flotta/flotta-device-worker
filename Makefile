@@ -57,12 +57,27 @@ clean:
 	go mod tidy
 	rm -rf bin
 
-rpm:
-	install -D -m 755 ./bin/device-worker dist/$(LIBEXECDIR)/yggdrasil/device-worker
-	rpmbuild -bb -D "VERSION $(VERSION)" -D "RELEASE $(RELEASE)" -D "_libexecdir $(LIBEXECDIR)" --buildroot $(DIST_DIR) ./k4e-agent.spec
+rpm-tarball:
+	 (git archive --prefix k4e-agent-$(VERSION)/ HEAD ) \
+	    | gzip > k4e-agent-$(VERSION).tar.gz
 
-rpm-arm64:
-	install -D -m 755 ./bin/device-worker-aarch64 dist/$(LIBEXECDIR)/yggdrasil/device-worker
-	rpmbuild -bb -D "VERSION $(VERSION)" -D "RELEASE $(RELEASE)" -D "_libexecdir $(LIBEXECDIR)" --target aarch64 --buildroot $(DIST_DIR) ./k4e-agent.spec
+rpm-src:
+	cp k4e-agent-$(VERSION).tar.gz $(HOME)/rpmbuild/SOURCES/
+	rpmbuild -bs \
+		-D "VERSION $(VERSION)" \
+		-D "RELEASE $(RELEASE)" \
+		-D "_libexecdir $(LIBEXECDIR)" \
+		--buildroot $(DIST_DIR) ./k4e-agent.spec
+
+rpm-copr: rpm-src
+	copr build eloyocoto/k4e-test $(HOME)/rpmbuild/SRPMS/k4e-agent-1.0-1.fc34.src.rpm
+
+rpm-build: rpm-src
+	rpmbuild $(RPMBUILD_OPTS) --rebuild $(HOME)/rpmbuild/SRPMS/k4e-agent-1.0-1.fc34.src.rpm
+
+rpm: rpm-build
+
+rpm-arm64: RPMBUILD_OPTS=--target=aarch64
+rpm-arm64: rpm-build
 
 dist: build build-arm64 rpm rpm-arm64
