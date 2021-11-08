@@ -11,7 +11,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 // IsShortName returns true if the specified input is a "short name".  A "short
@@ -149,9 +149,9 @@ const (
 func (r *Resolved) Description() string {
 	switch r.rationale {
 	case rationaleAlias:
-		return fmt.Sprintf("Resolved short name %q to a recorded short-name alias (origin: %s)", r.userInput, r.originDescription)
+		return fmt.Sprintf("Resolved %q as an alias (%s)", r.userInput, r.originDescription)
 	case rationaleUSR:
-		return fmt.Sprintf("Completed short name %q with unqualified-search registries (origin: %s)", r.userInput, r.originDescription)
+		return fmt.Sprintf("Resolving %q using unqualified-search registries (%s)", r.userInput, r.originDescription)
 	case rationaleUserSelection, rationaleNone:
 		fallthrough
 	default:
@@ -211,7 +211,7 @@ func (c *PullCandidate) Record() error {
 	value := reference.TrimNamed(c.Value)
 
 	if err := Add(c.resolved.systemContext, name.String(), value); err != nil {
-		return errors.Wrapf(err, "error recording short-name alias (%q=%q)", c.resolved.userInput, c.Value)
+		return errors.Wrapf(err, "recording short-name alias (%q=%q)", c.resolved.userInput, c.Value)
 	}
 	return nil
 }
@@ -240,14 +240,14 @@ func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
 
 	// Create a copy of the system context to make it usable beyond this
 	// function call.
-	var sys *types.SystemContext
 	if ctx != nil {
-		sys = &(*ctx)
+		copy := *ctx
+		ctx = &copy
 	}
 	resolved.systemContext = ctx
 
 	// Detect which mode we're running in.
-	mode, err := sysregistriesv2.GetShortNameMode(sys)
+	mode, err := sysregistriesv2.GetShortNameMode(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
 	resolved.userInput = shortNameRepo
 
 	// If there's already an alias, use it.
-	namedAlias, aliasOriginDescription, err := sysregistriesv2.ResolveShortNameAlias(sys, shortNameRepo.String())
+	namedAlias, aliasOriginDescription, err := sysregistriesv2.ResolveShortNameAlias(ctx, shortNameRepo.String())
 	if err != nil {
 		return nil, err
 	}
@@ -307,20 +307,23 @@ func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
 	resolved.rationale = rationaleUSR
 
 	// Query the registry for unqualified-search registries.
-	unqualifiedSearchRegistries, usrConfig, err := sysregistriesv2.UnqualifiedSearchRegistriesWithOrigin(sys)
+	unqualifiedSearchRegistries, usrConfig, err := sysregistriesv2.UnqualifiedSearchRegistriesWithOrigin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// Error out if there's no matching alias and no search registries.
 	if len(unqualifiedSearchRegistries) == 0 {
-		return nil, errors.Errorf("short-name %q did not resolve to an alias and no unqualified-search registries are defined in %q", name, usrConfig)
+		if usrConfig != "" {
+			return nil, errors.Errorf("short-name %q did not resolve to an alias and no unqualified-search registries are defined in %q", name, usrConfig)
+		}
+		return nil, errors.Errorf("short-name %q did not resolve to an alias and no containers-registries.conf(5) was found", name)
 	}
 	resolved.originDescription = usrConfig
 
 	for _, reg := range unqualifiedSearchRegistries {
 		named, err := reference.ParseNormalizedNamed(fmt.Sprintf("%s/%s", reg, name))
 		if err != nil {
-			return nil, errors.Wrapf(err, "error creating reference with unqualified-search registry %q", reg)
+			return nil, errors.Wrapf(err, "creating reference with unqualified-search registry %q", reg)
 		}
 		// Make sure to add ":latest" if needed
 		named = reference.TagNameOnly(named)
@@ -340,7 +343,7 @@ func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
 	}
 
 	// If we don't have a TTY, act according to the mode.
-	if !terminal.IsTerminal(int(os.Stdout.Fd())) || !terminal.IsTerminal(int(os.Stdin.Fd())) {
+	if !term.IsTerminal(int(os.Stdout.Fd())) || !term.IsTerminal(int(os.Stdin.Fd())) {
 		switch mode {
 		case types.ShortNameModePermissive:
 			// Permissive falls back to using all candidates.
@@ -447,7 +450,7 @@ func ResolveLocally(ctx *types.SystemContext, name string) ([]reference.Named, e
 	for _, reg := range append([]string{"localhost"}, unqualifiedSearchRegistries...) {
 		named, err := reference.ParseNormalizedNamed(fmt.Sprintf("%s/%s", reg, name))
 		if err != nil {
-			return nil, errors.Wrapf(err, "error creating reference with unqualified-search registry %q", reg)
+			return nil, errors.Wrapf(err, "creating reference with unqualified-search registry %q", reg)
 		}
 		// Make sure to add ":latest" if needed
 		named = reference.TagNameOnly(named)

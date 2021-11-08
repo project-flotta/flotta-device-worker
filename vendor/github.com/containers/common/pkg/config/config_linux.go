@@ -24,3 +24,21 @@ func customConfigFile() (string, error) {
 	}
 	return OverrideContainersConfig, nil
 }
+
+func ifRootlessConfigPath() (string, error) {
+	if unshare.IsRootless() {
+		path, err := rootlessConfigPath()
+		if err != nil {
+			return "", err
+		}
+		return path, nil
+	}
+	return "", nil
+}
+
+var defaultHelperBinariesDir = []string{
+	"/usr/local/libexec/podman",
+	"/usr/local/lib/podman",
+	"/usr/libexec/podman",
+	"/usr/lib/podman",
+}
