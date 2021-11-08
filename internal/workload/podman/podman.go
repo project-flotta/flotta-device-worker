@@ -2,10 +2,10 @@ package podman
 
 import (
 	"context"
-	"github.com/containers/podman/v2/pkg/bindings"
-	"github.com/containers/podman/v2/pkg/bindings/play"
-	"github.com/containers/podman/v2/pkg/bindings/pods"
-	"github.com/containers/podman/v2/pkg/domain/entities"
+
+	"github.com/containers/podman/v3/pkg/bindings"
+	"github.com/containers/podman/v3/pkg/bindings/play"
+	"github.com/containers/podman/v3/pkg/bindings/pods"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 )
 
@@ -24,7 +24,7 @@ func NewPodman() (*Podman, error) {
 }
 
 func (p *Podman) List() ([]api2.WorkloadInfo, error) {
-	podList, err := pods.List(p.podmanConnection, map[string][]string{})
+	podList, err := pods.List(p.podmanConnection, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -41,13 +41,13 @@ func (p *Podman) List() ([]api2.WorkloadInfo, error) {
 }
 
 func (p *Podman) Remove(workloadId string) error {
-	exists, err := pods.Exists(p.podmanConnection, workloadId)
+	exists, err := pods.Exists(p.podmanConnection, workloadId, nil)
 	if err != nil {
 		return err
 	}
 	if exists {
 		force := true
-		_, err := pods.Remove(p.podmanConnection, workloadId, &force)
+		_, err := pods.Remove(p.podmanConnection, workloadId, &pods.RemoveOptions{Force: &force})
 		if err != nil {
 			return err
 		}
@@ -56,7 +56,7 @@ func (p *Podman) Remove(workloadId string) error {
 }
 
 func (p *Podman) Run(manifestPath string) ([]string, error) {
-	report, err := play.Kube(p.podmanConnection, manifestPath, entities.PlayKubeOptions{})
+	report, err := play.Kube(p.podmanConnection, manifestPath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (p *Podman) Run(manifestPath string) ([]string, error) {
 }
 
 func (p *Podman) Start(workloadId string) error {
-	_, err := pods.Start(p.podmanConnection, workloadId)
+	_, err := pods.Start(p.podmanConnection, workloadId, nil)
 	if err != nil {
 		return err
 	}
