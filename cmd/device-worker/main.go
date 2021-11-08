@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
 	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
@@ -96,6 +97,7 @@ func main() {
 
 	dataMonitor := datatransfer.NewMonitor(wl, configManager)
 	wl.RegisterObserver(dataMonitor)
+	configManager.RegisterObserver(dataMonitor)
 	dataMonitor.Start()
 
 	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor)

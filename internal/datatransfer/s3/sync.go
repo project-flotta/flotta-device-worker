@@ -20,40 +20,62 @@ var (
 )
 
 type Sync struct {
-	s3SyncManager *s3sync.Manager
-	bucketName    string
+	s3SyncManager  *s3sync.Manager
+	bucketName     string
+	bucketRegion   string
+	endpoint       string
+	accessKeyBytes []byte
+	secretKeyBytes []byte
+	caBundle       []byte
 }
 
 func NewSync(s3Config models.S3StorageConfiguration) (*Sync, error) {
-	accessKeyBytes, err := base64.StdEncoding.DecodeString(s3Config.AwsAccessKeyID)
-	if err != nil {
-		log.Errorf("Can't decode AWS Access Key: %v", err)
-	}
-	secretKeyBytes, err := base64.StdEncoding.DecodeString(s3Config.AwsSecretAccessKey)
-	if err != nil {
-		log.Errorf("Can't decode AWS Access Key: %v", err)
-	}
-	caBundle, err := base64.StdEncoding.DecodeString(s3Config.AwsCaBundle)
-	if err != nil {
-		log.Errorf("Can't decode AWS CA Bundle: %v", err)
-	}
 
-	endpoint := fmt.Sprintf("https://%s:%d", s3Config.BucketHost, s3Config.BucketPort)
-	sess, err := session.NewSession(&aws.Config{
-		Region:           &s3Config.BucketRegion,
-		Endpoint:         &endpoint,
-		Credentials:      credentials.NewStaticCredentials(string(accessKeyBytes), string(secretKeyBytes), ""),
-		HTTPClient:       createHttpClient(caBundle),
-		S3ForcePathStyle: &theTrue,
-	})
+	sync := Sync{}
+	var err error
+
+	sync.accessKeyBytes, err = base64.StdEncoding.DecodeString(s3Config.AwsAccessKeyID)
 	if err != nil {
-		log.Errorf("Error while creating s3 session: %v", err)
+		log.Errorf("Can't decode AWS Access Key: %v", err)
 		return nil, err
 	}
-	return &Sync{
-		s3SyncManager: s3sync.New(sess),
-		bucketName:    s3Config.BucketName,
-	}, nil
+	sync.secretKeyBytes, err = base64.StdEncoding.DecodeString(s3Config.AwsSecretAccessKey)
+	if err != nil {
+		log.Errorf("Can't decode AWS Access Key: %v", err)
+		return nil, err
+	}
+
+	sync.caBundle, err = base64.StdEncoding.DecodeString(s3Config.AwsCaBundle)
+	if err != nil {
+		log.Errorf("Can't decode AWS CA Bundle: %v", err)
+		return nil, err
+	}
+
+	sync.endpoint = fmt.Sprintf("https://%s:%d", s3Config.BucketHost, s3Config.BucketPort)
+	sync.bucketName = s3Config.BucketName
+	return &sync, nil
+}
+
+func (s *Sync) Connect() error {
+	if s.s3SyncManager != nil {
+		return nil
+	}
+
+	sess, err := session.NewSession(&aws.Config{
+		Region:           &s.bucketRegion,
+		Endpoint:         &s.endpoint,
+		Credentials:      credentials.NewStaticCredentials(string(s.accessKeyBytes), string(s.secretKeyBytes), ""),
+		HTTPClient:       createHttpClient(s.caBundle),
+		S3ForcePathStyle: &theTrue,
+	})
+
+	if err != nil {
+		log.Errorf("Error while creating s3 session: %v", err)
+		return err
+	}
+
+	s.s3SyncManager = s3sync.New(sess)
+	return nil
 }
 
 func createHttpClient(caBundle []byte) *http.Client {
