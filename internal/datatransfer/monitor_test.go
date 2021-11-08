@@ -126,6 +126,7 @@ var _ = Describe("Datatransfer", func() {
 				Name:   "test",
 				Status: "Running",
 			}}, nil).AnyTimes()
+
 			// when
 			err := monitor.ForceSync()
 
@@ -340,6 +341,7 @@ var _ = Describe("Datatransfer", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration.Storage.S3.AwsAccessKeyID = "invalidbase64"
+
 			// when
 			err := monitor.Update(cfg)
 

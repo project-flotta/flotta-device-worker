@@ -138,8 +138,8 @@ func (m *Monitor) HasStorageDefined() bool {
 
 func (m *Monitor) SetStorage(fs FileSync) {
 	m.syncMutex.Lock()
+	defer m.syncMutex.Unlock()
 	m.fsSync = fs
-	m.syncMutex.Unlock()
 }
 
 func (m *Monitor) getFsSync() (FileSync, error) {
@@ -164,7 +164,7 @@ func (m *Monitor) syncPaths() error {
 	}
 
 	if len(workloads) == 0 {
-		log.Trace("No worloads to return")
+		log.Trace("No workloads to return")
 		return nil
 	}
 
