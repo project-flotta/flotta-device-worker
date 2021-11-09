@@ -18,6 +18,7 @@ require (
 	github.com/seqsense/s3sync v1.8.0
 	google.golang.org/grpc v1.40.0
 	k8s.io/api v0.22.3
+	k8s.io/apimachinery v0.22.3
 	sigs.k8s.io/yaml v1.2.0
 )
 

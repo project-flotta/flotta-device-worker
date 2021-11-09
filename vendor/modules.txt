@@ -503,6 +503,7 @@ github.com/nxadm/tail/winfile
 ## explicit
 github.com/onsi/ginkgo
 github.com/onsi/ginkgo/config
+github.com/onsi/ginkgo/extensions/table
 github.com/onsi/ginkgo/formatter
 github.com/onsi/ginkgo/internal/codelocation
 github.com/onsi/ginkgo/internal/containernode
@@ -823,6 +824,7 @@ howett.net/plist
 ## explicit
 k8s.io/api/core/v1
 # k8s.io/apimachinery v0.22.3
+## explicit
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/conversion
