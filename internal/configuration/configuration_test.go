@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	"os"
+	"sigs.k8s.io/yaml"
 
 	gomock "github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -16,6 +18,7 @@ import (
 
 const (
 	deviceConfigName = "device-config.json"
+	commonDeviceId   = "device-id-123"
 )
 
 var _ = Describe("Configuration", func() {
@@ -81,10 +84,25 @@ var _ = Describe("Configuration", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// when
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			// then
 			Expect(configManager.GetDeviceConfiguration()).To(Equal(getDefaultDeviceconfig()))
+			Expect(configManager.GetDeviceConfigMapPath()).To(BeAnExistingFile())
+			Expect(configManager.GetDeviceId()).To(BeEquivalentTo(commonDeviceId))
+			deviceConfigMapExists(configManager.GetDeviceConfigMapPath(), commonDeviceId)
+		})
+
+		It("should fail when cannot write device config map", func() {
+			// given
+			err = os.Chmod(datadir, 0444)
+			Expect(err).NotTo(HaveOccurred())
+
+			// when
+			_, err = configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
+
+			// then
+			Expect(err).To(HaveOccurred())
 		})
 
 	})
@@ -94,7 +112,7 @@ var _ = Describe("Configuration", func() {
 		It("works as expected", func() {
 
 			// given
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
@@ -113,7 +131,7 @@ var _ = Describe("Configuration", func() {
 			// Observer can fail, BUT device config should be created.
 
 			// given
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
@@ -139,10 +157,8 @@ var _ = Describe("Configuration", func() {
 		It("Cannot write device config", func() {
 
 			// given
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 			err = os.Chmod(datadir, 0444)
-			Expect(err).NotTo(HaveOccurred())
-
-			configManager := configuration.NewConfigurationManager(datadir)
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
@@ -175,7 +191,7 @@ var _ = Describe("Configuration", func() {
 
 			It("didn't get overwritten if no need", func() {
 				// given
-				configManager := configuration.NewConfigurationManager(datadir)
+				configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 				observerMock := configuration.NewMockObserver(mockCtrl)
 				observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(0)
@@ -197,7 +213,7 @@ var _ = Describe("Configuration", func() {
 					Specification: "{}",
 				}}
 
-				configManager := configuration.NewConfigurationManager(datadir)
+				configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 				observerMock := configuration.NewMockObserver(mockCtrl)
 				observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
@@ -217,7 +233,7 @@ var _ = Describe("Configuration", func() {
 
 		It("Works as expected", func() {
 			//given
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 			cfg.Version = "1"
 
 			err := configManager.Update(cfg)
@@ -239,7 +255,7 @@ var _ = Describe("Configuration", func() {
 			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
 			Expect(err).NotTo(HaveOccurred())
 
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			// when
 			res := configManager.GetConfigurationVersion()
@@ -254,7 +270,7 @@ var _ = Describe("Configuration", func() {
 		It("When there is no workload", func() {
 
 			//given
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			err := configManager.Update(cfg)
 			Expect(err).NotTo(HaveOccurred())
@@ -268,7 +284,7 @@ var _ = Describe("Configuration", func() {
 
 		It("When there are workloads", func() {
 			//given
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			cfg.Workloads = []*models.Workload{{
 				Data:          &models.DataConfiguration{},
@@ -301,7 +317,7 @@ var _ = Describe("Configuration", func() {
 			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
 			Expect(err).NotTo(HaveOccurred())
 
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			// when
 			res := configManager.GetWorkloads()
@@ -316,7 +332,7 @@ var _ = Describe("Configuration", func() {
 		It("Delete config file as expected", func() {
 
 			//given
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			err := configManager.Update(cfg)
 			Expect(err).NotTo(HaveOccurred())
@@ -333,7 +349,7 @@ var _ = Describe("Configuration", func() {
 		It("Raise an error if cannot be deleted", func() {
 
 			//given
-			configManager := configuration.NewConfigurationManager(datadir)
+			configManager, _ := configuration.NewConfigurationManagerWithDeviceId(datadir, commonDeviceId)
 
 			err := configManager.Update(cfg)
 			Expect(err).NotTo(HaveOccurred())
@@ -352,3 +368,12 @@ var _ = Describe("Configuration", func() {
 
 	})
 })
+
+func deviceConfigMapExists(cmPath string, deviceId string) {
+	data, err := ioutil.ReadFile(cmPath)
+	cm := v1.ConfigMap{}
+	err = yaml.Unmarshal(data, &cm)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, cm.Data["DEVICE_ID"]).To(BeEquivalentTo(deviceId))
+	ExpectWithOffset(1, cm.Name).To(BeEquivalentTo(configuration.DeviceConfigMapName))
+}

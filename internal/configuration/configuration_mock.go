@@ -5,36 +5,35 @@
 package configuration
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	models "github.com/jakub-dzon/k4e-operator/models"
+	reflect "reflect"
 )
 
-// MockObserver is a mock of Observer interface.
+// MockObserver is a mock of Observer interface
 type MockObserver struct {
 	ctrl     *gomock.Controller
 	recorder *MockObserverMockRecorder
 }
 
-// MockObserverMockRecorder is the mock recorder for MockObserver.
+// MockObserverMockRecorder is the mock recorder for MockObserver
 type MockObserverMockRecorder struct {
 	mock *MockObserver
 }
 
-// NewMockObserver creates a new mock instance.
+// NewMockObserver creates a new mock instance
 func NewMockObserver(ctrl *gomock.Controller) *MockObserver {
 	mock := &MockObserver{ctrl: ctrl}
 	mock.recorder = &MockObserverMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockObserver) EXPECT() *MockObserverMockRecorder {
 	return m.recorder
 }
 
-// Update mocks base method.
+// Update mocks base method
 func (m *MockObserver) Update(arg0 models.DeviceConfigurationMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", arg0)
@@ -42,7 +41,7 @@ func (m *MockObserver) Update(arg0 models.DeviceConfigurationMessage) error {
 	return ret0
 }
 
-// Update indicates an expected call of Update.
+// Update indicates an expected call of Update
 func (mr *MockObserverMockRecorder) Update(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockObserver)(nil).Update), arg0)

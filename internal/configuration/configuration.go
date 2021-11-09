@@ -3,6 +3,7 @@ package configuration
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/configmaps"
 	"io/ioutil"
 	"os"
 	"path"
@@ -29,6 +30,10 @@ var (
 	}
 )
 
+const (
+	DeviceConfigMapName = "device-config-map"
+)
+
 //go:generate mockgen -package=configuration -destination=configuration_mock.go . Observer
 type Observer interface {
 	Update(configuration models.DeviceConfigurationMessage) error
@@ -40,9 +45,17 @@ type Manager struct {
 	observers        []Observer
 	deviceConfigFile string
 	initialConfig    atomic.Value
+
+	deviceConfigMapPath string
+	deviceId            string
 }
 
 func NewConfigurationManager(dataDir string) *Manager {
+	cm, _ := NewConfigurationManagerWithDeviceId(dataDir, "unknown")
+	return cm
+}
+
+func NewConfigurationManagerWithDeviceId(dataDir string, deviceId string) (*Manager, error) {
 	deviceConfigFile := path.Join(dataDir, "device-config.json")
 	log.Infof("Device config file: %s", deviceConfigFile)
 	file, err := ioutil.ReadFile(deviceConfigFile)
@@ -60,13 +73,21 @@ func NewConfigurationManager(dataDir string) *Manager {
 			deviceConfiguration = defaultDeviceConfigurationMessage
 		}
 	}
+
+	deviceConfigMapFilePath, err := ensureDeviceConfigMapExists(dataDir, deviceId)
+	if err != nil {
+		return nil, err
+	}
+
 	mgr := Manager{
 		observers:           make([]Observer, 0),
 		deviceConfigFile:    deviceConfigFile,
 		deviceConfiguration: &deviceConfiguration,
 		initialConfig:       initialConfig,
+		deviceConfigMapPath: deviceConfigMapFilePath,
+		deviceId:            deviceId,
 	}
-	return &mgr
+	return &mgr, nil
 }
 
 func (m *Manager) RegisterObserver(observer Observer) {
@@ -79,6 +100,10 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 
 func (m *Manager) GetWorkloads() models.WorkloadList {
 	return m.deviceConfiguration.Workloads
+}
+
+func (m *Manager) GetDeviceConfigMapPath() string {
+	return m.deviceConfigMapPath
 }
 
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
@@ -126,7 +151,6 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 
 	return errors
 }
-
 func (m *Manager) GetDataTransferInterval() time.Duration {
 	return time.Second * 15
 }
@@ -149,4 +173,26 @@ func (m *Manager) Deregister() error {
 		return err
 	}
 	return nil
+}
+
+func (m *Manager) GetDeviceId() string {
+	return m.deviceId
+}
+
+func ensureDeviceConfigMapExists(dataDir string, deviceId string) (string, error) {
+	deviceConfigMapFilePath := path.Join(dataDir, DeviceConfigMapName+".yaml")
+	_, err := ioutil.ReadFile(deviceConfigMapFilePath)
+	if err != nil {
+		log.Error(err)
+		configMapYaml, err := configmaps.CreateConfigMap(DeviceConfigMapName, map[string]string{"DEVICE_ID": deviceId})
+		if err != nil {
+			return "", err
+		}
+		log.Tracef("Writing device config map to %s: %s", deviceConfigMapFilePath, configMapYaml)
+		err = ioutil.WriteFile(deviceConfigMapFilePath, configMapYaml, 0640)
+		if err != nil {
+			return "", err
+		}
+	}
+	return deviceConfigMapFilePath, nil
 }
