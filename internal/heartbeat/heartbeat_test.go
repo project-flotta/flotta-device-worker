@@ -45,7 +45,7 @@ var _ = Describe("Heartbeat", func() {
 		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
-		configManager = configuration.NewConfigurationManager(datadir)
+		configManager, _ = configuration.NewConfigurationManager(datadir, "device-id-123")
 		client = Dispatcher{}
 		hb = heartbeat.NewHeartbeatService(&client,
 			configManager,

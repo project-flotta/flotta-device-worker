@@ -85,7 +85,15 @@ func main() {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
-	configManager := configuration2.NewConfigurationManager(dataDir)
+	deviceId, ok := os.LookupEnv("DEVICE_ID")
+	if !ok {
+		log.Warn("DEVICE_ID environment variable has not been set")
+		deviceId = "unknown"
+	}
+	configManager, err := configuration2.NewConfigurationManager(dataDir, deviceId)
+	if err != nil {
+		log.Fatal("Cannot create configuration manager, err: ", err)
+	}
 
 	wl, err := workload2.NewWorkloadManager(dataDir)
 	if err != nil {

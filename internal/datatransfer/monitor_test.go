@@ -42,7 +42,7 @@ var _ = Describe("Datatransfer", func() {
 		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
-		configManager = configuration.NewConfigurationManager(datadir)
+		configManager, _ = configuration.NewConfigurationManager(datadir, "device-id-123")
 		fmt.Println(configManager)
 
 		deviceConfiguration := models.DeviceConfiguration{

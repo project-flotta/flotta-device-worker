@@ -50,12 +50,7 @@ type Manager struct {
 	deviceId            string
 }
 
-func NewConfigurationManager(dataDir string) *Manager {
-	cm, _ := NewConfigurationManagerWithDeviceId(dataDir, "unknown")
-	return cm
-}
-
-func NewConfigurationManagerWithDeviceId(dataDir string, deviceId string) (*Manager, error) {
+func NewConfigurationManager(dataDir string, deviceId string) (*Manager, error) {
 	deviceConfigFile := path.Join(dataDir, "device-config.json")
 	log.Infof("Device config file: %s", deviceConfigFile)
 	file, err := ioutil.ReadFile(deviceConfigFile)
