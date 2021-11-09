@@ -32,7 +32,6 @@ type WorkloadWrapper interface {
 	PersistConfiguration() error
 	RemoveTable() error
 	RemoveMappingFile() error
-
 }
 
 // Workload manages the workload and its configuration on the device

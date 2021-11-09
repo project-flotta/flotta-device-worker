@@ -66,6 +66,7 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 		Version:   s.configManager.GetConfigurationVersion(),
 		Workloads: workloadStatuses,
 		Hardware:  hardwareInfo,
+		Events:    s.workloadManager.PopEvents(),
 	}
 	return heartbeatInfo
 }

@@ -10,7 +10,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jakub-dzon/k4e-operator v0.0.0-20211102111942-a8d7ec58899a
+	github.com/jakub-dzon/k4e-operator v0.0.0-20211109114949-9d05c9bf2736
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147

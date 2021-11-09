@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
@@ -13,6 +14,76 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+var _ = Describe("Events", func() {
+
+	var (
+		datadir   string
+		mockCtrl  *gomock.Controller
+		wkManager *workload.WorkloadManager
+		wkwMock   *workload.MockWorkloadWrapper
+		err       error
+	)
+
+	BeforeEach(func() {
+		datadir, err = ioutil.TempDir("", "worloadTest")
+		Expect(err).ToNot(HaveOccurred())
+
+		mockCtrl = gomock.NewController(GinkgoT())
+		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
+
+		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
+		wkManager, err = workload.NewWorkloadManagerWithParamsAndInterval(datadir, wkwMock, 2)
+		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
+
+	})
+
+	AfterEach(func() {
+		mockCtrl.Finish()
+		_ = os.Remove(datadir)
+	})
+
+	Context("NonDefaultMonitoringInterval", func() {
+
+		It("emit events in case of Start failure", func() {
+
+			// given
+			workloads := []*models.Workload{}
+			workloads = append(workloads, &models.Workload{
+				Data:          &models.DataConfiguration{},
+				Name:          "stale",
+				Specification: "{}",
+			})
+			wkwMock.EXPECT().Remove("stale").Times(1)
+
+			cfg := models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: 1}},
+				DeviceID:      "",
+				Version:       "",
+				Workloads:     workloads,
+			}
+
+			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{
+				{Id: "stale", Name: "stale", Status: "created"},
+			}, nil).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).AnyTimes()
+			wkwMock.EXPECT().PersistConfiguration().AnyTimes()
+			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("Failed to start container")).AnyTimes()
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+
+			// Check no events are generated:
+			time.Sleep(5 * time.Second)
+			events := wkManager.PopEvents()
+			Expect(len(events)).To(BeNumerically(">=", 1))
+		})
+	})
+
+})
 
 var _ = Describe("Manager", func() {
 
