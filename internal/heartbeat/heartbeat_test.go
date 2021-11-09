@@ -42,7 +42,7 @@ var _ = Describe("Heartbeat", func() {
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
 		wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 
-		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, configuration.DeviceConfigMapName, "/any/path.yaml")
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 		configManager, _ = configuration.NewConfigurationManager(datadir, "device-id-123")

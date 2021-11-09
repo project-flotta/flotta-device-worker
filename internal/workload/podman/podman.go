@@ -55,8 +55,11 @@ func (p *Podman) Remove(workloadId string) error {
 	return nil
 }
 
-func (p *Podman) Run(manifestPath string) ([]string, error) {
-	report, err := play.Kube(p.podmanConnection, manifestPath, nil)
+func (p *Podman) Run(manifestPath string, configMaps []string) ([]string, error) {
+	options := play.KubeOptions{
+		ConfigMaps: &configMaps,
+	}
+	report, err := play.Kube(p.podmanConnection, manifestPath, &options)
 	if err != nil {
 		return nil, err
 	}

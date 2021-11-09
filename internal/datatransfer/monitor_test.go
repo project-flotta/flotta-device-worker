@@ -2,12 +2,11 @@ package datatransfer_test
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"io/ioutil"
+	"os"
 
 	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
@@ -39,11 +38,10 @@ var _ = Describe("Datatransfer", func() {
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
 		wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 
-		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, configuration.DeviceConfigMapName, "/any/path.yaml")
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 		configManager, _ = configuration.NewConfigurationManager(datadir, "device-id-123")
-		fmt.Println(configManager)
 
 		deviceConfiguration := models.DeviceConfiguration{
 			Heartbeat: &models.HeartbeatConfiguration{

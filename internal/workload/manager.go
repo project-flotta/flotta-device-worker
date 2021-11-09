@@ -25,12 +25,14 @@ const (
 )
 
 type WorkloadManager struct {
-	manifestsDir   string
-	volumesDir     string
-	workloads      WorkloadWrapper
-	managementLock sync.Locker
-	ticker         *time.Ticker
-	deregistered   bool
+	manifestsDir        string
+	volumesDir          string
+	workloads           WorkloadWrapper
+	managementLock      sync.Locker
+	ticker              *time.Ticker
+	deregistered        bool
+	deviceConfigMapName string
+	deviceConfigMapPath string
 }
 
 type podAndPath struct {
@@ -38,16 +40,16 @@ type podAndPath struct {
 	manifestPath string
 }
 
-func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
+func NewWorkloadManager(dataDir string, deviceConfigMapName string, deviceConfigMapPath string) (*WorkloadManager, error) {
 	wrapper, err := newWorkloadInstance(dataDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewWorkloadManagerWithParams(dataDir, wrapper)
+	return NewWorkloadManagerWithParams(dataDir, wrapper, deviceConfigMapName, deviceConfigMapPath)
 }
 
-func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*WorkloadManager, error) {
+func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceConfigMapName string, deviceConfigMapPath string) (*WorkloadManager, error) {
 	manifestsDir := path.Join(dataDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
@@ -58,11 +60,13 @@ func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*Workload
 	}
 
 	manager := WorkloadManager{
-		manifestsDir:   manifestsDir,
-		volumesDir:     volumesDir,
-		workloads:      ww,
-		managementLock: &sync.Mutex{},
-		deregistered:   false,
+		manifestsDir:        manifestsDir,
+		volumesDir:          volumesDir,
+		workloads:           ww,
+		managementLock:      &sync.Mutex{},
+		deregistered:        false,
+		deviceConfigMapName: deviceConfigMapName,
+		deviceConfigMapPath: deviceConfigMapPath,
 	}
 	if err := manager.workloads.Init(); err != nil {
 		return nil, err
@@ -89,6 +93,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		return errors
 	}
 
+	configMapsPaths := w.prepareConfigMapsPaths()
 	configuredWorkloadNameSet := make(map[string]struct{})
 	for _, workload := range configuration.Workloads {
 		log.Tracef("Deploying workload: %s", workload.Name)
@@ -123,7 +128,8 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			errors = multierror.Append(errors, fmt.Errorf("error removing workload %s: %s", workload.Name, err))
 			continue
 		}
-		err = w.workloads.Run(pod, manifestPath)
+
+		err = w.workloads.Run(pod, manifestPath, configMapsPaths)
 		if err != nil {
 			log.Errorf("Cannot run workload: %v", err)
 			errors = multierror.Append(errors, fmt.Errorf(
@@ -244,7 +250,7 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 			continue
 		}
 		// Workload is not present - run
-		err = w.workloads.Run(&podWithPath.pod, podWithPath.manifestPath)
+		err = w.workloads.Run(&podWithPath.pod, podWithPath.manifestPath, w.prepareConfigMapsPaths())
 		if err != nil {
 			log.Errorf("failed to run workload %s (manifest: %s): %v", name, podWithPath.manifestPath, err)
 			continue
@@ -406,6 +412,12 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 			MountPath: "/export",
 		}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
+		configMapRef := v1.EnvFromSource{
+			ConfigMapRef: &v1.ConfigMapEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: w.deviceConfigMapName},
+			},
+		}
+		container.EnvFrom = append(container.EnvFrom, configMapRef)
 		containers = append(containers, container)
 	}
 	pod.Spec.Containers = containers
@@ -418,4 +430,8 @@ func (w *WorkloadManager) podModified(manifestPath string, podYaml []byte) bool 
 		return true
 	}
 	return bytes.Compare(file, podYaml) != 0
+}
+
+func (w *WorkloadManager) prepareConfigMapsPaths() []string {
+	return []string{w.deviceConfigMapPath}
 }

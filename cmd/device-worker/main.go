@@ -95,7 +95,7 @@ func main() {
 		log.Fatal("Cannot create configuration manager, err: ", err)
 	}
 
-	wl, err := workload2.NewWorkloadManager(dataDir)
+	wl, err := workload2.NewWorkloadManager(dataDir, configuration2.DeviceConfigMapName, configManager.GetDeviceConfigMapPath())
 	if err != nil {
 		log.Fatal("Cannot start Workload Manager, err: ", err)
 	}

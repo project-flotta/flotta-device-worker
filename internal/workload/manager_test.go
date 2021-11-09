@@ -2,8 +2,10 @@ package workload_test
 
 import (
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"io/ioutil"
 	"os"
+	"path"
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
@@ -17,22 +19,25 @@ import (
 var _ = Describe("Manager", func() {
 
 	var (
-		datadir   string
-		mockCtrl  *gomock.Controller
-		wkManager *workload.WorkloadManager
-		wkwMock   *workload.MockWorkloadWrapper
-		err       error
+		datadir             string
+		mockCtrl            *gomock.Controller
+		wkManager           *workload.WorkloadManager
+		wkwMock             *workload.MockWorkloadWrapper
+		deviceConfigMapPath string
+		err                 error
 	)
 
 	BeforeEach(func() {
 		datadir, err = ioutil.TempDir("", "worloadTest")
 		Expect(err).ToNot(HaveOccurred())
 
+		deviceConfigMapPath = path.Join(datadir, "cm.yaml")
 		mockCtrl = gomock.NewController(GinkgoT())
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
-		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+
+		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, configuration.DeviceConfigMapName, deviceConfigMapPath)
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 	})
@@ -53,7 +58,7 @@ var _ = Describe("Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// When
-			wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+			wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, configuration.DeviceConfigMapName, deviceConfigMapPath)
 
 			// Then
 			Expect(err).To(HaveOccurred())
@@ -85,7 +90,7 @@ var _ = Describe("Manager", func() {
 			}
 
 			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq([]string{deviceConfigMapPath})).AnyTimes()
 
 			// when
 			err := wkManager.Update(cfg)
@@ -109,7 +114,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).Return(fmt.Errorf("Cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq([]string{deviceConfigMapPath})).Return(fmt.Errorf("Cannot run workload")).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -135,7 +140,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").Return(fmt.Errorf("Cannot run workload")).Times(1)
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).Times(0)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 			err := wkManager.Update(cfg)
 			merr, _ := err.(*multierror.Error)
@@ -170,10 +175,10 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "test")).Return(fmt.Errorf("Cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "test"), gomock.Eq([]string{deviceConfigMapPath})).Return(fmt.Errorf("Cannot run workload")).Times(1)
 
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "testB")).Return(nil).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "testB"), gomock.Eq([]string{deviceConfigMapPath})).Return(nil).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -211,7 +216,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().Remove("test").AnyTimes()
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 			wkwMock.EXPECT().Remove("stale").Times(1)
 

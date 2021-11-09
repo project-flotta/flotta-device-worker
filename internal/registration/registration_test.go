@@ -50,7 +50,7 @@ var _ = Describe("Registration", func() {
 
 		dispatcherMock = registration.NewMockDispatcherClient(mockCtrl)
 
-		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, configuration.DeviceConfigMapName, "/any/path.yaml")
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 		configManager, _ = configuration.NewConfigurationManager(datadir, "device-id-123")
