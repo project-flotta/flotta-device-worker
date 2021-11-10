@@ -31,6 +31,7 @@ type WorkloadManager struct {
 	managementLock sync.Locker
 	ticker         *time.Ticker
 	deregistered   bool
+	eventsQueue    []*models.EventInfo
 }
 
 type podAndPath struct {
@@ -47,7 +48,20 @@ func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
 	return NewWorkloadManagerWithParams(dataDir, wrapper)
 }
 
+func NewWorkloadManagerWithMonitorInterval(dataDir string, monitorInterval int64) (*WorkloadManager, error) {
+	wrapper, err := newWorkloadInstance(dataDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewWorkloadManagerWithParamsAndInterval(dataDir, wrapper, monitorInterval)
+}
+
 func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*WorkloadManager, error) {
+	return NewWorkloadManagerWithParamsAndInterval(dataDir, ww, defaultWorkloadsMonitoringInterval)
+}
+
+func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval int64) (*WorkloadManager, error) {
 	manifestsDir := path.Join(dataDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
@@ -68,8 +82,24 @@ func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*Workload
 		return nil, err
 	}
 
-	manager.initTicker(defaultWorkloadsMonitoringInterval)
+	manager.initTicker(monitorInterval)
 	return &manager, nil
+}
+
+// PopEvents return copy of all the events stored in eventQueue
+func (w *WorkloadManager) PopEvents() []*models.EventInfo {
+	w.managementLock.Lock()
+	defer w.managementLock.Unlock()
+
+	// Copy the events:
+	events := []*models.EventInfo{}
+	for _, event := range w.eventsQueue {
+		e := *event
+		events = append(events, &e)
+	}
+	// Empty the events:
+	w.eventsQueue = []*models.EventInfo{}
+	return events
 }
 
 func (w *WorkloadManager) ListWorkloads() ([]api2.WorkloadInfo, error) {
@@ -238,6 +268,11 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 				// Workload is not running - start
 				err = w.workloads.Start(&podWithPath.pod)
 				if err != nil {
+					w.eventsQueue = append(w.eventsQueue, &models.EventInfo{
+						Message: err.Error(),
+						Reason:  "Failed",
+						Type:    models.EventInfoTypeWarn,
+					})
 					log.Errorf("failed to start workload %s: %v", name, err)
 				}
 			}

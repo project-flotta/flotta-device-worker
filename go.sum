@@ -906,8 +906,8 @@ github.com/insomniacslk/dhcp v0.0.0-20210120172423-cc9239ac6294/go.mod h1:TKl4jN
 github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee/go.mod h1:co9pwDoBCm1kGxawmb4sPq0cSIOOWNPT4KnHotMP1Zg=
 github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6tORTn+6F6j+Jc8TOr5osrynvN6ivFWZ2GA=
 github.com/j-keck/arping v1.0.2/go.mod h1:aJbELhR92bSk7tp79AWM/ftfc90EfEi2bQJrbBFOsPw=
-github.com/jakub-dzon/k4e-operator v0.0.0-20211102111942-a8d7ec58899a h1:PEWE7nMYwmll+SzKGpbnTwc1WePKrRa1r+Wtjx/r5L0=
-github.com/jakub-dzon/k4e-operator v0.0.0-20211102111942-a8d7ec58899a/go.mod h1:3PQ7l9gZQbRJyOCN1hRix1vaCcmWcjn7s9rqC2Cq50Q=
+github.com/jakub-dzon/k4e-operator v0.0.0-20211109114949-9d05c9bf2736 h1:1B6SI6kJ/XwXpfO8GbXj5FomCD2OufBNZLJurIgKHao=
+github.com/jakub-dzon/k4e-operator v0.0.0-20211109114949-9d05c9bf2736/go.mod h1:3PQ7l9gZQbRJyOCN1hRix1vaCcmWcjn7s9rqC2Cq50Q=
 github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e h1:wwLKxJeO0yZLxTQcJ4QCW2OxiagxR99QJQoD+B8DoOo=
 github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e/go.mod h1:tH7J+FiCyzrZvjI4Hn/hRf5s1m5xFxUXqKQwY1tA9lA=
 github.com/jaypipes/ghw v0.7.0 h1:DO0qK9hESxkOTWyd/93hjYBRL7MdVSFqaXdcR7n4pVY=
