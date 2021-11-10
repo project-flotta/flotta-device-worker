@@ -39,7 +39,7 @@ var _ = Describe("Datatransfer", func() {
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
 		wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 
-		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, "device-id-123")
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 		configManager = configuration.NewConfigurationManager(datadir)
