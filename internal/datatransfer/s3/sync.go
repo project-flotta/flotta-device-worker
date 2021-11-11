@@ -53,6 +53,7 @@ func NewSync(s3Config models.S3StorageConfiguration) (*Sync, error) {
 
 	sync.endpoint = fmt.Sprintf("https://%s:%d", s3Config.BucketHost, s3Config.BucketPort)
 	sync.bucketName = s3Config.BucketName
+	sync.bucketRegion = s3Config.BucketRegion
 	return &sync, nil
 }
 
