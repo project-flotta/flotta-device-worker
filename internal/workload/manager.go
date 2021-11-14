@@ -32,6 +32,7 @@ type WorkloadManager struct {
 	ticker         *time.Ticker
 	deregistered   bool
 	eventsQueue    []*models.EventInfo
+	deviceId       string
 }
 
 type podAndPath struct {
@@ -39,29 +40,29 @@ type podAndPath struct {
 	manifestPath string
 }
 
-func NewWorkloadManager(dataDir string) (*WorkloadManager, error) {
+func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, error) {
 	wrapper, err := newWorkloadInstance(dataDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewWorkloadManagerWithParams(dataDir, wrapper)
+	return NewWorkloadManagerWithParams(dataDir, wrapper, deviceId)
 }
 
-func NewWorkloadManagerWithMonitorInterval(dataDir string, monitorInterval int64) (*WorkloadManager, error) {
+func NewWorkloadManagerWithMonitorInterval(dataDir string, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
 	wrapper, err := newWorkloadInstance(dataDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewWorkloadManagerWithParamsAndInterval(dataDir, wrapper, monitorInterval)
+	return NewWorkloadManagerWithParamsAndInterval(dataDir, wrapper, monitorInterval, deviceId)
 }
 
-func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper) (*WorkloadManager, error) {
-	return NewWorkloadManagerWithParamsAndInterval(dataDir, ww, defaultWorkloadsMonitoringInterval)
+func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceId string) (*WorkloadManager, error) {
+	return NewWorkloadManagerWithParamsAndInterval(dataDir, ww, defaultWorkloadsMonitoringInterval, deviceId)
 }
 
-func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval int64) (*WorkloadManager, error) {
+func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
 	manifestsDir := path.Join(dataDir, "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
@@ -77,6 +78,7 @@ func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper,
 		workloads:      ww,
 		managementLock: &sync.Mutex{},
 		deregistered:   false,
+		deviceId:       deviceId,
 	}
 	if err := manager.workloads.Init(); err != nil {
 		return nil, err
@@ -441,6 +443,7 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 			MountPath: "/export",
 		}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
+		container.Env = append(container.Env, v1.EnvVar{Name: "DEVICE_ID", Value: w.deviceId})
 		containers = append(containers, container)
 	}
 	pod.Spec.Containers = containers

@@ -3,7 +3,9 @@ package workload_test
 import (
 	"fmt"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	"os"
+	"sigs.k8s.io/yaml"
 	"time"
 
 	gomock "github.com/golang/mock/gomock"
@@ -13,6 +15,13 @@ import (
 	"github.com/jakub-dzon/k4e-operator/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+)
+
+const (
+	deviceId = "device-id-123"
+	podSpec  = `containers:
+    - name: alpine
+      image: quay.io/libpod/alpine:latest`
 )
 
 var _ = Describe("Events", func() {
@@ -33,7 +42,7 @@ var _ = Describe("Events", func() {
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
-		wkManager, err = workload.NewWorkloadManagerWithParamsAndInterval(datadir, wkwMock, 2)
+		wkManager, err = workload.NewWorkloadManagerWithParamsAndInterval(datadir, wkwMock, 2, deviceId)
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 	})
@@ -103,7 +112,7 @@ var _ = Describe("Manager", func() {
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
-		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, deviceId)
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 	})
@@ -124,7 +133,7 @@ var _ = Describe("Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// When
-			wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock)
+			wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, deviceId)
 
 			// Then
 			Expect(err).To(HaveOccurred())
@@ -143,7 +152,7 @@ var _ = Describe("Manager", func() {
 				workloads = append(workloads, &models.Workload{
 					Data:          &models.DataConfiguration{},
 					Name:          wkName,
-					Specification: "{}",
+					Specification: podSpec,
 				})
 				wkwMock.EXPECT().Remove(wkName).Times(1)
 			}
@@ -163,6 +172,24 @@ var _ = Describe("Manager", func() {
 
 			// then
 			Expect(err).NotTo(HaveOccurred())
+			for i := 0; i < 10; i++ {
+				wkName := fmt.Sprintf("test%d", i)
+				pod := getPodFor(datadir, wkName)
+				Expect(pod.Name).To(BeEquivalentTo(wkName))
+
+				additionalDescription := fmt.Sprintf("Failing on pod %s", wkName)
+				Expect(pod.Spec.Containers).To(HaveLen(1), additionalDescription)
+				Expect(pod.Spec.Containers[0].Env).To(HaveLen(1), additionalDescription)
+				Expect(pod.Spec.Containers[0].Env[0]).To(BeEquivalentTo(v1.EnvVar{Name: "DEVICE_ID", Value: deviceId}), additionalDescription)
+				Expect(pod.Spec.Containers[0].VolumeMounts).To(HaveLen(1), additionalDescription)
+				Expect(pod.Spec.Containers[0].VolumeMounts[0].MountPath).To(BeEquivalentTo("/export"), additionalDescription)
+
+				Expect(pod.Spec.Volumes).To(HaveLen(1), additionalDescription)
+				Expect(pod.Spec.Volumes[0].HostPath).ToNot(BeNil(), additionalDescription)
+				Expect(pod.Spec.Volumes[0].Name).To(ContainSubstring("export-"), additionalDescription)
+				Expect(pod.Spec.Volumes[0].Name).To(BeEquivalentTo(pod.Spec.Containers[0].VolumeMounts[0].Name), additionalDescription)
+
+			}
 		})
 
 		It("Workload Run failed", func() {
@@ -354,6 +381,16 @@ var _ = Describe("Manager", func() {
 
 	})
 })
+
+func getPodFor(datadir, wkName string) v1.Pod {
+	manifestPath := getManifest(datadir, wkName)
+	manifest, err := ioutil.ReadFile(manifestPath)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	pod := v1.Pod{}
+	err = yaml.Unmarshal(manifest, &pod)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	return pod
+}
 
 func getManifest(datadir string, workloadName string) string {
 	return fmt.Sprintf("%s/manifests/%s.yaml", datadir, workloadName)
