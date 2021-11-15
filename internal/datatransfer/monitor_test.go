@@ -301,6 +301,33 @@ var _ = Describe("Datatransfer", func() {
 
 	})
 
+	Context("ForceUpdate", func() {
+		It("Works with valid configuration", func() {
+			// given
+			monitor := datatransfer.NewMonitor(wkManager, configManager)
+
+			// when
+			err := monitor.ForceUpdate()
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Cannot retrieve storage configuration", func() {
+			// given
+			monitor := datatransfer.NewMonitor(wkManager, configManager)
+			configManager.Update(models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{},
+			})
+
+			// when
+			err := monitor.ForceUpdate()
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	Context("Update", func() {
 		It("Works with valid configuration", func() {
 			// given

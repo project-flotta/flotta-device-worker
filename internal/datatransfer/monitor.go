@@ -38,6 +38,11 @@ func NewMonitor(workloadsManager *workload.WorkloadManager, configManager *confi
 }
 
 func (m *Monitor) Start() {
+	// Made this to force the config load in case there is no storage defined yet
+	// via Update() method.
+	if err := m.ForceUpdate(); err != nil {
+		log.Errorf("Cannot force-update datatransfer monitor: %v", err)
+	}
 	go func() {
 		for range m.ticker.C {
 			m.syncPaths()
@@ -226,6 +231,13 @@ func (m *Monitor) storeLastUpdateTime(workloadName string) {
 	m.lastSuccessfulSyncTimesLock.Lock()
 	defer m.lastSuccessfulSyncTimesLock.Unlock()
 	m.lastSuccessfulSyncTimes[workloadName] = time.Now()
+}
+
+func (m *Monitor) ForceUpdate() error {
+	config := m.config.GetDeviceConfiguration()
+	return m.Update(models.DeviceConfigurationMessage{
+		Configuration: &config,
+	})
 }
 
 func (m *Monitor) Update(configuration models.DeviceConfigurationMessage) error {

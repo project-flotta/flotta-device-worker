@@ -104,7 +104,6 @@ func main() {
 	wl.RegisterObserver(dataMonitor)
 	configManager.RegisterObserver(dataMonitor)
 	dataMonitor.Start()
-
 	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor)
 
 	configManager.RegisterObserver(hbs)
