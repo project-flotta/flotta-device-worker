@@ -27,7 +27,7 @@ type WorkloadWrapper interface {
 	RegisterObserver(Observer)
 	List() ([]api.WorkloadInfo, error)
 	Remove(string) error
-	Run(*v1.Pod, string) error
+	Run(*v1.Pod, string, string) error
 	Start(*v1.Pod) error
 	PersistConfiguration() error
 	RemoveTable() error
@@ -121,11 +121,11 @@ func (ww Workload) RemoveMappingFile() error {
 	return nil
 }
 
-func (ww Workload) Run(workload *v1.Pod, manifestPath string) error {
+func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath string) error {
 	if err := ww.applyNetworkConfiguration(workload); err != nil {
 		return err
 	}
-	podIds, err := ww.workloads.Run(manifestPath)
+	podIds, err := ww.workloads.Run(manifestPath, authFilePath)
 	if err != nil {
 		return err
 	}
