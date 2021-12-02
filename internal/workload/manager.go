@@ -161,7 +161,8 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 
 		authFilePath, err = w.manageAuthFile(authFilePath, authFile)
 		if err != nil {
-			errors = multierror.Append(errors, err)
+			errors = multierror.Append(errors, fmt.Errorf(
+				"cannot store auth configuration for workload '%s': %s", workload.Name, err))
 			continue
 		}
 
@@ -211,6 +212,9 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 	return errors
 }
 
+// manageAuthFile is responsible for bringing auth configuration file under authFilePath to expected state;
+// if the content of the file - authFile is supposed to be blank, the file is removed, otherwise authFile is written
+// to the authFilePath file.
 func (w *WorkloadManager) manageAuthFile(authFilePath, authFile string) (string, error) {
 	if authFile == "" {
 		if err := deleteFile(authFilePath); err != nil {
@@ -242,8 +246,11 @@ func (w *WorkloadManager) storeFile(filePath string, content []byte) error {
 }
 
 func (w *WorkloadManager) getAuthFilePath(workloadName string) string {
-	fileName := strings.ReplaceAll(workloadName, " ", "-") + "-auth.yaml"
-	return path.Join(w.authDir, fileName)
+	return path.Join(w.authDir, w.getAuthFileName(workloadName))
+}
+
+func (w *WorkloadManager) getAuthFileName(workloadName string) string {
+	return strings.ReplaceAll(workloadName, " ", "-") + "-auth.yaml"
 }
 
 func (w *WorkloadManager) getManifestPath(workloadName string) string {
@@ -272,6 +279,7 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 		return err
 	}
 	manifestNameToPodAndPath := make(map[string]podAndPath)
+	expectedAuthFiles := make(map[string]struct{})
 	for _, fi := range manifestInfo {
 		filePath := path.Join(w.manifestsDir, fi.Name())
 		manifest, err := ioutil.ReadFile(filePath)
@@ -286,6 +294,7 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 			continue
 		}
 		manifestNameToPodAndPath[pod.Name] = podAndPath{pod, filePath}
+		expectedAuthFiles[w.getAuthFileName(pod.Name)] = struct{}{}
 	}
 
 	// Remove any workloads that don't correspond to stored manifests
@@ -293,6 +302,16 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 		if _, ok := manifestNameToPodAndPath[name]; !ok {
 			log.Infof("Workload not found: %s. Removing", name)
 			if err := w.workloads.Remove(name); err != nil {
+				log.Error(err)
+			}
+		}
+	}
+
+	// Remove any auth configuration files that are not used anymore
+	authManifestInfo, err := ioutil.ReadDir(w.authDir)
+	for _, fi := range authManifestInfo {
+		if _, present := expectedAuthFiles[fi.Name()]; !present {
+			if err := deleteFile(path.Join(w.authDir, fi.Name())); err != nil {
 				log.Error(err)
 			}
 		}
@@ -363,7 +382,7 @@ func (w *WorkloadManager) Deregister() error {
 	err = w.deleteAuthDir()
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to delete auth directory: %v", err))
-		log.Errorf("failed to delete ath directory: %v", err)
+		log.Errorf("failed to delete auth directory: %v", err)
 	}
 
 	err = w.deleteTable()
