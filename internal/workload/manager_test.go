@@ -75,7 +75,7 @@ var _ = Describe("Events", func() {
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{
 				{Id: "stale", Name: "stale", Status: "created"},
 			}, nil).AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 			wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("Failed to start container")).AnyTimes()
 
@@ -165,7 +165,7 @@ var _ = Describe("Manager", func() {
 			}
 
 			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq("")).AnyTimes()
 
 			// when
 			err := wkManager.Update(cfg)
@@ -192,6 +192,46 @@ var _ = Describe("Manager", func() {
 			}
 		})
 
+		It("runs workloads with custom auth file", func() {
+
+			// given
+			workloads := []*models.Workload{}
+
+			for i := 0; i < 10; i++ {
+				wkName := fmt.Sprintf("test%d", i)
+				workloads = append(workloads, &models.Workload{
+					Name:              wkName,
+					Specification:     podSpec,
+					ImageRegistries: &models.ImageRegistries{AuthFile: "authFile-" + wkName},
+				})
+				wkwMock.EXPECT().Remove(wkName).Times(1)
+				authFilePath := datadir + "/auth/" + wkName + "-auth.yaml"
+				wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(authFilePath)).Times(1)
+			}
+
+			cfg := models.DeviceConfigurationMessage{
+				Workloads: workloads,
+			}
+
+			wkwMock.EXPECT().List().AnyTimes()
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			for i := 0; i < 10; i++ {
+				wkName := fmt.Sprintf("test%d", i)
+				pod := getPodFor(datadir, wkName)
+				Expect(pod.Name).To(BeEquivalentTo(wkName))
+
+				authFilePath := datadir + "/auth/" + wkName + "-auth.yaml"
+				Expect(authFilePath).To(BeAnExistingFile())
+				authFile, _ := ioutil.ReadFile(authFilePath)
+				Expect(authFile).To(BeEquivalentTo("authFile-" + wkName))
+			}
+		})
+
 		It("Workload Run failed", func() {
 			// given
 			cfg := models.DeviceConfigurationMessage{
@@ -207,7 +247,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).Return(fmt.Errorf("Cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Cannot run workload")).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -233,7 +273,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").Return(fmt.Errorf("Cannot run workload")).Times(1)
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).Times(0)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 			err := wkManager.Update(cfg)
 			merr, _ := err.(*multierror.Error)
@@ -268,10 +308,10 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "test")).Return(fmt.Errorf("Cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "test"), gomock.Any()).Return(fmt.Errorf("Cannot run workload")).Times(1)
 
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "testB")).Return(nil).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "testB"), gomock.Any()).Return(nil).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -309,7 +349,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().Remove("test").AnyTimes()
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 			wkwMock.EXPECT().Remove("stale").Times(1)
 
