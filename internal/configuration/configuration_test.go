@@ -312,6 +312,169 @@ var _ = Describe("Configuration", func() {
 		})
 	})
 
+	Context("Secrets", func() {
+
+		It("When there is no secret", func() {
+
+			//given
+			configManager := configuration.NewConfigurationManager(datadir)
+
+			err := configManager.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
+
+			// when
+			res := configManager.GetSecrets()
+
+			// then
+			Expect(res).To(HaveLen(0))
+		})
+
+		It("When there are secrets", func() {
+			//given
+			configManager := configuration.NewConfigurationManager(datadir)
+
+			cfg.Secrets = models.SecretList{
+				{
+					Name: "secret",
+					Data: "{}",
+				},
+			}
+
+			err := configManager.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
+
+			// when
+			res := configManager.GetSecrets()
+
+			// then
+			Expect(res).To(HaveLen(1))
+			Expect(res).To(Equal(cfg.Secrets))
+		})
+
+		It("When retreiving from config file", func() {
+			// given
+			cfg.Secrets = models.SecretList{
+				{
+					Name: "secret",
+					Data: "{}",
+				},
+			}
+
+			file, err := json.MarshalIndent(cfg, "", " ")
+			Expect(err).NotTo(HaveOccurred())
+
+			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
+			Expect(err).NotTo(HaveOccurred())
+
+			configManager := configuration.NewConfigurationManager(datadir)
+
+			// when
+			res := configManager.GetSecrets()
+
+			// then
+			Expect(res).To(HaveLen(1))
+			Expect(res).To(Equal(cfg.Secrets))
+		})
+
+		It("secrets equal", func() {
+			// given
+			secretBefore := models.SecretList{
+				&models.Secret{
+					Name: "secret1",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret2",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret3",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+			}
+			cfg.Secrets = secretBefore
+
+			observerMock := configuration.NewMockObserver(mockCtrl)
+			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+
+			configManager := configuration.NewConfigurationManager(datadir)
+			configManager.RegisterObserver(observerMock)
+
+			err := configManager.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
+
+			cfg.Secrets = models.SecretList{
+				&models.Secret{
+					Name: "secret2",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret3",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret1",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+			}
+
+			// when
+			err = configManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			Expect(configManager.GetSecrets()).To(Equal(secretBefore))
+		})
+
+		It("secrets not equal", func() {
+			// given
+			cfg.Secrets = models.SecretList{
+				&models.Secret{
+					Name: "secret1",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret2",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret3",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+			}
+
+			observerMock := configuration.NewMockObserver(mockCtrl)
+			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(2)
+
+			configManager := configuration.NewConfigurationManager(datadir)
+			configManager.RegisterObserver(observerMock)
+			err := configManager.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
+
+			cfg.Secrets = models.SecretList{
+				&models.Secret{
+					Name: "secret1",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret2",
+					Data: `{"key1":"dmFsdWUx","key2":"dmFsdWUy"}`,
+				},
+				&models.Secret{
+					Name: "secret3",
+					Data: `{"key2":"dmFsdWUy"}`,
+				},
+			}
+
+			// when
+			err = configManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			Expect(configManager.GetSecrets()).To(Equal(cfg.Secrets))
+		})
+	})
+
 	Context("Deregister", func() {
 		It("Delete config file as expected", func() {
 
