@@ -77,7 +77,6 @@ func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper,
 		return nil, err
 	}
 
-	manager.initTicker(monitorInterval)
 	return &manager, nil
 }
 
@@ -181,6 +180,12 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		err = w.workloads.Run(pod, manifestPath, authFilePath)
 		if err != nil {
 			log.Errorf("cannot run workload. DeviceID: %s; err: %v", w.deviceId, err)
+			w.eventsQueue = append(w.eventsQueue, &models.EventInfo{
+				Message: err.Error(),
+				Reason:  "Failed",
+				Type:    models.EventInfoTypeWarn,
+			})
+
 			errors = multierror.Append(errors, fmt.Errorf(
 				"cannot run workload '%s': %s", workload.Name, err))
 			continue
@@ -239,19 +244,6 @@ func (w *WorkloadManager) manageAuthFile(authFilePath, authFile string) (string,
 	return authFilePath, nil
 }
 
-func (w *WorkloadManager) initTicker(periodSeconds int64) {
-	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
-	w.ticker = ticker
-	go func() {
-		for range ticker.C {
-			err := w.ensureWorkloadsFromManifestsAreRunning()
-			if err != nil {
-				log.Errorf("cannot ensure workloads from manifest are running. DeviceID: %s; err: %v", w.deviceId, err)
-			}
-		}
-	}()
-}
-
 func (w *WorkloadManager) storeFile(filePath string, content []byte) error {
 	return ioutil.WriteFile(filePath, content, 0640)
 }
@@ -274,77 +266,6 @@ func (w *WorkloadManager) toPodYaml(pod *v1.Pod) ([]byte, error) {
 		return nil, err
 	}
 	return podYaml, nil
-}
-
-func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
-	w.managementLock.Lock()
-	defer w.managementLock.Unlock()
-	nameToWorkload, err := w.indexWorkloads()
-	if err != nil {
-		return err
-	}
-
-	manifestInfo, err := ioutil.ReadDir(w.workloadsDir)
-	if err != nil {
-		return err
-	}
-	manifestNameToPodAndPath := make(map[string]podAndPath)
-	for _, fi := range manifestInfo {
-		if !fi.IsDir() {
-			continue
-		}
-		filePath := path.Join(w.workloadsDir, fi.Name(), WorkloadFileName)
-		manifest, err := ioutil.ReadFile(filePath)
-		if err != nil {
-			log.Errorf("cannot read file %s. DeviceID: %s; err: %v", filePath, w.deviceId, err)
-			continue
-		}
-		pod := v1.Pod{}
-		err = yaml.Unmarshal(manifest, &pod)
-		if err != nil {
-			log.Errorf("cannot unmarshal manifest. DeviceID: %s; err: %v", w.deviceId, err)
-			continue
-		}
-		manifestNameToPodAndPath[pod.Name] = podAndPath{pod, filePath}
-	}
-
-	// Remove any workloads that don't correspond to stored manifests
-	for name := range nameToWorkload {
-		if _, ok := manifestNameToPodAndPath[name]; !ok {
-			log.Infof("workload not found: %s. Removing. DeviceID: %s;", name, w.deviceId)
-			if err := w.workloads.Remove(name); err != nil {
-				log.Errorf("cannot remove workload %s. DeviceID: %s; err: %v", name, w.deviceId, err)
-			}
-		}
-	}
-
-	for name, podWithPath := range manifestNameToPodAndPath {
-		if workload, ok := nameToWorkload[name]; ok {
-			if workload.Status != "Running" {
-				// Workload is not running - start
-				err = w.workloads.Start(&podWithPath.pod)
-				if err != nil {
-					w.eventsQueue = append(w.eventsQueue, &models.EventInfo{
-						Message: err.Error(),
-						Reason:  "Failed",
-						Type:    models.EventInfoTypeWarn,
-					})
-					log.Errorf("failed to start workload %s. DeviceID: %s; err:%v", name, w.deviceId, err)
-				}
-			}
-			continue
-		}
-		// Workload is not present - run
-		err = w.workloads.Run(&podWithPath.pod, podWithPath.manifestPath, w.getAuthFilePathIfExists(name))
-		if err != nil {
-			log.Errorf("failed to run workload %s (manifest: %s). DeviceID: %s; err: %v", name, podWithPath.manifestPath, w.deviceId, err)
-			continue
-		}
-	}
-	if err = w.workloads.PersistConfiguration(); err != nil {
-		log.Errorf("failed to persist workload configuration. DeviceID: %s; err: %v", w.deviceId, err)
-	}
-	return nil
 }
 
 func (w *WorkloadManager) indexWorkloads() (map[string]api2.WorkloadInfo, error) {

@@ -101,11 +101,13 @@ func (ww Workload) Remove(workloadName string) error {
 	if id == "" {
 		id = workloadName
 	}
-	if err := ww.workloads.Remove(id); err != nil {
-		return err
-	}
+
 	// Remove the service configuration from the system:
 	if err := ww.removeService(workloadName); err != nil {
+		return err
+	}
+
+	if err := ww.workloads.Remove(id); err != nil {
 		return err
 	}
 	if err := ww.netfilter.DeleteChain(nfTableName, workloadName); err != nil {
@@ -147,7 +149,7 @@ func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath strin
 	}
 
 	// Create the system service to manage the pod:
-	svc, err := ww.addService(workload)
+	svc, err := ww.createService(workload)
 	if err != nil {
 		return err
 	}
@@ -160,7 +162,7 @@ func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath strin
 }
 
 func (ww Workload) removeService(workloadName string) error {
-	svc := ww.serviceManager.Get(workloadName + "_pod")
+	svc := ww.serviceManager.Get(workloadServiceName(workloadName))
 	if svc == nil {
 		return nil
 	}
@@ -181,13 +183,13 @@ func (ww Workload) removeService(workloadName string) error {
 	return nil
 }
 
-func (ww Workload) addService(workload *v1.Pod) (*service.Systemd, error) {
-	units, err := ww.workloads.GenerateSystemdFiles(workload.GetName() + "_pod")
+func (ww Workload) createService(workload *v1.Pod) (*service.Systemd, error) {
+	units, err := ww.workloads.GenerateSystemdFiles(workloadServiceName(workload.GetName()))
 	if err != nil {
 		return nil, err
 	}
 
-	svc, err := service.NewSystemd(workload.GetName()+"_pod", units)
+	svc, err := service.NewSystemd(workloadServiceName(workload.GetName()), units)
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +204,10 @@ func (ww Workload) addService(workload *v1.Pod) (*service.Systemd, error) {
 	}
 
 	return svc, nil
+}
+
+func workloadServiceName(workloadName string) string {
+	return workloadName + "_pod"
 }
 
 func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {

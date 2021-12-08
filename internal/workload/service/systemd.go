@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path"
 	"sync"
+
+	"git.sr.ht/~spc/go-log"
 )
 
 const (
@@ -112,7 +114,7 @@ func (svc *Systemd) Add() error {
 }
 
 func (svc *Systemd) Remove() error {
-	for unit := range svc.UnitsContent {
+	for _, unit := range svc.Units {
 		err := os.Remove(path.Join(DefaultUnitsPath, unit+DefaultServiceSuffix))
 		if err != nil {
 			return err
@@ -123,15 +125,19 @@ func (svc *Systemd) Remove() error {
 }
 
 func (s *Systemd) Start() error {
-	return s.run([]string{"start", DefaultServicePrefix + s.Name + DefaultServiceSuffix})
+	return s.run([]string{"start", serviceName(s.Name)})
 }
 
 func (s *Systemd) Stop() error {
-	return s.run([]string{"stop", DefaultServicePrefix + s.Name + DefaultServiceSuffix})
+	return s.run([]string{"stop", serviceName(s.Name)})
 }
 
 func (s *Systemd) Enable() error {
-	return s.run([]string{"enable", DefaultServicePrefix + s.Name + DefaultServiceSuffix})
+	return s.run([]string{"enable", serviceName(s.Name)})
+}
+
+func serviceName(serviceName string) string {
+	return DefaultServicePrefix + serviceName + DefaultServiceSuffix
 }
 
 func (s *Systemd) reload() error {
@@ -153,6 +159,7 @@ func (s *Systemd) run(args []string) error {
 		Args: args,
 	}
 
+	log.Infof("Executing systemd command %v ", cmd)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
