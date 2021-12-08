@@ -5,6 +5,7 @@ import (
 
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 
 	"git.sr.ht/~spc/go-log"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
@@ -45,6 +46,7 @@ type Workload struct {
 	netfilter         network.Netfilter
 	mappingRepository mapping.MappingRepository
 	observers         []Observer
+	serviceManager    *service.SystemdManager
 }
 
 func newWorkloadInstance(configDir string) (*Workload, error) {
@@ -60,10 +62,15 @@ func newWorkloadInstance(configDir string) (*Workload, error) {
 	if err != nil {
 		return nil, err
 	}
+	serviceManager, err := service.NewSystemdManager(configDir)
+	if err != nil {
+		return nil, err
+	}
 	return &Workload{
 		workloads:         newPodman,
 		netfilter:         netfilter,
 		mappingRepository: mappingRepository,
+		serviceManager:    serviceManager,
 	}, nil
 }
 
@@ -95,6 +102,10 @@ func (ww Workload) Remove(workloadName string) error {
 		id = workloadName
 	}
 	if err := ww.workloads.Remove(id); err != nil {
+		return err
+	}
+	// Remove the service configuration from the system:
+	if err := ww.removeService(workloadName); err != nil {
 		return err
 	}
 	if err := ww.netfilter.DeleteChain(nfTableName, workloadName); err != nil {
@@ -135,11 +146,62 @@ func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath strin
 		return err
 	}
 
-	for _, observer := range ww.observers {
-		observer.WorkloadStarted(workload.Name, podIds)
+	// Create the system service to manage the pod:
+	svc, err := ww.addService(workload)
+	if err != nil {
+		return err
+	}
+	err = ww.serviceManager.Add(svc)
+	if err != nil {
+		return err
 	}
 
 	return ww.mappingRepository.Add(workload.Name, podIds[0].Id)
+}
+
+func (ww Workload) removeService(workloadName string) error {
+	svc := ww.serviceManager.Get(workloadName + "_pod")
+	if svc == nil {
+		return nil
+	}
+
+	// Ignore stop failure:
+	svc.Stop()
+
+	// Remove the service from the system:
+	if err := svc.Remove(); err != nil {
+		return err
+	}
+
+	err := ww.serviceManager.Remove(svc)
+	if err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+func (ww Workload) addService(workload *v1.Pod) (*service.Systemd, error) {
+	units, err := ww.workloads.GenerateSystemdFiles(workload.GetName() + "_pod")
+	if err != nil {
+		return nil, err
+	}
+
+	svc, err := service.NewSystemd(workload.GetName()+"_pod", units)
+	if err != nil {
+		return nil, err
+	}
+	if err = svc.Add(); err != nil {
+		return nil, err
+	}
+	if err = svc.Enable(); err != nil {
+		return nil, err
+	}
+	if err = svc.Start(); err != nil {
+		return nil, err
+	}
+
+	return svc, nil
 }
 
 func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {
