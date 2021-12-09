@@ -52,15 +52,6 @@ func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, erro
 	return NewWorkloadManagerWithParams(dataDir, wrapper, deviceId)
 }
 
-func NewWorkloadManagerWithMonitorInterval(dataDir string, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
-	wrapper, err := newWorkloadInstance(dataDir)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewWorkloadManagerWithParamsAndInterval(dataDir, wrapper, monitorInterval, deviceId)
-}
-
 func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceId string) (*WorkloadManager, error) {
 	return NewWorkloadManagerWithParamsAndInterval(dataDir, ww, defaultWorkloadsMonitoringInterval, deviceId)
 }
