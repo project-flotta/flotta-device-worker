@@ -17,11 +17,14 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.16
-                
+
     - name: Install package
       run: |
         sudo apt-get -y install libbtrfs-dev libgpgme-dev libdevmapper-dev
-    
+
     - name: Test
-      run: | 
+      run: |
         make test
+
+    - name: Checking generated files are up to date
+      run: git diff --quiet internal/ || (echo "There are not committed changes"; git diff internal/| tee; exit 1)
