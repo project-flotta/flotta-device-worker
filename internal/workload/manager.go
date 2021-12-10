@@ -308,7 +308,7 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 	}
 
 	// Remove any auth configuration files that are not used anymore
-	authManifestInfo, err := ioutil.ReadDir(w.authDir)
+	authManifestInfo, _ := ioutil.ReadDir(w.authDir)
 	for _, fi := range authManifestInfo {
 		if _, present := expectedAuthFiles[fi.Name()]; !present {
 			if err := deleteFile(path.Join(w.authDir, fi.Name())); err != nil {
@@ -530,7 +530,7 @@ func (w *WorkloadManager) podModified(manifestPath string, podYaml []byte) bool 
 	if err != nil {
 		return true
 	}
-	return bytes.Compare(file, podYaml) != 0
+	return !bytes.Equal(file, podYaml)
 }
 
 func (w *WorkloadManager) getAuthFilePathIfExists(workloadName string) string {
@@ -552,5 +552,5 @@ func (w *WorkloadManager) podAuthModified(authPath string, auth string) bool {
 	if err != nil {
 		return true
 	}
-	return bytes.Compare(file, []byte(auth)) != 0
+	return !bytes.Equal(file, []byte(auth))
 }
