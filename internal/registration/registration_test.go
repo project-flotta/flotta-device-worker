@@ -52,8 +52,8 @@ var _ = Describe("Registration", func() {
 
 		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, "device-id-123")
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
-
 		configManager = configuration.NewConfigurationManager(datadir)
+		monitor = datatransfer.NewMonitor(wkManager, configManager)
 
 		hb = heartbeat.NewHeartbeatService(dispatcherMock,
 			configManager,

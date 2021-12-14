@@ -50,8 +50,9 @@ func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient 
 
 func (r *Registration) RegisterDevice() {
 	err := r.registerDeviceOnce()
+
 	if err != nil {
-		log.Error(err)
+		log.Errorf("cannot register device. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 	}
 
 	go r.registerDeviceWithRetries(r.RetryAfter)
@@ -64,10 +65,10 @@ func (r *Registration) registerDeviceWithRetries(interval int64) {
 			ticker.Stop()
 			break
 		}
-		log.Infof("Configuration has not been initialized yet. Sending registration request.")
+		log.Infof("Configuration has not been initialized yet. Sending registration request. DeviceID: %s;", r.workloads.GetDeviceID())
 		err := r.registerDeviceOnce()
 		if err != nil {
-			log.Error(err)
+			log.Errorf("cannot register device. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 		}
 	}
 }
@@ -112,25 +113,25 @@ func (r *Registration) Deregister() error {
 	err := r.workloads.Deregister()
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to deregister workloads: %v", err))
-		log.Errorf("failed to deregister workloads: %v", err)
+		log.Errorf("failed to deregister workloads. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 	}
 
 	err = r.config.Deregister()
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to deregister configuration: %v", err))
-		log.Errorf("failed to deregister configuration: %v", err)
+		log.Errorf("failed to deregister configuration. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 	}
 
 	err = r.heartbeat.Deregister()
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to deregister heartbeat: %v", err))
-		log.Errorf("failed to deregister heartbeat: %v", err)
+		log.Errorf("failed to deregister heartbeat. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 	}
 
 	err = r.monitor.Deregister()
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to deregister monitor: %v", err))
-		log.Errorf("failed to deregister monitor: %v", err)
+		log.Errorf("failed to deregister monitor. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 	}
 
 	r.registered = false

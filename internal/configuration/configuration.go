@@ -77,6 +77,10 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 	return *m.deviceConfiguration.Configuration
 }
 
+func (m *Manager) GetDeviceID() string {
+	return m.deviceConfiguration.DeviceID
+}
+
 func (m *Manager) GetWorkloads() models.WorkloadList {
 	return m.deviceConfiguration.Workloads
 }
@@ -85,7 +89,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
-	log.Tracef("Workloads equal: [%v]; configurationEqual: [%v]", workloadsEqual, configurationEqual)
+	log.Tracef("Workloads equal: [%v]; configurationEqual: [%v]; DeviceID: [%s]", workloadsEqual, configurationEqual, message.DeviceID)
 
 	shouldUpdate := !(configurationEqual && workloadsEqual)
 

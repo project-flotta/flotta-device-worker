@@ -41,18 +41,18 @@ func (m *Monitor) Start() {
 	// Made this to force the config load in case there is no storage defined yet
 	// via Update() method.
 	if err := m.ForceUpdate(); err != nil {
-		log.Errorf("Cannot force-update datatransfer monitor: %v", err)
+		log.Errorf("Cannot force-update datatransfer monitor. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
 	}
 	go func() {
 		for range m.ticker.C {
 			m.syncPaths()
 		}
-		log.Info("The monitor was stopped")
+		log.Infof("The monitor was stopped. DeviceID: %s;", m.workloads.GetDeviceID())
 	}()
 }
 
 func (m *Monitor) Deregister() error {
-	log.Info("Stopping monitor ticker")
+	log.Infof("Stopping monitor ticker. DeviceID: %s;", m.workloads.GetDeviceID())
 	if m.ticker != nil {
 		m.ticker.Stop()
 	}
@@ -88,13 +88,13 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 
 	syncWrapper, err := m.getFsSync()
 	if err != nil {
-		log.Errorf("Error while getting s3 synchronizer: %v", err)
+		log.Errorf("Error while getting s3 synchronizer. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
 		return
 	}
 
 	err = syncWrapper.Connect()
 	if err != nil {
-		log.Errorf("Error while creating s3 synchronizer: %v", err)
+		log.Errorf("Error while creating s3 synchronizer. DeviceID: %s; err : %v", m.workloads.GetDeviceID(), err)
 		return
 	}
 
@@ -151,7 +151,7 @@ func (m *Monitor) getFsSync() (FileSync, error) {
 	m.syncMutex.Lock()
 	defer m.syncMutex.Unlock()
 	if m.fsSync == nil {
-		return nil, fmt.Errorf("Cannot get filesync")
+		return nil, fmt.Errorf("cannot get filesync")
 	}
 	// Copy here to be able to always use that pointer meanwhile update the
 	// config. Related to:
@@ -164,17 +164,17 @@ func (m *Monitor) syncPaths() error {
 
 	workloads, err := m.workloads.ListWorkloads()
 	if err != nil {
-		log.Errorf("Can't get the list of workloads: %v", err)
+		log.Errorf("Can't get the list of workloads. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
 		return err
 	}
 
 	if len(workloads) == 0 {
-		log.Trace("No workloads to return")
+		log.Tracef("No workloads to return. DeviceID: %s;", m.workloads.GetDeviceID())
 		return nil
 	}
 
 	if !m.HasStorageDefined() {
-		log.Trace("Monitor does not have storage defined")
+		log.Tracef("Monitor does not have storage defined. DeviceID: %s;", m.workloads.GetDeviceID())
 		return nil
 	}
 
@@ -214,7 +214,7 @@ func (m *Monitor) syncPaths() error {
 			log.Debug(logMessage)
 			err := syncWrapper.SyncPath(source, target)
 			if err != nil {
-				errors = multierror.Append(errors, fmt.Errorf("Error while %s", logMessage))
+				errors = multierror.Append(errors, fmt.Errorf("error while %s", logMessage))
 				log.Errorf("Error while %s", logMessage)
 				success = false
 			}
@@ -242,17 +242,17 @@ func (m *Monitor) ForceUpdate() error {
 
 func (m *Monitor) Update(configuration models.DeviceConfigurationMessage) error {
 	if configuration.Configuration == nil {
-		return fmt.Errorf("Cannot retrieve configuration info")
+		return fmt.Errorf("cannot retrieve configuration info. DeviceID: %s;", m.workloads.GetDeviceID())
 	}
 
 	storage := configuration.Configuration.Storage
 	if storage == nil {
-		return fmt.Errorf("Cannot retrieve storage info")
+		return fmt.Errorf("cannot retrieve storage info. DeviceID: %s;", m.workloads.GetDeviceID())
 	}
 
 	s3sync, err := s3.NewSync(*storage.S3)
 	if err != nil {
-		return fmt.Errorf("Observer update failed: %s", err)
+		return fmt.Errorf("observer update failed. DeviceID: %s; err: %s", m.workloads.GetDeviceID(), err)
 	}
 	m.SetStorage(s3sync)
 	return nil

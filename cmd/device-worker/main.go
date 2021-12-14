@@ -94,7 +94,7 @@ func main() {
 
 	wl, err := workload2.NewWorkloadManager(dataDir, deviceId)
 	if err != nil {
-		log.Fatal("Cannot start Workload Manager, err: ", err)
+		log.Fatalf("Cannot start Workload Manager. DeviceID: %s; err: %v", deviceId, err)
 	}
 	configManager.RegisterObserver(wl)
 
@@ -120,6 +120,6 @@ func main() {
 	}
 
 	if err := s.Serve(l); err != nil {
-		log.Fatal("Cannot start worker server, err:", err)
+		log.Fatalf("Cannot start worker server, err: %v", err)
 	}
 }
