@@ -408,7 +408,7 @@ var _ = Describe("Manager", func() {
 
 			// given
 			currentWorkloads := []api.WorkloadInfo{}
-			wkwMock.EXPECT().List().Return(currentWorkloads, fmt.Errorf("Invalid")).AnyTimes()
+			wkwMock.EXPECT().List().Return(currentWorkloads, fmt.Errorf("invalid")).AnyTimes()
 
 			// when
 

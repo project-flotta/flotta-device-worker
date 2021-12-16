@@ -36,18 +36,18 @@ func NewSync(s3Config models.S3StorageConfiguration) (*Sync, error) {
 
 	sync.accessKeyBytes, err = base64.StdEncoding.DecodeString(s3Config.AwsAccessKeyID)
 	if err != nil {
-		log.Errorf("Can't decode AWS Access Key: %v", err)
+		log.Errorf("cannot decode AWS Access Key: %v", err)
 		return nil, err
 	}
 	sync.secretKeyBytes, err = base64.StdEncoding.DecodeString(s3Config.AwsSecretAccessKey)
 	if err != nil {
-		log.Errorf("Can't decode AWS Access Key: %v", err)
+		log.Errorf("cannot decode AWS Access Key: %v", err)
 		return nil, err
 	}
 
 	sync.caBundle, err = base64.StdEncoding.DecodeString(s3Config.AwsCaBundle)
 	if err != nil {
-		log.Errorf("Can't decode AWS CA Bundle: %v", err)
+		log.Errorf("cannot decode AWS CA Bundle: %v", err)
 		return nil, err
 	}
 
@@ -71,7 +71,7 @@ func (s *Sync) Connect() error {
 	})
 
 	if err != nil {
-		log.Errorf("Error while creating s3 session: %v", err)
+		log.Errorf("error while creating s3 session: %v", err)
 		return err
 	}
 

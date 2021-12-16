@@ -98,7 +98,7 @@ var _ = Describe("Heartbeat", func() {
 			//given
 			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor)
 
-			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{}, fmt.Errorf("Invalid list")).AnyTimes()
+			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{}, fmt.Errorf("invalid list")).AnyTimes()
 
 			//when
 			heartbeatInfo := hbData.RetrieveInfo()

@@ -147,7 +147,7 @@ var _ = Describe("Registration", func() {
 			reg := registration.NewRegistration(
 				hw, os, dispatcherMock, configManager, hb, wkManager, monitor)
 
-			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("Failed"))
+			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("failed"))
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
 			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
 

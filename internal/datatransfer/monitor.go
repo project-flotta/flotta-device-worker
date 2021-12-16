@@ -41,18 +41,18 @@ func (m *Monitor) Start() {
 	// Made this to force the config load in case there is no storage defined yet
 	// via Update() method.
 	if err := m.ForceUpdate(); err != nil {
-		log.Errorf("Cannot force-update datatransfer monitor. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
+		log.Errorf("cannot force-update datatransfer monitor. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
 	}
 	go func() {
 		for range m.ticker.C {
 			m.syncPaths()
 		}
-		log.Infof("The monitor was stopped. DeviceID: %s;", m.workloads.GetDeviceID())
+		log.Infof("the monitor was stopped. DeviceID: %s;", m.workloads.GetDeviceID())
 	}()
 }
 
 func (m *Monitor) Deregister() error {
-	log.Infof("Stopping monitor ticker. DeviceID: %s;", m.workloads.GetDeviceID())
+	log.Infof("stopping monitor ticker. DeviceID: %s;", m.workloads.GetDeviceID())
 	if m.ticker != nil {
 		m.ticker.Stop()
 	}
@@ -88,13 +88,13 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 
 	syncWrapper, err := m.getFsSync()
 	if err != nil {
-		log.Errorf("Error while getting s3 synchronizer. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
+		log.Errorf("error while getting s3 synchronizer. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
 		return
 	}
 
 	err = syncWrapper.Connect()
 	if err != nil {
-		log.Errorf("Error while creating s3 synchronizer. DeviceID: %s; err : %v", m.workloads.GetDeviceID(), err)
+		log.Errorf("error while creating s3 synchronizer. DeviceID: %s; err : %v", m.workloads.GetDeviceID(), err)
 		return
 	}
 
@@ -103,10 +103,10 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 	for _, dp := range dataPaths {
 		source := path.Join(hostPath, dp.Source)
 		target := dp.Target
-		log.Debugf("Synchronizing [device]%s => [remote]%s", source, target)
+		log.Debugf("synchronizing [device]%s => [remote]%s", source, target)
 
 		if err := syncWrapper.SyncPath(source, target); err != nil {
-			log.Errorf("Error while synchronizing [device]%s => [remote]%s: %v", source, target, err)
+			log.Errorf("error while synchronizing [device]%s => [remote]%s: %v", source, target, err)
 			success = false
 		}
 	}
@@ -164,17 +164,17 @@ func (m *Monitor) syncPaths() error {
 
 	workloads, err := m.workloads.ListWorkloads()
 	if err != nil {
-		log.Errorf("Can't get the list of workloads. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
+		log.Errorf("cannot get the list of workloads. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
 		return err
 	}
 
 	if len(workloads) == 0 {
-		log.Tracef("No workloads to return. DeviceID: %s;", m.workloads.GetDeviceID())
+		log.Tracef("no workloads to return. DeviceID: %s;", m.workloads.GetDeviceID())
 		return nil
 	}
 
 	if !m.HasStorageDefined() {
-		log.Tracef("Monitor does not have storage defined. DeviceID: %s;", m.workloads.GetDeviceID())
+		log.Tracef("monitor does not have storage defined. DeviceID: %s;", m.workloads.GetDeviceID())
 		return nil
 	}
 
@@ -215,7 +215,7 @@ func (m *Monitor) syncPaths() error {
 			err := syncWrapper.SyncPath(source, target)
 			if err != nil {
 				errors = multierror.Append(errors, fmt.Errorf("error while %s", logMessage))
-				log.Errorf("Error while %s", logMessage)
+				log.Errorf("error while %s", logMessage)
 				success = false
 			}
 		}

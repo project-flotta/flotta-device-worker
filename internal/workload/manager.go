@@ -126,13 +126,13 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 	defer w.managementLock.Unlock()
 	var errors error
 	if w.deregistered {
-		log.Infof("Deregistration was finished, no need to update anymore. DeviceID: %s", w.deviceId)
+		log.Infof("deregistration was finished, no need to update anymore. DeviceID: %s", w.deviceId)
 		return errors
 	}
 
 	configuredWorkloadNameSet := make(map[string]struct{})
 	for _, workload := range configuration.Workloads {
-		log.Tracef("Deploying workload: %s. DeviceID: %s;", workload.Name, w.deviceId)
+		log.Tracef("deploying workload: %s. DeviceID: %s;", workload.Name, w.deviceId)
 		configuredWorkloadNameSet[workload.Name] = struct{}{}
 
 		pod, err := w.toPod(workload)
@@ -153,7 +153,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			authFile = workload.ImageRegistries.AuthFile
 		}
 		if !w.podConfigurationModified(manifestPath, podYaml, authFilePath, authFile) {
-			log.Tracef("Pod '%s' definition is unchanged (%s). DeviceID: %s;", workload.Name, manifestPath, w.deviceId)
+			log.Tracef("pod '%s' definition is unchanged (%s). DeviceID: %s;", workload.Name, manifestPath, w.deviceId)
 			continue
 		}
 		err = w.storeFile(manifestPath, podYaml)
@@ -172,13 +172,13 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 
 		err = w.workloads.Remove(workload.Name)
 		if err != nil {
-			log.Errorf("Error removing workload %s. DeviceID: %s; err: %v", workload.Name, w.deviceId, err)
+			log.Errorf("error removing workload %s. DeviceID: %s; err: %v", workload.Name, w.deviceId, err)
 			errors = multierror.Append(errors, fmt.Errorf("error removing workload %s: %s", workload.Name, err))
 			continue
 		}
 		err = w.workloads.Run(pod, manifestPath, authFilePath)
 		if err != nil {
-			log.Errorf("Cannot run workload. DeviceID: %s; err: %v", w.deviceId, err)
+			log.Errorf("cannot run workload. DeviceID: %s; err: %v", w.deviceId, err)
 			errors = multierror.Append(errors, fmt.Errorf(
 				"cannot run workload '%s': %s", workload.Name, err))
 			continue
@@ -187,14 +187,14 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 
 	deployedWorkloadByName, err := w.indexWorkloads()
 	if err != nil {
-		log.Errorf("Cannot get deployed workloads. DeviceID: %s; err: %v", w.deviceId, err)
+		log.Errorf("cannot get deployed workloads. DeviceID: %s; err: %v", w.deviceId, err)
 		errors = multierror.Append(errors, fmt.Errorf("cannot get deployed workloads: %s", err))
 		return errors
 	}
 	// Remove any workloads that don't correspond to the configured ones
 	for name := range deployedWorkloadByName {
 		if _, ok := configuredWorkloadNameSet[name]; !ok {
-			log.Infof("Workload not found: %s. Removing. DeviceID: %s;", name, w.deviceId)
+			log.Infof("workload not found: %s. Removing. DeviceID: %s;", name, w.deviceId)
 			manifestPath := w.getManifestPath(name)
 			if err := deleteFile(manifestPath); err != nil {
 				errors = multierror.Append(errors, fmt.Errorf("cannot remove existing manifest workload: %s", err))
@@ -206,7 +206,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			if err := w.workloads.Remove(name); err != nil {
 				errors = multierror.Append(errors, fmt.Errorf("cannot remove stale workload name='%s': %s", name, err))
 			}
-			log.Infof("Workload %s removed. DeviceID: %s;", name, w.deviceId)
+			log.Infof("workload %s removed. DeviceID: %s;", name, w.deviceId)
 		}
 	}
 	// Reset the interval of the current monitoring routine
@@ -304,7 +304,7 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 	// Remove any workloads that don't correspond to stored manifests
 	for name := range nameToWorkload {
 		if _, ok := manifestNameToPodAndPath[name]; !ok {
-			log.Infof("Workload not found: %s. Removing. DeviceID: %s;", name, w.deviceId)
+			log.Infof("workload not found: %s. Removing. DeviceID: %s;", name, w.deviceId)
 			if err := w.workloads.Remove(name); err != nil {
 				log.Errorf("cannot remove workload %s. DeviceID: %s; err: %v", name, w.deviceId, err)
 			}
@@ -418,7 +418,7 @@ func (w *WorkloadManager) Deregister() error {
 }
 
 func (w *WorkloadManager) removeTicker() error {
-	log.Infof("Stopping ticker that ensure workloads from manifests are running.  DeviceID: %s;", w.deviceId)
+	log.Infof("stopping ticker that ensure workloads from manifests are running.  DeviceID: %s;", w.deviceId)
 	if w.ticker != nil {
 		w.ticker.Stop()
 	}
@@ -426,16 +426,16 @@ func (w *WorkloadManager) removeTicker() error {
 }
 
 func (w *WorkloadManager) removeAllWorkloads() error {
-	log.Infof("Removing all workload.  DeviceID: %s;", w.deviceId)
+	log.Infof("removing all workload.  DeviceID: %s;", w.deviceId)
 	workloads, err := w.workloads.List()
 	if err != nil {
 		return err
 	}
 	for _, workload := range workloads {
-		log.Infof("Removing workload %s.  DeviceID: %s;", workload.Name, w.deviceId)
+		log.Infof("removing workload %s.  DeviceID: %s;", workload.Name, w.deviceId)
 		err := w.workloads.Remove(workload.Name)
 		if err != nil {
-			log.Errorf("Error removing workload %s. DeviceID: %s; err: %v", workload.Name, w.deviceId, err)
+			log.Errorf("error removing workload %s. DeviceID: %s; err: %v", workload.Name, w.deviceId, err)
 			return err
 		}
 	}
@@ -443,17 +443,17 @@ func (w *WorkloadManager) removeAllWorkloads() error {
 }
 
 func (w *WorkloadManager) deleteManifestsDir() error {
-	log.Infof("Deleting manifests directory. DeviceID: %s;", w.deviceId)
+	log.Infof("deleting manifests directory. DeviceID: %s;", w.deviceId)
 	return deleteDir(w.manifestsDir)
 }
 
 func (w *WorkloadManager) deleteVolumeDir() error {
-	log.Infof("Deleting volumes directory. DeviceID: %s;", w.deviceId)
+	log.Infof("deleting volumes directory. DeviceID: %s;", w.deviceId)
 	return deleteDir(w.volumesDir)
 }
 
 func (w *WorkloadManager) deleteAuthDir() error {
-	log.Infof("Deleting auth directory. DeviceID: %s;", w.deviceId)
+	log.Infof("deleting auth directory. DeviceID: %s;", w.deviceId)
 	return deleteDir(w.authDir)
 }
 
@@ -477,7 +477,7 @@ func deleteFile(file string) error {
 }
 
 func (w *WorkloadManager) deleteTable() error {
-	log.Infof("Deleting nftable. DeviceID: %s;", w.deviceId)
+	log.Infof("deleting nftable. DeviceID: %s;", w.deviceId)
 	err := w.workloads.RemoveTable()
 	if err != nil {
 		log.Error(err)
@@ -488,7 +488,7 @@ func (w *WorkloadManager) deleteTable() error {
 }
 
 func (w *WorkloadManager) removeMappingFile() error {
-	log.Infof("Deleting mapping file. DeviceID: %s;", w.deviceId)
+	log.Infof("deleting mapping file. DeviceID: %s;", w.deviceId)
 	err := w.workloads.RemoveMappingFile()
 	if err != nil {
 		log.Error(err)

@@ -43,12 +43,12 @@ func main() {
 	// Get initialization values from the environment.
 	yggdDispatchSocketAddr, ok = os.LookupEnv("YGG_SOCKET_ADDR")
 	if !ok {
-		log.Fatal("Missing YGG_SOCKET_ADDR environment variable")
+		log.Fatal("missing YGG_SOCKET_ADDR environment variable")
 	}
 
 	baseDataDir, ok := os.LookupEnv("BASE_DATA_DIR")
 	if !ok {
-		log.Warnf("Missing BASE_DATA_DIR environment variable. Using default: %s", defaultDataDir)
+		log.Warnf("missing BASE_DATA_DIR environment variable. Using default: %s", defaultDataDir)
 		baseDataDir = defaultDataDir
 	}
 
@@ -76,7 +76,7 @@ func main() {
 	// Listen on the provided socket address.
 	l, err := net.Listen("unix", r.GetAddress())
 	if err != nil {
-		log.Fatalf("Cannot start listening on %s err: %v", r.GetAddress(), err)
+		log.Fatalf("cannot start listening on %s err: %v", r.GetAddress(), err)
 	}
 
 	// Register as a Worker service with gRPC and start accepting connections.
@@ -94,7 +94,7 @@ func main() {
 
 	wl, err := workload2.NewWorkloadManager(dataDir, deviceId)
 	if err != nil {
-		log.Fatalf("Cannot start Workload Manager. DeviceID: %s; err: %v", deviceId, err)
+		log.Fatalf("cannot start Workload Manager. DeviceID: %s; err: %v", deviceId, err)
 	}
 	configManager.RegisterObserver(wl)
 
@@ -120,6 +120,6 @@ func main() {
 	}
 
 	if err := s.Serve(l); err != nil {
-		log.Fatalf("Cannot start worker server, err: %v", err)
+		log.Fatalf("cannot start worker server, err: %v", err)
 	}
 }

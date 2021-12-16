@@ -65,7 +65,7 @@ func (r *Registration) registerDeviceWithRetries(interval int64) {
 			ticker.Stop()
 			break
 		}
-		log.Infof("Configuration has not been initialized yet. Sending registration request. DeviceID: %s;", r.workloads.GetDeviceID())
+		log.Infof("configuration has not been initialized yet. Sending registration request. DeviceID: %s;", r.workloads.GetDeviceID())
 		err := r.registerDeviceOnce()
 		if err != nil {
 			log.Errorf("cannot register device. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)

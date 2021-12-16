@@ -48,7 +48,7 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 		workloadStatuses = append(workloadStatuses, &workloadStatus)
 	}
 	if err != nil {
-		log.Errorf("Cannot get workload information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
+		log.Errorf("cannot get workload information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 	}
 
 	config := s.configManager.GetDeviceConfiguration()
@@ -56,7 +56,7 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 	if config.Heartbeat.HardwareProfile.Include {
 		hardwareInfo, err = s.hardware.GetHardwareInformation()
 		if err != nil {
-			log.Errorf("Can't get hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
+			log.Errorf("cannot get hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 		}
 	}
 
@@ -100,7 +100,7 @@ func (s *Heartbeat) HasStarted() bool {
 
 func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {
 	periodSeconds := s.getInterval(*config.Configuration)
-	log.Infof("Reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, s.data.workloadManager.GetDeviceID())
+	log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, s.data.workloadManager.GetDeviceID())
 	if s.ticker != nil {
 		s.ticker.Stop()
 	}
@@ -150,15 +150,15 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 		for range ticker.C {
 			err := s.pushInformation()
 			if err != nil {
-				log.Errorf("Heartbeat interval cannot send the data. DeviceID: %s; err: %s", s.data.workloadManager.GetDeviceID(), err)
+				log.Errorf("heartbeat interval cannot send the data. DeviceID: %s; err: %s", s.data.workloadManager.GetDeviceID(), err)
 			}
 		}
 	}()
-	log.Infof("The heartbeat was started. DeviceID: %s", s.data.workloadManager.GetDeviceID())
+	log.Infof("the heartbeat was started. DeviceID: %s", s.data.workloadManager.GetDeviceID())
 }
 
 func (s *Heartbeat) Deregister() error {
-	log.Infof("Stopping heartbeat ticker. DeviceID: %s", s.data.workloadManager.GetDeviceID())
+	log.Infof("stopping heartbeat ticker. DeviceID: %s", s.data.workloadManager.GetDeviceID())
 	if s.ticker != nil {
 		s.ticker.Stop()
 	}
