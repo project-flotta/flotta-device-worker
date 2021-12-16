@@ -1,11 +1,12 @@
 package mapping_test
 
 import (
+	"io/ioutil"
+	"os"
+
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"io/ioutil"
-	"os"
 )
 
 var _ = Describe("Mapping", func() {
@@ -22,13 +23,13 @@ var _ = Describe("Mapping", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should be created empty", func() {
+	It("Should be created empty", func() {
 		// then
 		Expect(repo).ToNot(BeNil())
 		Expect(repo.Size()).To(BeZero())
 	})
 
-	It("should return empty string for non-existing name", func() {
+	It("Should return empty string for non-existing name", func() {
 		// when
 		id := repo.GetId("not-here")
 
@@ -36,7 +37,7 @@ var _ = Describe("Mapping", func() {
 		Expect(id).To(BeEmpty())
 	})
 
-	It("should return empty string for non-existing ID", func() {
+	It("Should return empty string for non-existing ID", func() {
 		// when
 		name := repo.GetName("not here")
 
@@ -44,7 +45,7 @@ var _ = Describe("Mapping", func() {
 		Expect(name).To(BeEmpty())
 	})
 
-	It("should store and return values", func() {
+	It("Should store and return values", func() {
 		// when
 		err := repo.Add("test", "test-id")
 
@@ -55,7 +56,7 @@ var _ = Describe("Mapping", func() {
 		Expect(repo.GetName("test-id")).To(BeEquivalentTo("test"))
 	})
 
-	It("should remove mapping", func() {
+	It("Should remove mapping", func() {
 		// given
 		err := repo.Add("test", "test-id")
 		Expect(err).ToNot(HaveOccurred())
@@ -69,7 +70,7 @@ var _ = Describe("Mapping", func() {
 		Expect(repo.GetName("test-id")).To(BeEmpty())
 	})
 
-	It("should persist mappings", func() {
+	It("Should persist mappings", func() {
 		// given
 		err := repo.Add("one-name", "one-id")
 		Expect(err).ToNot(HaveOccurred())

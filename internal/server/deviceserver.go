@@ -30,11 +30,11 @@ func (s *deviceServer) Send(ctx context.Context, d *pb.Data) (*pb.Receipt, error
 		deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 		err := json.Unmarshal(d.Content, &deviceConfigurationMessage)
 		if err != nil {
-			log.Warnf("Cannot unmarshal message: %v", err)
+			log.Warnf("cannot unmarshal message. DeviceID: %s; err: %v", s.configManager.GetDeviceID(), err)
 		}
 		err = s.configManager.Update(deviceConfigurationMessage)
 		if err != nil {
-			log.Warnf("Failed to process message: %v", err)
+			log.Warnf("failed to process message. DeviceID: %s; err: %v", s.configManager.GetDeviceID(), err)
 		}
 	}()
 
@@ -44,10 +44,10 @@ func (s *deviceServer) Send(ctx context.Context, d *pb.Data) (*pb.Receipt, error
 
 // Disconnect implements the "Disconnect" method of the Worker gRPC service.
 func (s *deviceServer) Disconnect(ctx context.Context, in *pb.Empty) (*pb.DisconnectResponse, error) {
-	log.Info("received worker disconnect request")
+	log.Infof("received worker disconnect request. DeviceID: %s;", s.configManager.GetDeviceID())
 	err := s.registrationManager.Deregister()
 	if err != nil {
-		log.Warnf("Cannot disconnect: %v", err)
+		log.Warnf("cannot disconnect. DeviceID: %s; err: %v", s.configManager.GetDeviceID(), err)
 	}
 	// Respond to the disconnect request that the work was accepted.
 	return &pb.DisconnectResponse{}, nil

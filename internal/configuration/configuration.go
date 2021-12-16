@@ -44,7 +44,7 @@ type Manager struct {
 
 func NewConfigurationManager(dataDir string) *Manager {
 	deviceConfigFile := path.Join(dataDir, "device-config.json")
-	log.Infof("Device config file: %s", deviceConfigFile)
+	log.Infof("device config file: %s", deviceConfigFile)
 	file, err := ioutil.ReadFile(deviceConfigFile)
 	var deviceConfiguration models.DeviceConfigurationMessage
 	initialConfig := atomic.Value{}
@@ -77,6 +77,10 @@ func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
 	return *m.deviceConfiguration.Configuration
 }
 
+func (m *Manager) GetDeviceID() string {
+	return m.deviceConfiguration.DeviceID
+}
+
 func (m *Manager) GetWorkloads() models.WorkloadList {
 	return m.deviceConfiguration.Workloads
 }
@@ -85,21 +89,21 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
-	log.Tracef("Workloads equal: [%v]; configurationEqual: [%v]", workloadsEqual, configurationEqual)
+	log.Tracef("workloads equal: [%v]; configurationEqual: [%v]; DeviceID: [%s]", workloadsEqual, configurationEqual, message.DeviceID)
 
 	shouldUpdate := !(configurationEqual && workloadsEqual)
 
 	if m.IsInitialConfig() {
-		log.Trace("Force update because it's init phase")
+		log.Trace("force update because it's init phase")
 		shouldUpdate = true
 	}
 
 	if !shouldUpdate {
-		log.Trace("Configuration didn't change")
+		log.Trace("configuration didn't change")
 		return nil
 	}
 
-	log.Tracef("Updating configuration: %v", message)
+	log.Tracef("updating configuration: %v", message)
 	var errors error
 	for _, observer := range m.observers {
 		err := observer.Update(message)
@@ -114,7 +118,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 		return errors
 	}
 
-	log.Tracef("Writing config to %s: %v", m.deviceConfigFile, file)
+	log.Tracef("writing config to %s: %v", m.deviceConfigFile, file)
 	err = ioutil.WriteFile(m.deviceConfigFile, file, 0640)
 	if err != nil {
 		errors = multierror.Append(fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
@@ -133,7 +137,7 @@ func (m *Manager) GetDataTransferInterval() time.Duration {
 
 func (m *Manager) GetConfigurationVersion() string {
 	version := m.deviceConfiguration.Version
-	log.Tracef("Configuration version: %v", version)
+	log.Tracef("configuration version: %v", version)
 	return version
 }
 
@@ -142,7 +146,7 @@ func (m *Manager) IsInitialConfig() bool {
 }
 
 func (m *Manager) Deregister() error {
-	log.Infof("Removing device config file: %s", m.deviceConfigFile)
+	log.Infof("removing device config file: %s", m.deviceConfigFile)
 	err := os.Remove(m.deviceConfigFile)
 	if err != nil {
 		log.Error(err)

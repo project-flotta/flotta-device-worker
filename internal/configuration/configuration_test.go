@@ -72,7 +72,7 @@ var _ = Describe("Configuration", func() {
 	})
 
 	Context("NewConfigurationManager", func() {
-		It("should use configuration when device-config file is not valid json", func() {
+		It("Should use configuration when device-config file is not valid json", func() {
 			// given
 			err = ioutil.WriteFile(
 				fmt.Sprintf("%s/%s", datadir, deviceConfigName),
@@ -91,7 +91,7 @@ var _ = Describe("Configuration", func() {
 
 	Context("Update", func() {
 
-		It("works as expected", func() {
+		It("Works as expected", func() {
 
 			// given
 			configManager := configuration.NewConfigurationManager(datadir)
@@ -173,7 +173,7 @@ var _ = Describe("Configuration", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			It("didn't get overwritten if no need", func() {
+			It("Didn't get overwritten if no need", func() {
 				// given
 				configManager := configuration.NewConfigurationManager(datadir)
 
@@ -188,7 +188,7 @@ var _ = Describe("Configuration", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			It("got overwritten if there is a change", func() {
+			It("Got overwritten if there is a change", func() {
 
 				// given
 				cfg.Workloads = []*models.Workload{{
@@ -230,7 +230,7 @@ var _ = Describe("Configuration", func() {
 			Expect(res).To(Equal("1"))
 		})
 
-		It("retrieve correctly from config file", func() {
+		It("Retrieve correctly from config file", func() {
 			//given
 			cfg.Version = "10"
 			file, err := json.MarshalIndent(cfg, "", " ")

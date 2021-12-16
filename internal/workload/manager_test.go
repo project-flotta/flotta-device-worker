@@ -3,10 +3,11 @@ package workload_test
 import (
 	"fmt"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	"os"
-	"sigs.k8s.io/yaml"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
@@ -43,7 +44,7 @@ var _ = Describe("Events", func() {
 
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
 		wkManager, err = workload.NewWorkloadManagerWithParamsAndInterval(datadir, wkwMock, 2, deviceId)
-		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
+		Expect(err).NotTo(HaveOccurred(), "cannot start the Workload Manager")
 
 	})
 
@@ -54,7 +55,7 @@ var _ = Describe("Events", func() {
 
 	Context("NonDefaultMonitoringInterval", func() {
 
-		It("emit events in case of Start failure", func() {
+		It("Emit events in case of Start failure", func() {
 
 			// given
 			workloads := []*models.Workload{}
@@ -77,7 +78,7 @@ var _ = Describe("Events", func() {
 			}, nil).AnyTimes()
 			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 			wkwMock.EXPECT().PersistConfiguration().AnyTimes()
-			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("Failed to start container")).AnyTimes()
+			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("failed to start container")).AnyTimes()
 
 			// when
 			err := wkManager.Update(cfg)
@@ -142,7 +143,7 @@ var _ = Describe("Manager", func() {
 	})
 
 	Context("Update", func() {
-		It("works as expected", func() {
+		It("Works as expected", func() {
 
 			// given
 			workloads := []*models.Workload{}
@@ -177,7 +178,7 @@ var _ = Describe("Manager", func() {
 				pod := getPodFor(datadir, wkName)
 				Expect(pod.Name).To(BeEquivalentTo(wkName))
 
-				additionalDescription := fmt.Sprintf("Failing on pod %s", wkName)
+				additionalDescription := fmt.Sprintf("failing on pod %s", wkName)
 				Expect(pod.Spec.Containers).To(HaveLen(1), additionalDescription)
 				Expect(pod.Spec.Containers[0].Env).To(HaveLen(1), additionalDescription)
 				Expect(pod.Spec.Containers[0].Env[0]).To(BeEquivalentTo(v1.EnvVar{Name: "DEVICE_ID", Value: deviceId}), additionalDescription)
@@ -192,7 +193,7 @@ var _ = Describe("Manager", func() {
 			}
 		})
 
-		It("runs workloads with custom auth file", func() {
+		It("Runs workloads with custom auth file", func() {
 
 			// given
 			workloads := []*models.Workload{}
@@ -200,8 +201,8 @@ var _ = Describe("Manager", func() {
 			for i := 0; i < 10; i++ {
 				wkName := fmt.Sprintf("test%d", i)
 				workloads = append(workloads, &models.Workload{
-					Name:              wkName,
-					Specification:     podSpec,
+					Name:            wkName,
+					Specification:   podSpec,
 					ImageRegistries: &models.ImageRegistries{AuthFile: "authFile-" + wkName},
 				})
 				wkwMock.EXPECT().Remove(wkName).Times(1)
@@ -247,7 +248,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -272,7 +273,7 @@ var _ = Describe("Manager", func() {
 			}
 
 			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().Remove("test").Return(fmt.Errorf("Cannot run workload")).Times(1)
+			wkwMock.EXPECT().Remove("test").Return(fmt.Errorf("cannot run workload")).Times(1)
 			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 			err := wkManager.Update(cfg)
@@ -308,7 +309,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "test"), gomock.Any()).Return(fmt.Errorf("Cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "test"), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
 
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
 			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "testB"), gomock.Any()).Return(nil).Times(1)
@@ -322,7 +323,7 @@ var _ = Describe("Manager", func() {
 			Expect(merr.WrappedErrors()).To(HaveLen(1))
 		})
 
-		It("staled workload got deleted if it's not in the config", func() {
+		It("Staled workload got deleted if it's not in the config", func() {
 			// given
 			cfg := models.DeviceConfigurationMessage{
 				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: 1}},
@@ -360,7 +361,7 @@ var _ = Describe("Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("staled workload cannot get deleted", func() {
+		It("Staled workload cannot get deleted", func() {
 			// given
 			cfg := models.DeviceConfigurationMessage{
 				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: 1}},
@@ -407,7 +408,7 @@ var _ = Describe("Manager", func() {
 
 			// given
 			currentWorkloads := []api.WorkloadInfo{}
-			wkwMock.EXPECT().List().Return(currentWorkloads, fmt.Errorf("Invalid")).AnyTimes()
+			wkwMock.EXPECT().List().Return(currentWorkloads, fmt.Errorf("invalid")).AnyTimes()
 
 			// when
 

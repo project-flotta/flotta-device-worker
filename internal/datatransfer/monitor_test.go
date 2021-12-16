@@ -111,7 +111,7 @@ var _ = Describe("Datatransfer", func() {
 
 	Context("Sync", func() {
 
-		It("work as expected", func() {
+		It("Work as expected", func() {
 
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
@@ -134,7 +134,7 @@ var _ = Describe("Datatransfer", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("one sync failed", func() {
+		It("One sync failed", func() {
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
 			fssync.EXPECT().Connect().Times(1)
@@ -165,7 +165,7 @@ var _ = Describe("Datatransfer", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 
-			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("Failed")).Times(1)
+			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("failed")).Times(1)
 
 			// when
 			err := monitor.ForceSync()
@@ -174,10 +174,10 @@ var _ = Describe("Datatransfer", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
-		It("cannot connect to external storage", func() {
+		It("Cannot connect to external storage", func() {
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
-			fssync.EXPECT().Connect().Return(fmt.Errorf("Failed")).Times(1)
+			fssync.EXPECT().Connect().Return(fmt.Errorf("failed")).Times(1)
 
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			monitor.SetStorage(fssync)
@@ -195,7 +195,7 @@ var _ = Describe("Datatransfer", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
-		It("does not report workloads without path", func() {
+		It("Does not report workloads without path", func() {
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
 			fssync.EXPECT().Connect().Times(1)
@@ -217,7 +217,7 @@ var _ = Describe("Datatransfer", func() {
 			Expect(monitor.GetLastSuccessfulSyncTime("test")).NotTo(BeNil())
 		})
 
-		It("does nothing if there are no workloads", func() {
+		It("Does nothing if there are no workloads", func() {
 
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
@@ -239,7 +239,7 @@ var _ = Describe("Datatransfer", func() {
 	})
 
 	Context("WorkloadRemoved", func() {
-		It("removed correctly", func() {
+		It("Removed correctly", func() {
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
 			fssync.EXPECT().Connect().Times(1)
@@ -262,7 +262,7 @@ var _ = Describe("Datatransfer", func() {
 	})
 
 	Context("HasStorage", func() {
-		It("true if it's defined", func() {
+		It("True if it's defined", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 
@@ -273,7 +273,7 @@ var _ = Describe("Datatransfer", func() {
 			Expect(res).To(BeTrue())
 		})
 
-		It("false no storage defined", func() {
+		It("False no storage defined", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration.Storage = nil
@@ -286,7 +286,7 @@ var _ = Describe("Datatransfer", func() {
 			Expect(res).To(BeFalse())
 		})
 
-		It("false no s3-storage defined", func() {
+		It("False no s3-storage defined", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration.Storage.S3 = nil
