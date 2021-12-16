@@ -181,7 +181,7 @@ var _ = Describe("Registration", func() {
 			Expect(reg.IsRegistered()).To(BeFalse())
 		})
 
-		It("is able to register after deregister", func() {
+		It("Is able to register after deregister", func() {
 
 			// given
 			reg := registration.NewRegistration(

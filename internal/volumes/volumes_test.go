@@ -8,7 +8,7 @@ import (
 )
 
 var _ = Describe("Volumes", func() {
-	It("should generate HostPath Volume", func() {
+	It("Should generate HostPath Volume", func() {
 		// given
 		var (
 			volumesDir   = "/some/path"
