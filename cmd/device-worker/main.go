@@ -31,6 +31,8 @@ const (
 )
 
 func main() {
+	log.SetFlags(0) // No datatime, is already done on yggradsil server
+
 	logLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if !ok {
 		logLevel = "ERROR"
