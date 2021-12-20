@@ -42,14 +42,15 @@ type WorkloadWrapper interface {
 
 // Workload manages the workload and its configuration on the device
 type Workload struct {
-	workloads         podman.Podman
-	netfilter         network.Netfilter
-	mappingRepository mapping.MappingRepository
-	observers         []Observer
-	serviceManager    *service.SystemdManager
+	workloads          podman.Podman
+	netfilter          network.Netfilter
+	mappingRepository  mapping.MappingRepository
+	observers          []Observer
+	serviceManager     *service.SystemdManager
+	monitoringInterval int64
 }
 
-func newWorkloadInstance(configDir string) (*Workload, error) {
+func newWorkloadInstance(configDir string, monitoringInterval int64) (*Workload, error) {
 	newPodman, err := podman.NewPodman()
 	if err != nil {
 		return nil, err
@@ -67,10 +68,11 @@ func newWorkloadInstance(configDir string) (*Workload, error) {
 		return nil, err
 	}
 	return &Workload{
-		workloads:         newPodman,
-		netfilter:         netfilter,
-		mappingRepository: mappingRepository,
-		serviceManager:    serviceManager,
+		workloads:          newPodman,
+		netfilter:          netfilter,
+		mappingRepository:  mappingRepository,
+		serviceManager:     serviceManager,
+		monitoringInterval: monitoringInterval,
 	}, nil
 }
 
@@ -184,7 +186,7 @@ func (ww Workload) removeService(workloadName string) error {
 }
 
 func (ww Workload) createService(workload *v1.Pod) (*service.Systemd, error) {
-	units, err := ww.workloads.GenerateSystemdFiles(workloadServiceName(workload.GetName()))
+	units, err := ww.workloads.GenerateSystemdFiles(workloadServiceName(workload.GetName()), ww.monitoringInterval)
 	if err != nil {
 		return nil, err
 	}

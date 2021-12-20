@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/containers/storage/pkg/stringid"
 	"github.com/hpcloud/tail"
 	"github.com/pkg/errors"
 )
@@ -66,15 +65,11 @@ func (e *Event) ToJSONString() (string, error) {
 }
 
 // ToHumanReadable returns human readable event as a formatted string
-func (e *Event) ToHumanReadable(truncate bool) string {
+func (e *Event) ToHumanReadable() string {
 	var humanFormat string
-	id := e.ID
-	if truncate {
-		id = stringid.TruncateID(id)
-	}
 	switch e.Type {
 	case Container, Pod:
-		humanFormat = fmt.Sprintf("%s %s %s %s (image=%s, name=%s", e.Time, e.Type, e.Status, id, e.Image, e.Name)
+		humanFormat = fmt.Sprintf("%s %s %s %s (image=%s, name=%s", e.Time, e.Type, e.Status, e.ID, e.Image, e.Name)
 		// check if the container has labels and add it to the output
 		if len(e.Attributes) > 0 {
 			for k, v := range e.Attributes {
@@ -83,9 +78,9 @@ func (e *Event) ToHumanReadable(truncate bool) string {
 		}
 		humanFormat += ")"
 	case Network:
-		humanFormat = fmt.Sprintf("%s %s %s %s (container=%s, name=%s)", e.Time, e.Type, e.Status, id, id, e.Network)
+		humanFormat = fmt.Sprintf("%s %s %s %s (container=%s, name=%s)", e.Time, e.Type, e.Status, e.ID, e.ID, e.Network)
 	case Image:
-		humanFormat = fmt.Sprintf("%s %s %s %s %s", e.Time, e.Type, e.Status, id, e.Name)
+		humanFormat = fmt.Sprintf("%s %s %s %s %s", e.Time, e.Type, e.Status, e.ID, e.Name)
 	case System:
 		humanFormat = fmt.Sprintf("%s %s %s", e.Time, e.Type, e.Status)
 	case Volume:

@@ -202,14 +202,8 @@ type InspectContainerState struct {
 	Error        string             `json:"Error"` // TODO
 	StartedAt    time.Time          `json:"StartedAt"`
 	FinishedAt   time.Time          `json:"FinishedAt"`
-	Health       HealthCheckResults `json:"Health,omitempty"`
+	Healthcheck  HealthCheckResults `json:"Healthcheck,omitempty"`
 	Checkpointed bool               `json:"Checkpointed,omitempty"`
-}
-
-// Healthcheck returns the HealthCheckResults. This is used for old podman compat
-// to make the "Healthcheck" key available in the go template.
-func (s *InspectContainerState) Healthcheck() HealthCheckResults {
-	return s.Health
 }
 
 // HealthCheckResults describes the results/logs from a healthcheck

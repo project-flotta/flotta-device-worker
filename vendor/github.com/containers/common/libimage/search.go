@@ -244,7 +244,7 @@ func (r *Runtime) searchImageInRegistry(ctx context.Context, term, registry stri
 			name = index + "/library/" + results[i].Name
 		}
 		params := SearchResult{
-			Index:       registry,
+			Index:       index,
 			Name:        name,
 			Description: description,
 			Official:    official,
@@ -284,9 +284,8 @@ func searchRepositoryTags(ctx context.Context, sys *types.SystemContext, registr
 	paramsArr := []SearchResult{}
 	for i := 0; i < limit; i++ {
 		params := SearchResult{
-			Name:  imageRef.DockerReference().Name(),
-			Tag:   tags[i],
-			Index: registry,
+			Name: imageRef.DockerReference().Name(),
+			Tag:  tags[i],
 		}
 		paramsArr = append(paramsArr, params)
 	}

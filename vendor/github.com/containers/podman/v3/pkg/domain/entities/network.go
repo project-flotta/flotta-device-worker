@@ -2,6 +2,8 @@ package entities
 
 import (
 	"net"
+
+	"github.com/containernetworking/cni/libcni"
 )
 
 // NetworkListOptions describes options for listing networks in cli
@@ -10,6 +12,15 @@ type NetworkListOptions struct {
 	Quiet   bool
 	Filters map[string][]string
 }
+
+// NetworkListReport describes the results from listing networks
+type NetworkListReport struct {
+	*libcni.NetworkConfigList
+	Labels map[string]string
+}
+
+// NetworkInspectReport describes the results from inspect networks
+type NetworkInspectReport map[string]interface{}
 
 // NetworkReloadOptions describes options for reloading container network
 // configuration.
@@ -27,8 +38,7 @@ type NetworkReloadReport struct {
 
 // NetworkRmOptions describes options for removing networks
 type NetworkRmOptions struct {
-	Force   bool
-	Timeout *uint
+	Force bool
 }
 
 //NetworkRmReport describes the results of network removal
@@ -38,6 +48,7 @@ type NetworkRmReport struct {
 }
 
 // NetworkCreateOptions describes options to create a network
+// swagger:model NetworkCreateOptions
 type NetworkCreateOptions struct {
 	DisableDNS bool
 	Driver     string
@@ -54,7 +65,7 @@ type NetworkCreateOptions struct {
 
 // NetworkCreateReport describes a created network for the cli
 type NetworkCreateReport struct {
-	Name string
+	Filename string
 }
 
 // NetworkDisconnectOptions describes options for disconnecting

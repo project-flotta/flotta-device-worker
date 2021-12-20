@@ -7,8 +7,6 @@ const (
 	DefaultNetworkDriver = BridgeNetworkDriver
 	// MacVLANNetworkDriver defines the macvlan driver
 	MacVLANNetworkDriver = "macvlan"
-	// MacVLANNetworkDriver defines the macvlan driver
-	IPVLANNetworkDriver = "ipvlan"
 
 	// IPAM drivers
 	// HostLocalIPAMDriver store the ip

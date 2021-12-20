@@ -2,6 +2,7 @@ package libimage
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/containers/common/pkg/retry"
 	"github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/signature"
 	storageTransport "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
@@ -40,10 +40,6 @@ type CopyOptions struct {
 	// Allows for customizing the destination reference lookup.  This can
 	// be used to use custom blob caches.
 	DestinationLookupReferenceFunc LookupReferenceFunc
-	// CompressionFormat is the format to use for the compression of the blobs
-	CompressionFormat *compression.Algorithm
-	// CompressionLevel specifies what compression level is used
-	CompressionLevel *int
 
 	// containers-auth.json(5) file to use when authenticating against
 	// container registries.
@@ -69,8 +65,6 @@ type CopyOptions struct {
 	// types.  Short forms (e.g., oci, v2s2) used by some tools are not
 	// supported.
 	ManifestMIMEType string
-	// Accept uncompressed layers when copying OCI images.
-	OciAcceptUncompressedLayers bool
 	// If OciEncryptConfig is non-nil, it indicates that an image should be
 	// encrypted.  The encryption options is derived from the construction
 	// of EncryptConfig object.  Note: During initial encryption process of
@@ -248,17 +242,6 @@ func (r *Runtime) newCopier(options *CopyOptions) (*copier, error) {
 		c.systemContext.DockerCertPath = options.CertDirPath
 	}
 
-	if options.CompressionFormat != nil {
-		c.systemContext.CompressionFormat = options.CompressionFormat
-	}
-
-	if options.CompressionLevel != nil {
-		c.systemContext.CompressionLevel = options.CompressionLevel
-	}
-
-	// NOTE: for the sake of consistency it's called Oci* in the CopyOptions.
-	c.systemContext.OCIAcceptUncompressedLayers = options.OciAcceptUncompressedLayers
-
 	policy, err := signature.DefaultPolicy(c.systemContext)
 	if err != nil {
 		return nil, err
@@ -303,7 +286,7 @@ func (r *Runtime) newCopier(options *CopyOptions) (*copier, error) {
 
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
-		logrus.Warnf("Failed to get container config for copy options: %v", err)
+		logrus.Warnf("failed to get container config for copy options: %v", err)
 	} else {
 		c.imageCopyOptions.MaxParallelDownloads = defaultContainerConfig.Engine.ImageParallelCopies
 	}

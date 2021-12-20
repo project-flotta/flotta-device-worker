@@ -17,8 +17,6 @@ type KubeOptions struct {
 	Password *string
 	// Network - name of the CNI network to connect to.
 	Network *string
-	// NoHosts - do not generate /etc/hosts file in pod's containers
-	NoHosts *bool
 	// Quiet - suppress output when pulling images.
 	Quiet *bool
 	// SignaturePolicy - path to a signature-policy file.
@@ -37,8 +35,6 @@ type KubeOptions struct {
 	ConfigMaps *[]string
 	// LogDriver for the container. For example: journald
 	LogDriver *string
-	// LogOptions for the container. For example: journald
-	LogOptions *[]string
 	// Start - don't start the pod if false
 	Start *bool
 }

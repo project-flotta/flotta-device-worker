@@ -44,12 +44,21 @@ type podAndPath struct {
 }
 
 func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, error) {
-	wrapper, err := newWorkloadInstance(dataDir)
+	wrapper, err := newWorkloadInstance(dataDir, defaultWorkloadsMonitoringInterval)
 	if err != nil {
 		return nil, err
 	}
 
 	return NewWorkloadManagerWithParams(dataDir, wrapper, deviceId)
+}
+
+func NewWorkloadManagerWithMonitorInterval(dataDir string, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
+	wrapper, err := newWorkloadInstance(dataDir, monitorInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewWorkloadManagerWithParamsAndInterval(dataDir, wrapper, monitorInterval, deviceId)
 }
 
 func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceId string) (*WorkloadManager, error) {

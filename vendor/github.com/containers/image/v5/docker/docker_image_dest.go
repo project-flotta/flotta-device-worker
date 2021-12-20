@@ -16,6 +16,7 @@ import (
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/internal/blobinfocache"
+	"github.com/containers/image/v5/internal/iolimits"
 	"github.com/containers/image/v5/internal/putblobdigest"
 	"github.com/containers/image/v5/internal/uploadreader"
 	"github.com/containers/image/v5/manifest"
@@ -431,9 +432,8 @@ func (d *dockerImageDestination) PutManifest(ctx context.Context, m []byte, inst
 	}
 	defer res.Body.Close()
 	if !successStatus(res.StatusCode) {
-		rawErr := registryHTTPResponseToError(res)
-		err := errors.Wrapf(rawErr, "uploading manifest %s to %s", refTail, d.ref.ref.Name())
-		if isManifestInvalidError(rawErr) {
+		err = errors.Wrapf(registryHTTPResponseToError(res), "uploading manifest %s to %s", refTail, d.ref.ref.Name())
+		if isManifestInvalidError(errors.Cause(err)) {
 			err = types.ManifestTypeRejectedError{Err: err}
 		}
 		return err
@@ -648,6 +648,10 @@ sigExists:
 		}
 		defer res.Body.Close()
 		if res.StatusCode != http.StatusCreated {
+			body, err := iolimits.ReadAtMost(res.Body, iolimits.MaxErrorBodySize)
+			if err == nil {
+				logrus.Debugf("Error body %s", string(body))
+			}
 			logrus.Debugf("Error uploading signature, status %d, %#v", res.StatusCode, res)
 			return errors.Wrapf(registryHTTPResponseToError(res), "uploading signature to %s in %s", path, d.c.registry)
 		}

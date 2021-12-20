@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"net"
 	"time"
 )
@@ -24,24 +23,21 @@ type ContainerNetwork interface {
 	Setup(namespacePath string, options SetupOptions) (map[string]StatusBlock, error)
 	// Teardown will teardown the container network namespace.
 	Teardown(namespacePath string, options TeardownOptions) error
-
-	// Drivers will return the list of supported network drivers
-	// for this interface.
-	Drivers() []string
 }
 
 // Network describes the Network attributes.
 type Network struct {
 	// Name of the Network.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// ID of the Network.
-	ID string `json:"id"`
+	ID string `json:"id,omitempty"`
 	// Driver for this Network, e.g. bridge, macvlan...
-	Driver string `json:"driver"`
+	Driver string `json:"driver,omitempty"`
 	// InterfaceName is the network interface name on the host.
 	NetworkInterface string `json:"network_interface,omitempty"`
 	// Created contains the timestamp when this network was created.
-	Created time.Time `json:"created,omitempty"`
+	// This is not guaranteed to stay exactly the same.
+	Created time.Time
 	// Subnets to use.
 	Subnets []Subnet `json:"subnets,omitempty"`
 	// IPv6Enabled if set to true an ipv6 subnet should be created for this net.
@@ -95,57 +91,10 @@ func (n *IPNet) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// HardwareAddr is the same as net.HardwareAddr except
-// that it adds the json marshal/unmarshal methods.
-// This allows us to read the mac from a json string
-// and a byte array.
-// swagger:model MacAddress
-type HardwareAddr net.HardwareAddr
-
-func (h *HardwareAddr) String() string {
-	return (*net.HardwareAddr)(h).String()
-}
-
-func (h *HardwareAddr) MarshalText() ([]byte, error) {
-	return []byte((*net.HardwareAddr)(h).String()), nil
-}
-
-func (h *HardwareAddr) UnmarshalJSON(text []byte) error {
-	if len(text) == 0 {
-		*h = nil
-		return nil
-	}
-
-	// if the json string start with a quote we got a string
-	// unmarshal the string and parse the mac from this string
-	if string(text[0]) == `"` {
-		var macString string
-		err := json.Unmarshal(text, &macString)
-		if err == nil {
-			mac, err := net.ParseMAC(macString)
-			if err == nil {
-				*h = HardwareAddr(mac)
-				return nil
-			}
-		}
-	}
-	// not a string or got an error fallback to the normal parsing
-	mac := make(net.HardwareAddr, 0, 6)
-	// use the standard json unmarshal for backwards compat
-	err := json.Unmarshal(text, &mac)
-	if err != nil {
-		return err
-	}
-	*h = HardwareAddr(mac)
-	return nil
-}
-
 type Subnet struct {
-	// Subnet for this Network in CIDR form.
-	// swagger:strfmt string
-	Subnet IPNet `json:"subnet"`
+	// Subnet for this Network.
+	Subnet IPNet `json:"subnet,omitempty"`
 	// Gateway IP for this Network.
-	// swagger:strfmt string
 	Gateway net.IP `json:"gateway,omitempty"`
 	// LeaseRange contains the range where IP are leased. Optional.
 	LeaseRange *LeaseRange `json:"lease_range,omitempty"`
@@ -154,10 +103,8 @@ type Subnet struct {
 // LeaseRange contains the range where IP are leased.
 type LeaseRange struct {
 	// StartIP first IP in the subnet which should be used to assign ips.
-	// swagger:strfmt string
 	StartIP net.IP `json:"start_ip,omitempty"`
 	// EndIP last IP in the subnet which should be used to assign ips.
-	// swagger:strfmt string
 	EndIP net.IP `json:"end_ip,omitempty"`
 }
 
@@ -180,14 +127,14 @@ type NetInterface struct {
 	// Networks list of assigned subnets with their gateway.
 	Networks []NetAddress `json:"networks,omitempty"`
 	// MacAddress for this Interface.
-	MacAddress HardwareAddr `json:"mac_address"`
+	MacAddress net.HardwareAddr `json:"mac_address,omitempty"`
 }
 
-// NetAddress contains the subnet and gateway.
+// NetAddress contains the subnet and gatway.
 type NetAddress struct {
 	// Subnet of this NetAddress. Note that the subnet contains the
 	// actual ip of the net interface and not the network address.
-	Subnet IPNet `json:"subnet"`
+	Subnet IPNet `json:"subnet,omitempty"`
 	// Gateway for the Subnet. This can be nil if there is no gateway, e.g. internal network.
 	Gateway net.IP `json:"gateway,omitempty"`
 }
@@ -197,35 +144,33 @@ type PerNetworkOptions struct {
 	// StaticIPv4 for this container. Optional.
 	StaticIPs []net.IP `json:"static_ips,omitempty"`
 	// Aliases contains a list of names which the dns server should resolve
-	// to this container. Should only be set when DNSEnabled is true on the Network.
-	// If aliases are set but there is no dns support for this network the
-	// network interface implementation should ignore this and NOT error.
+	// to this container. Can only be set when DNSEnabled is true on the Network.
 	// Optional.
 	Aliases []string `json:"aliases,omitempty"`
 	// StaticMac for this container. Optional.
-	StaticMAC HardwareAddr `json:"static_mac,omitempty"`
+	StaticMAC net.HardwareAddr `json:"static_mac,omitempty"`
 	// InterfaceName for this container. Required.
-	InterfaceName string `json:"interface_name"`
+	InterfaceName string `json:"interface_name,omitempty"`
 }
 
 // NetworkOptions for a given container.
 type NetworkOptions struct {
 	// ContainerID is the container id, used for iptables comments and ipam allocation.
-	ContainerID string `json:"container_id"`
+	ContainerID string `json:"container_id,omitempty"`
 	// ContainerName is the container name, used as dns name.
-	ContainerName string `json:"container_name"`
+	ContainerName string `json:"container_name,omitempty"`
 	// PortMappings contains the port mappings for this container
 	PortMappings []PortMapping `json:"port_mappings,omitempty"`
 	// Networks contains all networks with the PerNetworkOptions.
 	// The map should contain at least one element.
-	Networks map[string]PerNetworkOptions `json:"networks"`
+	Networks map[string]PerNetworkOptions `json:"networks,omitempty"`
 }
 
 // PortMapping is one or more ports that will be mapped into the container.
 type PortMapping struct {
 	// HostIP is the IP that we will bind to on the host.
 	// If unset, assumed to be 0.0.0.0 (all interfaces).
-	HostIP string `json:"host_ip"`
+	HostIP string `json:"host_ip,omitempty"`
 	// ContainerPort is the port number that will be exposed from the
 	// container.
 	// Mandatory.
@@ -234,7 +179,7 @@ type PortMapping struct {
 	// the container.
 	// If omitted, a random port on the host (guaranteed to be over 1024)
 	// will be assigned.
-	HostPort uint16 `json:"host_port"`
+	HostPort uint16 `json:"host_port,omitempty"`
 	// Range is the number of ports that will be forwarded, starting at
 	// HostPort and ContainerPort and counting up.
 	// This is 1-indexed, so 1 is assumed to be a single port (only the
@@ -243,26 +188,12 @@ type PortMapping struct {
 	// If unset, assumed to be 1 (a single port).
 	// Both hostport + range and containerport + range must be less than
 	// 65536.
-	Range uint16 `json:"range"`
+	Range uint16 `json:"range,omitempty"`
 	// Protocol is the protocol forward.
 	// Must be either "tcp", "udp", and "sctp", or some combination of these
 	// separated by commas.
 	// If unset, assumed to be TCP.
-	Protocol string `json:"protocol"`
-}
-
-// OCICNIPortMapping maps to the standard CNI portmapping Capability.
-// Deprecated, do not use this struct for new fields. This only exists
-// for backwards compatibility.
-type OCICNIPortMapping struct {
-	// HostPort is the port number on the host.
-	HostPort int32 `json:"hostPort"`
-	// ContainerPort is the port number inside the sandbox.
-	ContainerPort int32 `json:"containerPort"`
-	// Protocol is the protocol of the port mapping.
-	Protocol string `json:"protocol"`
-	// HostIP is the host ip to use.
-	HostIP string `json:"hostIP"`
+	Protocol string `json:"protocol,omitempty"`
 }
 
 type SetupOptions struct {

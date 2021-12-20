@@ -179,9 +179,10 @@ func (p *podman) UpdateSecret(name, data string) error {
 	return p.CreateSecret(name, data)
 }
 
-func (p *Podman) GenerateSystemdFiles(podName string) (map[string]string, error) {
+func (p *Podman) GenerateSystemdFiles(podName string, monitoringInterval int64) (map[string]string, error) {
 	useName := true
-	report, err := generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{UseName: &useName})
+	restartSec := (uint)(monitoringInterval)
+	report, err := generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{UseName: &useName, RestartSec: &restartSec})
 	if err != nil {
 		return nil, err
 	}

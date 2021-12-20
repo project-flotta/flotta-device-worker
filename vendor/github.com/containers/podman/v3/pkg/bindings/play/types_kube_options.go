@@ -93,21 +93,6 @@ func (o *KubeOptions) GetNetwork() string {
 	return *o.Network
 }
 
-// WithNoHosts set field NoHosts to given value
-func (o *KubeOptions) WithNoHosts(value bool) *KubeOptions {
-	o.NoHosts = &value
-	return o
-}
-
-// GetNoHosts returns value of field NoHosts
-func (o *KubeOptions) GetNoHosts() bool {
-	if o.NoHosts == nil {
-		var z bool
-		return z
-	}
-	return *o.NoHosts
-}
-
 // WithQuiet set field Quiet to given value
 func (o *KubeOptions) WithQuiet(value bool) *KubeOptions {
 	o.Quiet = &value
@@ -226,21 +211,6 @@ func (o *KubeOptions) GetLogDriver() string {
 		return z
 	}
 	return *o.LogDriver
-}
-
-// WithLogOptions set field LogOptions to given value
-func (o *KubeOptions) WithLogOptions(value []string) *KubeOptions {
-	o.LogOptions = &value
-	return o
-}
-
-// GetLogOptions returns value of field LogOptions
-func (o *KubeOptions) GetLogOptions() []string {
-	if o.LogOptions == nil {
-		var z []string
-		return z
-	}
-	return *o.LogOptions
 }
 
 // WithStart set field Start to given value
