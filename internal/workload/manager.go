@@ -22,10 +22,13 @@ import (
 
 const (
 	defaultWorkloadsMonitoringInterval = 15
+
+	AuthFileName     = "auth.json"
+	WorkloadFileName = "workload.yaml"
 )
 
 type WorkloadManager struct {
-	manifestsDir   string
+	workloadsDir   string
 	volumesDir     string
 	workloads      WorkloadWrapper
 	managementLock sync.Locker
@@ -33,7 +36,6 @@ type WorkloadManager struct {
 	deregistered   bool
 	eventsQueue    []*models.EventInfo
 	deviceId       string
-	authDir        string
 }
 
 type podAndPath struct {
@@ -50,36 +52,22 @@ func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, erro
 	return NewWorkloadManagerWithParams(dataDir, wrapper, deviceId)
 }
 
-func NewWorkloadManagerWithMonitorInterval(dataDir string, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
-	wrapper, err := newWorkloadInstance(dataDir)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewWorkloadManagerWithParamsAndInterval(dataDir, wrapper, monitorInterval, deviceId)
-}
-
 func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceId string) (*WorkloadManager, error) {
 	return NewWorkloadManagerWithParamsAndInterval(dataDir, ww, defaultWorkloadsMonitoringInterval, deviceId)
 }
 
 func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
-	manifestsDir := path.Join(dataDir, "manifests")
-	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+	workloadsDir := path.Join(dataDir, "workloads")
+	if err := os.MkdirAll(workloadsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
 	volumesDir := path.Join(dataDir, "volumes")
 	if err := os.MkdirAll(volumesDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	authDir := path.Join(dataDir, "auth")
-	if err := os.MkdirAll(authDir, 0755); err != nil {
-		return nil, fmt.Errorf("cannot create directory: %w", err)
-	}
 	manager := WorkloadManager{
-		manifestsDir:   manifestsDir,
+		workloadsDir:   workloadsDir,
 		volumesDir:     volumesDir,
-		authDir:        authDir,
 		workloads:      ww,
 		managementLock: &sync.Mutex{},
 		deregistered:   false,
@@ -141,17 +129,26 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 				"cannot convert workload '%s' to pod. DeviceID: %s; err: %v", workload.Name, err, w.deviceId))
 			continue
 		}
-		manifestPath := w.getManifestPath(pod.Name)
+
+		if err := w.ensureWorkloadDirExists(pod.Name); err != nil {
+			errors = multierror.Append(errors, fmt.Errorf(
+				"cannot create workload directory for workload '%s': %s", workload.Name, err))
+			continue
+		}
+
 		podYaml, err := w.toPodYaml(pod)
 		if err != nil {
 			errors = multierror.Append(errors, fmt.Errorf("cannot create pod's Yaml. DeviceID: %s; err:  %v", w.deviceId, err))
 			continue
 		}
-		authFilePath := w.getAuthFilePath(pod.Name)
+
 		var authFile string
 		if workload.ImageRegistries != nil {
 			authFile = workload.ImageRegistries.AuthFile
 		}
+
+		manifestPath := w.getManifestPath(pod.Name)
+		authFilePath := w.getAuthFilePath(pod.Name)
 		if !w.podConfigurationModified(manifestPath, podYaml, authFilePath, authFile) {
 			log.Tracef("pod '%s' definition is unchanged (%s). DeviceID: %s;", workload.Name, manifestPath, w.deviceId)
 			continue
@@ -195,13 +192,8 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 	for name := range deployedWorkloadByName {
 		if _, ok := configuredWorkloadNameSet[name]; !ok {
 			log.Infof("workload not found: %s. Removing. DeviceID: %s;", name, w.deviceId)
-			manifestPath := w.getManifestPath(name)
-			if err := deleteFile(manifestPath); err != nil {
-				errors = multierror.Append(errors, fmt.Errorf("cannot remove existing manifest workload: %s", err))
-			}
-			authPath := w.getAuthFilePath(name)
-			if err := deleteFile(authPath); err != nil {
-				errors = multierror.Append(errors, fmt.Errorf("cannot remove existing workload auth file: %s", err))
+			if err := deleteDir(w.getWorkloadDirPath(name)); err != nil {
+				errors = multierror.Append(errors, fmt.Errorf("cannot remove existing workload directory: %s", err))
 			}
 			if err := w.workloads.Remove(name); err != nil {
 				errors = multierror.Append(errors, fmt.Errorf("cannot remove stale workload name='%s': %s", name, err))
@@ -214,6 +206,16 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		w.ticker.Reset(time.Duration(configuration.WorkloadsMonitoringInterval))
 	}
 	return errors
+}
+
+func (w *WorkloadManager) ensureWorkloadDirExists(workloadName string) error {
+	workloadDirPath := w.getWorkloadDirPath(workloadName)
+	if _, err := os.Stat(workloadDirPath); err != nil {
+		if err := os.MkdirAll(workloadDirPath, 0755); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // manageAuthFile is responsible for bringing auth configuration file under authFilePath to expected state;
@@ -250,16 +252,15 @@ func (w *WorkloadManager) storeFile(filePath string, content []byte) error {
 }
 
 func (w *WorkloadManager) getAuthFilePath(workloadName string) string {
-	return path.Join(w.authDir, w.getAuthFileName(workloadName))
+	return path.Join(w.getWorkloadDirPath(workloadName), AuthFileName)
 }
 
-func (w *WorkloadManager) getAuthFileName(workloadName string) string {
-	return strings.ReplaceAll(workloadName, " ", "-") + "-auth.yaml"
+func (w *WorkloadManager) getWorkloadDirPath(workloadName string) string {
+	return path.Join(w.workloadsDir, strings.ReplaceAll(workloadName, " ", "-"))
 }
 
 func (w *WorkloadManager) getManifestPath(workloadName string) string {
-	fileName := strings.ReplaceAll(workloadName, " ", "-") + ".yaml"
-	return path.Join(w.manifestsDir, fileName)
+	return path.Join(w.getWorkloadDirPath(workloadName), WorkloadFileName)
 }
 
 func (w *WorkloadManager) toPodYaml(pod *v1.Pod) ([]byte, error) {
@@ -278,14 +279,16 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 		return err
 	}
 
-	manifestInfo, err := ioutil.ReadDir(w.manifestsDir)
+	manifestInfo, err := ioutil.ReadDir(w.workloadsDir)
 	if err != nil {
 		return err
 	}
 	manifestNameToPodAndPath := make(map[string]podAndPath)
-	expectedAuthFiles := make(map[string]struct{})
 	for _, fi := range manifestInfo {
-		filePath := path.Join(w.manifestsDir, fi.Name())
+		if !fi.IsDir() {
+			continue
+		}
+		filePath := path.Join(w.workloadsDir, fi.Name(), WorkloadFileName)
 		manifest, err := ioutil.ReadFile(filePath)
 		if err != nil {
 			log.Errorf("cannot read file %s. DeviceID: %s; err: %v", filePath, w.deviceId, err)
@@ -298,7 +301,6 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 			continue
 		}
 		manifestNameToPodAndPath[pod.Name] = podAndPath{pod, filePath}
-		expectedAuthFiles[w.getAuthFileName(pod.Name)] = struct{}{}
 	}
 
 	// Remove any workloads that don't correspond to stored manifests
@@ -307,16 +309,6 @@ func (w *WorkloadManager) ensureWorkloadsFromManifestsAreRunning() error {
 			log.Infof("workload not found: %s. Removing. DeviceID: %s;", name, w.deviceId)
 			if err := w.workloads.Remove(name); err != nil {
 				log.Errorf("cannot remove workload %s. DeviceID: %s; err: %v", name, w.deviceId, err)
-			}
-		}
-	}
-
-	// Remove any auth configuration files that are not used anymore
-	authManifestInfo, _ := ioutil.ReadDir(w.authDir)
-	for _, fi := range authManifestInfo {
-		if _, present := expectedAuthFiles[fi.Name()]; !present {
-			if err := deleteFile(path.Join(w.authDir, fi.Name())); err != nil {
-				log.Errorf("cannot delete auth configuraiton file %s. DeviceID: %s; err: %v", path.Join(w.authDir, fi.Name()), w.deviceId, err)
 			}
 		}
 	}
@@ -377,16 +369,10 @@ func (w *WorkloadManager) Deregister() error {
 		log.Errorf("failed to remove workloads. DeviceID: %s; err: %v", w.deviceId, err)
 	}
 
-	err = w.deleteManifestsDir()
+	err = w.deleteWorkloadsDir()
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to delete manifests directory: %v", err))
 		log.Errorf("failed to delete manifests directory. DeviceID: %s; err: %v", w.deviceId, err)
-	}
-
-	err = w.deleteAuthDir()
-	if err != nil {
-		errors = multierror.Append(errors, fmt.Errorf("failed to delete auth directory: %v", err))
-		log.Errorf("failed to delete auth directory. DeviceID: %s; err: %v", w.deviceId, err)
 	}
 
 	err = w.deleteTable()
@@ -442,19 +428,14 @@ func (w *WorkloadManager) removeAllWorkloads() error {
 	return nil
 }
 
-func (w *WorkloadManager) deleteManifestsDir() error {
+func (w *WorkloadManager) deleteWorkloadsDir() error {
 	log.Infof("deleting manifests directory. DeviceID: %s;", w.deviceId)
-	return deleteDir(w.manifestsDir)
+	return deleteDir(w.workloadsDir)
 }
 
 func (w *WorkloadManager) deleteVolumeDir() error {
 	log.Infof("deleting volumes directory. DeviceID: %s;", w.deviceId)
 	return deleteDir(w.volumesDir)
-}
-
-func (w *WorkloadManager) deleteAuthDir() error {
-	log.Infof("deleting auth directory. DeviceID: %s;", w.deviceId)
-	return deleteDir(w.authDir)
 }
 
 func deleteDir(path string) error {

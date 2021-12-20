@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 
-	gomock "github.com/golang/mock/gomock"
+	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	api "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-operator/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -206,8 +207,7 @@ var _ = Describe("Manager", func() {
 					ImageRegistries: &models.ImageRegistries{AuthFile: "authFile-" + wkName},
 				})
 				wkwMock.EXPECT().Remove(wkName).Times(1)
-				authFilePath := datadir + "/auth/" + wkName + "-auth.yaml"
-				wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(authFilePath)).Times(1)
+				wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(getAuthPath(datadir, wkName))).Times(1)
 			}
 
 			cfg := models.DeviceConfigurationMessage{
@@ -226,8 +226,8 @@ var _ = Describe("Manager", func() {
 				pod := getPodFor(datadir, wkName)
 				Expect(pod.Name).To(BeEquivalentTo(wkName))
 
-				authFilePath := datadir + "/auth/" + wkName + "-auth.yaml"
-				Expect(authFilePath).To(BeAnExistingFile())
+				authFilePath := getAuthPath(datadir, wkName)
+				Expect(getAuthPath(datadir, wkName)).To(BeAnExistingFile())
 				authFile, _ := ioutil.ReadFile(authFilePath)
 				Expect(authFile).To(BeEquivalentTo("authFile-" + wkName))
 			}
@@ -309,10 +309,10 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "test"), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifestPath(datadir, "test"), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
 
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifest(datadir, "testB"), gomock.Any()).Return(nil).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifestPath(datadir, "testB"), gomock.Any()).Return(nil).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -424,7 +424,7 @@ var _ = Describe("Manager", func() {
 })
 
 func getPodFor(datadir, wkName string) v1.Pod {
-	manifestPath := getManifest(datadir, wkName)
+	manifestPath := getManifestPath(datadir, wkName)
 	manifest, err := ioutil.ReadFile(manifestPath)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	pod := v1.Pod{}
@@ -433,6 +433,14 @@ func getPodFor(datadir, wkName string) v1.Pod {
 	return pod
 }
 
-func getManifest(datadir string, workloadName string) string {
-	return fmt.Sprintf("%s/manifests/%s.yaml", datadir, workloadName)
+func getManifestPath(datadir string, workloadName string) string {
+	return path.Join(getWorkloadsDir(datadir, workloadName), workload.WorkloadFileName)
+}
+
+func getAuthPath(datadir string, workloadName string) string {
+	return path.Join(getWorkloadsDir(datadir, workloadName), workload.AuthFileName)
+}
+
+func getWorkloadsDir(datadir string, workloadName string) string {
+	return fmt.Sprintf("%s/workloads/%s", datadir, workloadName)
 }
