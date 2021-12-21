@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -75,13 +76,15 @@ type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
 	data             *HeartbeatData
+	metricsStore     *metrics.Metrics
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor) *Heartbeat {
+	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, metricsStore *metrics.Metrics) *Heartbeat {
 	return &Heartbeat{
 		ticker:           nil,
 		dispatcherClient: dispatcherClient,
+		metricsStore:     metricsStore,
 		data: &HeartbeatData{
 			configManager:   configManager,
 			workloadManager: workloadManager,
@@ -127,7 +130,11 @@ func (s *Heartbeat) pushInformation() error {
 
 	// Create a data message to send back to the dispatcher.
 	heartbeatInfo := s.data.RetrieveInfo()
-
+	workloadCount := len(heartbeatInfo.Workloads)
+	err := s.metricsStore.AddMetric("workload_count", float64(workloadCount))
+	if err != nil {
+		return err
+	}
 	content, err := json.Marshal(heartbeatInfo)
 	if err != nil {
 		return err

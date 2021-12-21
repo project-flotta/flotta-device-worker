@@ -59,7 +59,7 @@ var _ = Describe("Registration", func() {
 			configManager,
 			wkManager,
 			hw,
-			monitor)
+			monitor, nil)
 
 	})
 

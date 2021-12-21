@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
 
 	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
@@ -28,12 +29,13 @@ var yggdDispatchSocketAddr string
 
 const (
 	defaultDataDir = "/var/local/yggdrasil"
+	metricsEnabled = true
 )
 
 func main() {
 	log.SetFlags(0) // No datatime, is already done on yggradsil server
 
-	logLevel, ok := os.LookupEnv("LOG_LEVEL")
+	logLevel, ok := os.LookupEnv("YGG_LOG_LEVEL")
 	if !ok {
 		logLevel = "ERROR"
 	}
@@ -106,7 +108,14 @@ func main() {
 	wl.RegisterObserver(dataMonitor)
 	configManager.RegisterObserver(dataMonitor)
 	dataMonitor.Start()
-	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor)
+	metricsStore, err := metrics.NewMetrics(dataDir)
+	if err != nil {
+		log.Fatalf("cannot start metrics store. DeviceID: %s; err: %v", deviceId, err)
+	}
+	monitor := metrics.NewMonitor(metricsStore)
+	go monitor.LogCurrentMetrics(false)
+	go metrics.NewGenerator(metricsStore).GenerateRandom("tester", 5*time.Second)
+	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, metricsStore)
 
 	configManager.RegisterObserver(hbs)
 

@@ -51,7 +51,8 @@ var _ = Describe("Heartbeat", func() {
 			configManager,
 			wkManager,
 			hw,
-			monitor)
+			monitor,
+			nil)
 	})
 
 	AfterEach(func() {

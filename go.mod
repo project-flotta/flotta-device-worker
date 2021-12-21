@@ -4,9 +4,9 @@ go 1.16
 
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
-	github.com/aws/aws-sdk-go v1.35.28
+	github.com/aws/aws-sdk-go v1.42.16
 	github.com/containers/podman/v3 v3.2.0-rc1.0.20211108082956-865653b661dd
-	github.com/go-openapi/strfmt v0.20.0
+	github.com/go-openapi/strfmt v0.21.1
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -14,10 +14,11 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
+	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a
 	github.com/seqsense/s3sync v1.8.0
 	google.golang.org/grpc v1.40.0
-	k8s.io/api v0.22.3
+	k8s.io/api v0.22.4
 	sigs.k8s.io/yaml v1.2.0
 )
 
