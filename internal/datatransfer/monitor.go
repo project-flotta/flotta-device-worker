@@ -11,6 +11,7 @@ import (
 	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer/s3"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
 	"github.com/jakub-dzon/k4e-operator/models"
 )
 
@@ -66,6 +67,12 @@ func (m *Monitor) GetLastSuccessfulSyncTime(workloadName string) *time.Time {
 		return &t
 	}
 	return nil
+}
+
+// WorkloadStarted is defined to satisfied the workload.Observer Interface, do
+// nothing.
+func (m *Monitor) WorkloadStarted(workloadName string, report []*podman.PodReport) {
+	return
 }
 
 func (m *Monitor) WorkloadRemoved(workloadName string) {
