@@ -21,7 +21,12 @@ func NewMetrics(dataDir string) (*Metrics, error) {
 	if err := os.MkdirAll(metricsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
-	db, err := tsdb.Open(metricsDir, nil, nil, nil, nil)
+	opts := tsdb.DefaultOptions()
+	opts.RetentionDuration = int64(5 * time.Minute / time.Millisecond)
+	opts.MinBlockDuration = int64(10 * time.Minute / time.Millisecond)
+	opts.MaxBlockDuration = int64(10 * time.Minute / time.Millisecond)
+
+	db, err := tsdb.Open(metricsDir, nil, nil, opts, nil)
 	return &Metrics{db: db}, err
 }
 
@@ -31,7 +36,7 @@ func (m *Metrics) Deregister() error {
 
 func (m *Metrics) GetMetricsFor(tMin time.Time, tMax time.Time) (storage.SeriesSet, error) {
 	log.Infof("Getting metrics for %v - %v", tMin, tMax)
-	q, err := m.db.Querier(nil, tMin.Unix(), tMax.Unix())
+	q, err := m.db.Querier(nil, tMin.Unix()*1000, tMax.Unix()*1000)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +63,7 @@ func (m *Metrics) GetMetricsFor(tMin time.Time, tMax time.Time) (storage.SeriesS
 
 func (m *Metrics) AddMetric(name string, value float64) error {
 	appender := m.db.Appender(context.Background())
-	_, err := appender.Append(0, labels.FromStrings("name", name), time.Now().Unix(), value)
+	_, err := appender.Append(0, labels.FromStrings("name", name), time.Now().Unix()*1000, value)
 	if err != nil {
 		return err
 	}

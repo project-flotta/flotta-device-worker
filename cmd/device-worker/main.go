@@ -113,7 +113,7 @@ func main() {
 		log.Fatalf("cannot start metrics store. DeviceID: %s; err: %v", deviceId, err)
 	}
 	monitor := metrics.NewMonitor(metricsStore)
-	go monitor.LogCurrentMetrics(true)
+	go monitor.LogCurrentMetrics(false)
 	go metrics.NewGenerator(metricsStore).GenerateRandom("tester", 5*time.Second)
 	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, metricsStore)
 
