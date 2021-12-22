@@ -19,7 +19,7 @@ func (m *Monitor) LogCurrentMetrics(onlyDelta bool) {
 		time.Sleep(30 * time.Second)
 		log.Info("Scanning metrics")
 		upperBound := time.Now()
-		series, err := m.metricsStorage.GetMetricsFor(lastTime, upperBound)
+		series, err := m.metricsStorage.GetMetricsFor(lastTime.Add(time.Second), upperBound)
 		if err != nil {
 			log.Error("cannot get metrics", err)
 		}

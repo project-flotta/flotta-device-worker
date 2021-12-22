@@ -31,7 +31,7 @@ func (m *Metrics) Deregister() error {
 
 func (m *Metrics) GetMetricsFor(tMin time.Time, tMax time.Time) (storage.SeriesSet, error) {
 	log.Infof("Getting metrics for %v - %v", tMin, tMax)
-	q, err := m.db.Querier(nil, tMin.UnixNano(), tMax.UnixNano())
+	q, err := m.db.Querier(nil, tMin.Unix(), tMax.Unix())
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (m *Metrics) GetMetricsFor(tMin time.Time, tMax time.Time) (storage.SeriesS
 
 func (m *Metrics) AddMetric(name string, value float64) error {
 	appender := m.db.Appender(context.Background())
-	_, err := appender.Append(0, labels.FromStrings("name", name), time.Now().UnixNano(), value)
+	_, err := appender.Append(0, labels.FromStrings("name", name), time.Now().Unix(), value)
 	if err != nil {
 		return err
 	}

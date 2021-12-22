@@ -35,7 +35,7 @@ const (
 func main() {
 	log.SetFlags(0) // No datatime, is already done on yggradsil server
 
-	logLevel, ok := os.LookupEnv("YGG_LOG_LEVEL")
+	logLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if !ok {
 		logLevel = "ERROR"
 	}
@@ -113,7 +113,7 @@ func main() {
 		log.Fatalf("cannot start metrics store. DeviceID: %s; err: %v", deviceId, err)
 	}
 	monitor := metrics.NewMonitor(metricsStore)
-	go monitor.LogCurrentMetrics(false)
+	go monitor.LogCurrentMetrics(true)
 	go metrics.NewGenerator(metricsStore).GenerateRandom("tester", 5*time.Second)
 	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, metricsStore)
 
