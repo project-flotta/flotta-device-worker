@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -33,6 +34,7 @@ type Registration struct {
 	workloads        *workload.WorkloadManager
 	monitor          *datatransfer.Monitor
 	registered       bool
+	lock             sync.RWMutex
 }
 
 func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient DispatcherClient, config *configuration.Manager, heartbeatManager *heartbeat.Heartbeat, workloadsManager *workload.WorkloadManager, monitorManager *datatransfer.Monitor) *Registration {
@@ -45,6 +47,7 @@ func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient 
 		heartbeat:        heartbeatManager,
 		workloads:        workloadsManager,
 		monitor:          monitorManager,
+		lock:             sync.RWMutex{},
 	}
 }
 
@@ -99,11 +102,15 @@ func (r *Registration) registerDeviceOnce() error {
 	if _, err := r.dispatcherClient.Send(ctx, data); err != nil {
 		return err
 	}
+	r.lock.Lock()
 	r.registered = true
+	r.lock.Unlock()
 	return nil
 }
 
 func (r *Registration) IsRegistered() bool {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 	return r.registered
 }
 
