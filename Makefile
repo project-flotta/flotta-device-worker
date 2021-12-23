@@ -1,7 +1,7 @@
 VERSION = 1.0
 RELEASE = 1
 DIST_DIR = $(shell pwd)/dist
-
+CGO_ENABLED = 0
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
 
 ifeq ($(OS),fedora)
@@ -41,7 +41,7 @@ endif
 
 test: ## Run unit test on device worker
 test: test-tools
-	ginkgo -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
+	ginkgo --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
 
 test-coverage:
 test-coverage: ## Run test and launch coverage tool
@@ -66,15 +66,24 @@ clean: ## Clean project
 
 ##@ Build
 
+build-debug: ## Build with race conditions and lock checker
+build-debug: BUILD_OPTIONS=--race
+build-debug: CGO_ENABLED=1
+build-debug: build
+
 build: ## Build device worker
 	mkdir -p ./bin
-	CGO_ENABLED=0 go build -o ./bin ./cmd/device-worker
+	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_OPTIONS) -o ./bin ./cmd/device-worker
 
 build-arm64: ## Build device worker for arm64
 	mkdir -p ./bin
-	GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/device-worker-aarch64 ./cmd/device-worker
+	GOARCH=arm64 CGO_ENABLED=$(CGO_ENABLED) go build -o ./bin/device-worker-aarch64 ./cmd/device-worker
 
 ##@ Deployment
+
+install: ## Install device-worker with debug enabled
+install-debug: build-debug
+	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install: ## Install device-worker
 install: build
