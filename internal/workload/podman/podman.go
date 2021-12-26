@@ -35,6 +35,7 @@ type Podman interface {
 	Remove(workloadId string) error
 	Run(manifestPath, authFilePath string) ([]*PodReport, error)
 	Start(workloadId string) error
+	Stop(workloadId string) error
 	ListSecrets() (map[string]struct{}, error)
 	RemoveSecret(name string) error
 	CreateSecret(name, data string) error
@@ -64,9 +65,11 @@ type PodReport struct {
 func (p *PodReport) AppendContainer(c *ContainerReport) {
 	p.Containers = append(p.Containers, c)
 }
+const DefaultTimeoutForStoppingInSeconds int = 5
 
 type podman struct {
 	podmanConnection context.Context
+	timeoutForStopping int
 }
 
 func NewPodman() (*podman, error) {
@@ -75,7 +78,8 @@ func NewPodman() (*podman, error) {
 		return nil, err
 	}
 	return &podman{
-		podmanConnection: podmanConnection,
+		podmanConnection:   podmanConnection,
+		timeoutForStopping: DefaultTimeoutForStoppingInSeconds,
 	}, nil
 }
 
@@ -219,6 +223,20 @@ func (p *podman) getPodReportforId(podID string) (*PodReport, error) {
 		report.AppendContainer(c)
 	}
 	return report, nil
+}
+
+func (p *podman) Stop(workloadId string) error {
+	exists, err := pods.Exists(p.podmanConnection, workloadId, nil)
+	if err != nil {
+		return err
+	}
+	if exists {
+		_, err := pods.Stop(p.podmanConnection, workloadId, &pods.StopOptions{Timeout: &p.timeoutForStopping})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *podman) Run(manifestPath, authFilePath string) ([]*PodReport, error) {

@@ -97,7 +97,6 @@ func (m *Manager) GetSecrets() models.SecretList {
 }
 
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
-
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
 	secretsEqual := isEqualUnorderedSecretLists(message.Secrets, m.deviceConfiguration.Secrets)

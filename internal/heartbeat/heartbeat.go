@@ -8,11 +8,14 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
+
 	cfg "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	hw "github.com/project-flotta/flotta-device-worker/internal/hardware"
 	workld "github.com/project-flotta/flotta-device-worker/internal/workload"
+	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 	"github.com/project-flotta/flotta-operator/models"
+
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
@@ -21,16 +24,18 @@ type HeartbeatData struct {
 	workloadManager *workld.WorkloadManager
 	dataMonitor     *datatransfer.Monitor
 	hardware        *hw.Hardware
+	osInfo          *os2.OS
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor) *HeartbeatData {
+	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
 
 	return &HeartbeatData{
 		configManager:   configManager,
 		workloadManager: workloadManager,
 		hardware:        hardware,
 		dataMonitor:     dataMonitor,
+		osInfo:          deviceOs,
 	}
 }
 
@@ -67,6 +72,7 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 		Workloads: workloadStatuses,
 		Hardware:  hardwareInfo,
 		Events:    s.workloadManager.PopEvents(),
+		Upgrade:   s.osInfo.GetUpgradeStatus(),
 	}
 	return heartbeatInfo
 }
@@ -78,7 +84,7 @@ type Heartbeat struct {
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor) *Heartbeat {
+	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, osInfo *os2.OS) *Heartbeat {
 	return &Heartbeat{
 		ticker:           nil,
 		dispatcherClient: dispatcherClient,
@@ -86,7 +92,9 @@ func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cf
 			configManager:   configManager,
 			workloadManager: workloadManager,
 			hardware:        hardware,
-			dataMonitor:     dataMonitor},
+			dataMonitor:     dataMonitor,
+			osInfo:          osInfo,
+		},
 	}
 }
 

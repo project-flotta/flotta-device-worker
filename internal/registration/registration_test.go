@@ -39,7 +39,7 @@ var _ = Describe("Registration", func() {
 		hb             *heartbeat.Heartbeat
 		hw             = &hardware.Hardware{}
 		monitor        = &datatransfer.Monitor{}
-		os             = &os.OS{}
+		deviceOs       = &os.OS{}
 		err            error
 	)
 
@@ -63,11 +63,15 @@ var _ = Describe("Registration", func() {
 		daemonMock = metrics.NewMockMetricsDaemon(mockCtrl)
 		systemMetrics = metrics.NewSystemMetricsWithNodeExporter(daemonMock, nil)
 
+		gracefulRebootChannel := make(chan struct{})
+		deviceOs = os.NewOS(gracefulRebootChannel)
+
 		hb = heartbeat.NewHeartbeatService(dispatcherMock,
 			configManager,
 			wkManager,
 			hw,
-			monitor)
+			monitor,
+			deviceOs)
 
 	})
 
@@ -85,7 +89,7 @@ var _ = Describe("Registration", func() {
 		It("Work as expected", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			// then
 			dispatcherMock.EXPECT().Send(gomock.Any(), RegistrationMatcher()).Times(1)
@@ -100,7 +104,7 @@ var _ = Describe("Registration", func() {
 		It("Try to re-register", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 			reg.RetryAfter = 1
 
 			// then
@@ -131,7 +135,7 @@ var _ = Describe("Registration", func() {
 		It("Works as expected", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
@@ -151,7 +155,7 @@ var _ = Describe("Registration", func() {
 		It("Return error if anything fails", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("failed"))
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
@@ -173,7 +177,7 @@ var _ = Describe("Registration", func() {
 			err := osUtil.Remove(configFile)
 			Expect(err).NotTo(HaveOccurred())
 
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
@@ -192,7 +196,7 @@ var _ = Describe("Registration", func() {
 		It("Is able to register after deregister", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List()
 			wkwMock.EXPECT().RemoveTable()
@@ -203,7 +207,7 @@ var _ = Describe("Registration", func() {
 			err = reg.Deregister()
 			Expect(err).NotTo(HaveOccurred())
 
-			reg = registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg = registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			// then
 			dispatcherMock.EXPECT().Send(gomock.Any(), RegistrationMatcher()).Times(1)

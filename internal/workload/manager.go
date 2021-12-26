@@ -289,6 +289,19 @@ func (w *WorkloadManager) RegisterObserver(observer Observer) {
 	w.workloads.RegisterObserver(observer)
 }
 
+func (w *WorkloadManager) StopWorkloads() error{
+	w.managementLock.Lock()
+	defer w.managementLock.Unlock()
+
+	err := w.stopAllWorkloads()
+	if err != nil {
+		log.Errorf("failed to remove workloads. DeviceID: %s; err: %v", w.deviceId, err)
+		return err
+	}
+
+	return nil
+}
+
 func (w *WorkloadManager) Deregister() error {
 	w.managementLock.Lock()
 	defer w.managementLock.Unlock()
@@ -334,15 +347,34 @@ func (w *WorkloadManager) removeAllWorkloads() error {
 	if err != nil {
 		return err
 	}
+
+	var res error
 	for _, workload := range workloads {
 		log.Infof("removing workload %s.  DeviceID: %s;", workload.Name, w.deviceId)
 		err := w.workloads.Remove(workload.Name)
 		if err != nil {
 			log.Errorf("error removing workload %s. DeviceID: %s; err: %v", workload.Name, w.deviceId, err)
-			return err
+			res = multierror.Append(res, err)
 		}
 	}
-	return nil
+	return res
+}
+func (w *WorkloadManager) stopAllWorkloads() error {
+	log.Infof("stopping all workloads. DeviceID: %s;", w.deviceId)
+	workloads, err := w.workloads.List()
+	if err != nil {
+		return err
+	}
+	var res error
+	for _, workload := range workloads {
+		log.Infof("stopping workload %s. DeviceID: %s;", workload.Name, w.deviceId)
+		err := w.workloads.Stop(workload.Name)
+		if err != nil {
+			log.Errorf("error stopping workload %s. DeviceID: %s; err: %v", workload.Name, w.deviceId, err)
+			res = multierror.Append(res, err)
+		}
+	}
+	return res
 }
 
 func (w *WorkloadManager) deleteWorkloadsDir() error {
