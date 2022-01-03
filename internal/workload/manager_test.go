@@ -1,6 +1,7 @@
 package workload_test
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -74,6 +75,7 @@ var _ = Describe("Events", func() {
 				Workloads:     workloads,
 			}
 
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{
 				{Id: "stale", Name: "stale", Status: "created"},
 			}, nil).AnyTimes()
@@ -166,6 +168,7 @@ var _ = Describe("Manager", func() {
 				Workloads:     workloads,
 			}
 
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq("")).AnyTimes()
 
@@ -214,6 +217,7 @@ var _ = Describe("Manager", func() {
 				Workloads: workloads,
 			}
 
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 
 			// when
@@ -246,6 +250,7 @@ var _ = Describe("Manager", func() {
 				}},
 			}
 
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
 			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
@@ -272,6 +277,7 @@ var _ = Describe("Manager", func() {
 				}},
 			}
 
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").Return(fmt.Errorf("cannot run workload")).Times(1)
 			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
@@ -307,6 +313,7 @@ var _ = Describe("Manager", func() {
 				},
 			}
 
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
 			wkwMock.EXPECT().Run(gomock.Any(), getManifestPath(datadir, "test"), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
@@ -346,6 +353,7 @@ var _ = Describe("Manager", func() {
 			currentWorkloads := []api.WorkloadInfo{
 				{Id: "stale", Name: "stale", Status: "running"},
 			}
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().Return(currentWorkloads, nil).AnyTimes()
 
 			wkwMock.EXPECT().Remove("test").AnyTimes()
@@ -373,6 +381,7 @@ var _ = Describe("Manager", func() {
 			currentWorkloads := []api.WorkloadInfo{
 				{Id: "stale", Name: "stale", Status: "running"},
 			}
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().Return(currentWorkloads, nil).AnyTimes()
 
 			wkwMock.EXPECT().Remove("stale").Return(fmt.Errorf("invalid workload"))
@@ -420,6 +429,157 @@ var _ = Describe("Manager", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
+	})
+
+	Context("Secrets", func() {
+		var (
+			cfg models.DeviceConfigurationMessage
+		)
+
+		BeforeEach(func() {
+			cfg = models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: 1}},
+				DeviceID:      "",
+				Version:       "",
+			}
+			wkwMock.EXPECT().List().Return(nil, nil).AnyTimes()
+		})
+
+		It("Read secrets failed", func() {
+			// given
+			wkwMock.EXPECT().ListSecrets().Return(nil, fmt.Errorf("test")).Times(1)
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Create secret failed", func() {
+			// given
+			cfg.Secrets = models.SecretList{
+				{
+					Name: "secret",
+				},
+			}
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).Times(1)
+			wkwMock.EXPECT().CreateSecret(gomock.Any(), gomock.Any()).Return(errors.New("test")).Times(1)
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Update secret failed", func() {
+			// given
+			cfg.Secrets = models.SecretList{
+				{
+					Name: "secret",
+				},
+			}
+			wkwMock.EXPECT().ListSecrets().
+				Return(map[string]struct{}{
+					"secret": {},
+				}, nil).Times(1)
+			wkwMock.EXPECT().UpdateSecret(gomock.Any(), gomock.Any()).Return(errors.New("test")).Times(1)
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Remove secret failed", func() {
+			// given
+			wkwMock.EXPECT().ListSecrets().
+				Return(map[string]struct{}{
+					"secret": {},
+				}, nil).Times(1)
+			wkwMock.EXPECT().RemoveSecret(gomock.Any()).Return(errors.New("test")).Times(1)
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("No secrets in use", func() {
+			// given
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).Times(1)
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Some secrets fail", func() {
+			// given
+			cfg.Secrets = models.SecretList{
+				{
+					Name: "secret1",
+				},
+				{
+					Name: "secret2",
+				},
+				{
+					Name: "secret3",
+				},
+			}
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).Times(1)
+			wkwMock.EXPECT().CreateSecret("secret1", gomock.Any()).Return(nil).Times(1)
+			wkwMock.EXPECT().CreateSecret("secret2", gomock.Any()).Return(errors.New("test")).Times(1)
+			wkwMock.EXPECT().CreateSecret("secret3", gomock.Any()).Return(nil).Times(1)
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Combination of all CRUD operations", func() {
+			// given
+			cfg.Secrets = models.SecretList{
+				{
+					Name: "create1",
+				},
+				{
+					Name: "update1",
+				},
+				{
+					Name: "create2",
+				},
+				{
+					Name: "update2",
+				},
+			}
+			wkwMock.EXPECT().ListSecrets().
+				Return(map[string]struct{}{
+					"update1": {},
+					"remove1": {},
+					"update2": {},
+					"remove2": {},
+				}, nil).Times(1)
+			wkwMock.EXPECT().CreateSecret("create1", gomock.Any()).Return(nil).Times(1)
+			wkwMock.EXPECT().CreateSecret("create2", gomock.Any()).Return(nil).Times(1)
+			wkwMock.EXPECT().UpdateSecret("update1", gomock.Any()).Return(nil).Times(1)
+			wkwMock.EXPECT().UpdateSecret("update2", gomock.Any()).Return(nil).Times(1)
+			wkwMock.EXPECT().RemoveSecret("remove1").Return(nil).Times(1)
+			wkwMock.EXPECT().RemoveSecret("remove2").Return(nil).Times(1)
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+		})
 	})
 })
 

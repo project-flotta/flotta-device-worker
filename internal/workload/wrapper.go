@@ -32,6 +32,10 @@ type WorkloadWrapper interface {
 	PersistConfiguration() error
 	RemoveTable() error
 	RemoveMappingFile() error
+	ListSecrets() (map[string]struct{}, error)
+	RemoveSecret(string) error
+	CreateSecret(string, string) error
+	UpdateSecret(string, string) error
 }
 
 // Workload manages the workload and its configuration on the device
@@ -171,6 +175,22 @@ func (ww Workload) Start(workload *v1.Pod) error {
 
 func (ww Workload) PersistConfiguration() error {
 	return ww.mappingRepository.Persist()
+}
+
+func (ww Workload) ListSecrets() (map[string]struct{}, error) {
+	return ww.workloads.ListSecrets()
+}
+
+func (ww Workload) RemoveSecret(name string) error {
+	return ww.workloads.RemoveSecret(name)
+}
+
+func (ww Workload) CreateSecret(name, data string) error {
+	return ww.workloads.CreateSecret(name, data)
+}
+
+func (ww Workload) UpdateSecret(name, data string) error {
+	return ww.workloads.UpdateSecret(name, data)
 }
 
 func getHostPorts(workload *v1.Pod) ([]int32, error) {

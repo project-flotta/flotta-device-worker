@@ -2,10 +2,12 @@ package podman
 
 import (
 	"context"
+	"strings"
 
 	"github.com/containers/podman/v3/pkg/bindings"
 	"github.com/containers/podman/v3/pkg/bindings/play"
 	"github.com/containers/podman/v3/pkg/bindings/pods"
+	"github.com/containers/podman/v3/pkg/bindings/secrets"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 )
 
@@ -76,4 +78,33 @@ func (p *Podman) Start(workloadId string) error {
 		return err
 	}
 	return nil
+}
+
+func (p *Podman) ListSecrets() (map[string]struct{}, error) {
+	result := map[string]struct{}{}
+	listResult, err := secrets.List(p.podmanConnection, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, secret := range listResult {
+		result[secret.Spec.Name] = struct{}{}
+	}
+	return result, nil
+}
+
+func (p *Podman) RemoveSecret(name string) error {
+	return secrets.Remove(p.podmanConnection, name)
+}
+
+func (p *Podman) CreateSecret(name, data string) error {
+	_, err := secrets.Create(p.podmanConnection, strings.NewReader(data), &secrets.CreateOptions{Name: &name})
+	return err
+}
+
+func (p *Podman) UpdateSecret(name, data string) error {
+	err := p.RemoveSecret(name)
+	if err != nil {
+		return err
+	}
+	return p.CreateSecret(name, data)
 }

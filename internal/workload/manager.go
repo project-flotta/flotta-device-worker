@@ -118,6 +118,11 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		return errors
 	}
 
+	errs := w.updateSecrets(configuration.Secrets)
+	if len(errs) != 0 {
+		errors = multierror.Append(errors, errs...)
+	}
+
 	configuredWorkloadNameSet := make(map[string]struct{})
 	for _, workload := range configuration.Workloads {
 		log.Tracef("deploying workload: %s. DeviceID: %s;", workload.Name, w.deviceId)
@@ -538,4 +543,30 @@ func (w *WorkloadManager) podAuthModified(authPath string, auth string) bool {
 		return true
 	}
 	return !bytes.Equal(file, []byte(auth))
+}
+
+func (w *WorkloadManager) updateSecrets(configSecrets models.SecretList) []error {
+	deviceSecrets, err := w.workloads.ListSecrets()
+	if err != nil {
+		return []error{err}
+	}
+	var errs []error
+	for _, configSecret := range configSecrets {
+		if _, ok := deviceSecrets[configSecret.Name]; ok {
+			err = w.workloads.UpdateSecret(configSecret.Name, configSecret.Data)
+			delete(deviceSecrets, configSecret.Name)
+		} else {
+			err = w.workloads.CreateSecret(configSecret.Name, configSecret.Data)
+		}
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for deviceName := range deviceSecrets {
+		err = w.workloads.RemoveSecret(deviceName)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
 }

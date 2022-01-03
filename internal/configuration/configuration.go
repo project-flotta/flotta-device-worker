@@ -85,13 +85,18 @@ func (m *Manager) GetWorkloads() models.WorkloadList {
 	return m.deviceConfiguration.Workloads
 }
 
+func (m *Manager) GetSecrets() models.SecretList {
+	return m.deviceConfiguration.Secrets
+}
+
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
-	log.Tracef("workloads equal: [%v]; configurationEqual: [%v]; DeviceID: [%s]", workloadsEqual, configurationEqual, message.DeviceID)
+	secretsEqual := isEqualUnorderedSecretLists(message.Secrets, m.deviceConfiguration.Secrets)
+	log.Tracef("workloads equal: [%v]; configurationEqual: [%v]; secretsEqual: [%v]; DeviceID: [%s]", workloadsEqual, configurationEqual, secretsEqual, message.DeviceID)
 
-	shouldUpdate := !(configurationEqual && workloadsEqual)
+	shouldUpdate := !(configurationEqual && workloadsEqual && secretsEqual)
 
 	if m.IsInitialConfig() {
 		log.Trace("force update because it's init phase")
@@ -153,4 +158,22 @@ func (m *Manager) Deregister() error {
 		return err
 	}
 	return nil
+}
+
+func isEqualUnorderedSecretLists(x models.SecretList, y models.SecretList) bool {
+	// nil and empty lists are considered equal. it's the contents that we care about
+	if len(x) != len(y) {
+		return false
+	}
+	secretsMap := map[string]*models.Secret{}
+	for _, secret := range x {
+		secretsMap[secret.Name] = secret
+	}
+	for _, secret := range y {
+		otherSecret, ok := secretsMap[secret.Name]
+		if !ok || !reflect.DeepEqual(secret, otherSecret) {
+			return false
+		}
+	}
+	return true
 }
