@@ -33,7 +33,7 @@ help: ## Display this help.
 
 test-tools:
 ifeq (, $(shell which ginkgo))
-	GO111MODULE=off go get github.com/onsi/ginkgo/ginkgo
+	go get github.com/onsi/ginkgo/ginkgo@v1.16.5
 endif
 ifeq (, $(shell which gover))
 	GO111MODULE=off go get github.com/sozorogami/gover
