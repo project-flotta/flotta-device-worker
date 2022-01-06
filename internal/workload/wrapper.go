@@ -42,7 +42,7 @@ type WorkloadWrapper interface {
 type Workload struct {
 	workloads         podman.Podman
 	netfilter         network.Netfilter
-	mappingRepository *mapping.MappingRepository
+	mappingRepository mapping.MappingRepository
 	observers         []Observer
 }
 
