@@ -15,14 +15,25 @@ type mapping struct {
 	Name string `json:"name"`
 }
 
-type MappingRepository struct {
+//go:generate mockgen -package=mapping -destination=mock_mapping.go . MappingRepository
+type MappingRepository interface {
+	Add(name, id string) error
+	Remove(name string) error
+	RemoveMappingFile() error
+	GetId(name string) string
+	GetName(id string) string
+	Persist() error
+	Size() int
+}
+
+type mappingRepository struct {
 	mappingFilePath string
 	idToName        map[string]string
 	nameToId        map[string]string
 	lock            sync.RWMutex
 }
 
-func NewMappingRepository(configDir string) (*MappingRepository, error) {
+func NewMappingRepository(configDir string) (MappingRepository, error) {
 	mappingFilePath := path.Join(configDir, "workload-mapping.json")
 
 	mappingJson, err := ioutil.ReadFile(mappingFilePath)
@@ -41,7 +52,7 @@ func NewMappingRepository(configDir string) (*MappingRepository, error) {
 		nameToId[mapping.Name] = mapping.Id
 	}
 
-	return &MappingRepository{
+	return &mappingRepository{
 		mappingFilePath: mappingFilePath,
 		lock:            sync.RWMutex{},
 		idToName:        idToName,
@@ -49,7 +60,7 @@ func NewMappingRepository(configDir string) (*MappingRepository, error) {
 	}, nil
 }
 
-func (m *MappingRepository) Add(name, id string) error {
+func (m *mappingRepository) Add(name, id string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -59,7 +70,7 @@ func (m *MappingRepository) Add(name, id string) error {
 	return m.persist()
 }
 
-func (m *MappingRepository) Remove(name string) error {
+func (m *mappingRepository) Remove(name string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -70,7 +81,7 @@ func (m *MappingRepository) Remove(name string) error {
 	return m.persist()
 }
 
-func (m *MappingRepository) RemoveMappingFile() error {
+func (m *mappingRepository) RemoveMappingFile() error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -84,34 +95,34 @@ func (m *MappingRepository) RemoveMappingFile() error {
 	return nil
 }
 
-func (m *MappingRepository) GetId(name string) string {
+func (m *mappingRepository) GetId(name string) string {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
 	return m.nameToId[name]
 }
 
-func (m *MappingRepository) GetName(id string) string {
+func (m *mappingRepository) GetName(id string) string {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
 	return m.idToName[id]
 }
 
-func (m *MappingRepository) Persist() error {
+func (m *mappingRepository) Persist() error {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	return m.persist()
 }
 
-func (m *MappingRepository) Size() int {
+func (m *mappingRepository) Size() int {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
 	return len(m.nameToId)
 }
 
-func (m *MappingRepository) persist() error {
+func (m *mappingRepository) persist() error {
 	var mappings []mapping
 	for id, name := range m.idToName {
 		mappings = append(mappings, mapping{Id: id, Name: name})

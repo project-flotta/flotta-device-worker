@@ -12,7 +12,7 @@ import (
 var _ = Describe("Mapping", func() {
 
 	var configDir string
-	var repo *mapping.MappingRepository
+	var repo mapping.MappingRepository
 
 	BeforeEach(func() {
 		dir, err := ioutil.TempDir(os.TempDir(), "mapping")
