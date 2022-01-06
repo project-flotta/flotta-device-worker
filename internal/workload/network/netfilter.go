@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	netfilter string = "nft"
-	family    string = "inet" // for IPv4 and IPv6
+	nftcommand string = "nft"
+	family     string = "inet" // for IPv4 and IPv6
 )
 
 type Error struct {
@@ -31,37 +31,46 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("running %v: exit status %v: %v", e.cmd.Args, e.ExitStatus(), e.msg)
 }
 
-func NewNetfilter() (*Netfilter, error) {
-	path, err := exec.LookPath("nft")
+//go:generate mockgen -package=network -destination=mock_netfilter.go . Netfilter
+type Netfilter interface {
+	AddTable(table string) error
+	DeleteTable(table string) error
+	AddChain(table, chain string) error
+	DeleteChain(table, chain string) error
+	AddRule(table, chain, rule string) error
+}
+
+func NewNetfilter() (Netfilter, error) {
+	path, err := exec.LookPath(nftcommand)
 	if err != nil {
 		return nil, err
 	}
-	netfilter := &Netfilter{
+	netfilter := &netfilter{
 		path: path,
 	}
 	return netfilter, nil
 }
 
-type Netfilter struct {
+type netfilter struct {
 	path string
 }
 
-func (nft *Netfilter) AddTable(table string) error {
+func (nft *netfilter) AddTable(table string) error {
 	args := []string{"add", "table", family, table}
 	return nft.run(args)
 }
 
-func (nft *Netfilter) DeleteTable(table string) error {
+func (nft *netfilter) DeleteTable(table string) error {
 	args := []string{"delete", "table", family, table}
 	return nft.run(args)
 }
 
-func (nft *Netfilter) AddChain(table, chain string) error {
+func (nft *netfilter) AddChain(table, chain string) error {
 	args := []string{"add", "chain", family, table, chain, "{ type filter hook input priority 0 ; }"}
 	return nft.run(args)
 }
 
-func (nft *Netfilter) DeleteChain(table, chain string) error {
+func (nft *netfilter) DeleteChain(table, chain string) error {
 	// verify chain existence before attempting to delete it
 	args := []string{"list", "chain", family, table, chain}
 	if err := nft.run(args); err != nil {
@@ -78,12 +87,12 @@ func (nft *Netfilter) DeleteChain(table, chain string) error {
 	return nft.run(args)
 }
 
-func (nft *Netfilter) AddRule(table, chain, rule string) error {
+func (nft *netfilter) AddRule(table, chain, rule string) error {
 	args := []string{"add", "rule", family, table, chain, rule}
 	return nft.run(args)
 }
 
-func (nft *Netfilter) run(args []string) error {
+func (nft *netfilter) run(args []string) error {
 	args = append([]string{nft.path}, args...)
 	var stderr bytes.Buffer
 	cmd := exec.Cmd{
