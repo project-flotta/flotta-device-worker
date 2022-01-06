@@ -40,7 +40,7 @@ type WorkloadWrapper interface {
 
 // Workload manages the workload and its configuration on the device
 type Workload struct {
-	workloads         *podman.Podman
+	workloads         podman.Podman
 	netfilter         network.Netfilter
 	mappingRepository *mapping.MappingRepository
 	observers         []Observer

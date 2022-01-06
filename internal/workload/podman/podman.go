@@ -11,21 +11,33 @@ import (
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 )
 
-type Podman struct {
+//go:generate mockgen -package=podman -destination=mock_podman.go . Podman
+type Podman interface {
+	List() ([]api2.WorkloadInfo, error)
+	Remove(workloadId string) error
+	Run(manifestPath, authFilePath string) ([]string, error)
+	Start(workloadId string) error
+	ListSecrets() (map[string]struct{}, error)
+	RemoveSecret(name string) error
+	CreateSecret(name, data string) error
+	UpdateSecret(name, data string) error
+}
+
+type podman struct {
 	podmanConnection context.Context
 }
 
-func NewPodman() (*Podman, error) {
+func NewPodman() (Podman, error) {
 	podmanConnection, err := bindings.NewConnection(context.Background(), "unix://run/podman/podman.sock")
 	if err != nil {
 		return nil, err
 	}
-	return &Podman{
+	return &podman{
 		podmanConnection: podmanConnection,
 	}, nil
 }
 
-func (p *Podman) List() ([]api2.WorkloadInfo, error) {
+func (p *podman) List() ([]api2.WorkloadInfo, error) {
 	podList, err := pods.List(p.podmanConnection, nil)
 	if err != nil {
 		return nil, err
@@ -42,7 +54,7 @@ func (p *Podman) List() ([]api2.WorkloadInfo, error) {
 	return workloads, nil
 }
 
-func (p *Podman) Remove(workloadId string) error {
+func (p *podman) Remove(workloadId string) error {
 	exists, err := pods.Exists(p.podmanConnection, workloadId, nil)
 	if err != nil {
 		return err
@@ -57,7 +69,7 @@ func (p *Podman) Remove(workloadId string) error {
 	return nil
 }
 
-func (p *Podman) Run(manifestPath, authFilePath string) ([]string, error) {
+func (p *podman) Run(manifestPath, authFilePath string) ([]string, error) {
 	options := play.KubeOptions{
 		Authfile: &authFilePath,
 	}
@@ -72,7 +84,7 @@ func (p *Podman) Run(manifestPath, authFilePath string) ([]string, error) {
 	return podIds, nil
 }
 
-func (p *Podman) Start(workloadId string) error {
+func (p *podman) Start(workloadId string) error {
 	_, err := pods.Start(p.podmanConnection, workloadId, nil)
 	if err != nil {
 		return err
@@ -80,7 +92,7 @@ func (p *Podman) Start(workloadId string) error {
 	return nil
 }
 
-func (p *Podman) ListSecrets() (map[string]struct{}, error) {
+func (p *podman) ListSecrets() (map[string]struct{}, error) {
 	result := map[string]struct{}{}
 	listResult, err := secrets.List(p.podmanConnection, nil)
 	if err != nil {
@@ -92,16 +104,16 @@ func (p *Podman) ListSecrets() (map[string]struct{}, error) {
 	return result, nil
 }
 
-func (p *Podman) RemoveSecret(name string) error {
+func (p *podman) RemoveSecret(name string) error {
 	return secrets.Remove(p.podmanConnection, name)
 }
 
-func (p *Podman) CreateSecret(name, data string) error {
+func (p *podman) CreateSecret(name, data string) error {
 	_, err := secrets.Create(p.podmanConnection, strings.NewReader(data), &secrets.CreateOptions{Name: &name})
 	return err
 }
 
-func (p *Podman) UpdateSecret(name, data string) error {
+func (p *podman) UpdateSecret(name, data string) error {
 	err := p.RemoveSecret(name)
 	if err != nil {
 		return err
