@@ -46,11 +46,11 @@ type Workload struct {
 	netfilter          network.Netfilter
 	mappingRepository  mapping.MappingRepository
 	observers          []Observer
-	serviceManager     *service.SystemdManager
-	monitoringInterval int64
+	serviceManager     service.SystemdManager
+	monitoringInterval uint
 }
 
-func newWorkloadInstance(configDir string, monitoringInterval int64) (*Workload, error) {
+func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, error) {
 	newPodman, err := podman.NewPodman()
 	if err != nil {
 		return nil, err

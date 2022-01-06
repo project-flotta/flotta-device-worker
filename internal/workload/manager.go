@@ -8,7 +8,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/jakub-dzon/k4e-device-worker/internal/volumes"
@@ -32,7 +31,6 @@ type WorkloadManager struct {
 	volumesDir     string
 	workloads      WorkloadWrapper
 	managementLock sync.Locker
-	ticker         *time.Ticker
 	deregistered   bool
 	eventsQueue    []*models.EventInfo
 	deviceId       string
@@ -52,20 +50,11 @@ func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, erro
 	return NewWorkloadManagerWithParams(dataDir, wrapper, deviceId)
 }
 
-func NewWorkloadManagerWithMonitorInterval(dataDir string, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
-	wrapper, err := newWorkloadInstance(dataDir, monitorInterval)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewWorkloadManagerWithParamsAndInterval(dataDir, wrapper, monitorInterval, deviceId)
-}
-
 func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceId string) (*WorkloadManager, error) {
 	return NewWorkloadManagerWithParamsAndInterval(dataDir, ww, defaultWorkloadsMonitoringInterval, deviceId)
 }
 
-func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval int64, deviceId string) (*WorkloadManager, error) {
+func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval uint, deviceId string) (*WorkloadManager, error) {
 	workloadsDir := path.Join(dataDir, "workloads")
 	if err := os.MkdirAll(workloadsDir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
@@ -220,10 +209,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			log.Infof("workload %s removed. DeviceID: %s;", name, w.deviceId)
 		}
 	}
-	// Reset the interval of the current monitoring routine
-	if configuration.WorkloadsMonitoringInterval > 0 {
-		w.ticker.Reset(time.Duration(configuration.WorkloadsMonitoringInterval))
-	}
+
 	return errors
 }
 
@@ -322,12 +308,6 @@ func (w *WorkloadManager) Deregister() error {
 		log.Errorf("failed to delete volumes directory. DeviceID: %s; err: %v", w.deviceId, err)
 	}
 
-	err = w.removeTicker()
-	if err != nil {
-		errors = multierror.Append(errors, fmt.Errorf("failed to remove ticker: %v", err))
-		log.Errorf("failed to remove ticker. DeviceID: %s; err: %v", w.deviceId, err)
-	}
-
 	err = w.removeMappingFile()
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to remove mapping file: %v", err))
@@ -336,14 +316,6 @@ func (w *WorkloadManager) Deregister() error {
 
 	w.deregistered = true
 	return errors
-}
-
-func (w *WorkloadManager) removeTicker() error {
-	log.Infof("stopping ticker that ensure workloads from manifests are running.  DeviceID: %s;", w.deviceId)
-	if w.ticker != nil {
-		w.ticker.Stop()
-	}
-	return nil
 }
 
 func (w *WorkloadManager) removeAllWorkloads() error {

@@ -14,8 +14,8 @@ import (
 const (
 	DefaultUnitsPath      = "/etc/systemd/system/"
 	DefaultRestartTimeout = 15
-	DefaultServiceSuffix  = ".service"
-	DefaultServicePrefix  = "pod-"
+	ServiceSuffix         = ".service"
+	ServicePrefix         = "pod-"
 )
 
 type Systemd struct {
@@ -26,13 +26,19 @@ type Systemd struct {
 	UnitsContent map[string]string `json:"-"`
 }
 
-type SystemdManager struct {
+type SystemdManager interface {
+	Add(svc *Systemd) error
+	Get(name string) *Systemd
+	Remove(svc *Systemd) error
+}
+
+type systemdManager struct {
 	svcFilePath string
 	lock        sync.RWMutex
 	services    map[string]*Systemd
 }
 
-func NewSystemdManager(configDir string) (*SystemdManager, error) {
+func NewSystemdManager(configDir string) (SystemdManager, error) {
 	services := make(map[string]*Systemd)
 
 	servicePath := path.Join(configDir, "services.json")
@@ -43,10 +49,10 @@ func NewSystemdManager(configDir string) (*SystemdManager, error) {
 			return nil, err
 		}
 	}
-	return &SystemdManager{svcFilePath: servicePath, services: services, lock: sync.RWMutex{}}, nil
+	return &systemdManager{svcFilePath: servicePath, services: services, lock: sync.RWMutex{}}, nil
 }
 
-func (mgr *SystemdManager) Add(svc *Systemd) error {
+func (mgr *systemdManager) Add(svc *Systemd) error {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
@@ -55,14 +61,14 @@ func (mgr *SystemdManager) Add(svc *Systemd) error {
 	return mgr.write()
 }
 
-func (mgr *SystemdManager) Get(name string) *Systemd {
-	mgr.lock.Lock()
-	defer mgr.lock.Unlock()
+func (mgr *systemdManager) Get(name string) *Systemd {
+	mgr.lock.RLock()
+	defer mgr.lock.RUnlock()
 
 	return mgr.services[name]
 }
 
-func (mgr *SystemdManager) Remove(svc *Systemd) error {
+func (mgr *systemdManager) Remove(svc *Systemd) error {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
@@ -71,7 +77,7 @@ func (mgr *SystemdManager) Remove(svc *Systemd) error {
 	return mgr.write()
 }
 
-func (mgr *SystemdManager) write() error {
+func (mgr *systemdManager) write() error {
 	svcJson, err := json.Marshal(mgr.services)
 	if err != nil {
 		return err
@@ -105,7 +111,7 @@ func NewSystemd(name string, units map[string]string) (*Systemd, error) {
 
 func (svc *Systemd) Add() error {
 	for unit, content := range svc.UnitsContent {
-		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+DefaultServiceSuffix), []byte(content), 0644)
+		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+ServiceSuffix), []byte(content), 0644)
 		if err != nil {
 			return err
 		}
@@ -115,7 +121,7 @@ func (svc *Systemd) Add() error {
 
 func (svc *Systemd) Remove() error {
 	for _, unit := range svc.Units {
-		err := os.Remove(path.Join(DefaultUnitsPath, unit+DefaultServiceSuffix))
+		err := os.Remove(path.Join(DefaultUnitsPath, unit+ServiceSuffix))
 		if err != nil {
 			return err
 		}
@@ -137,7 +143,7 @@ func (s *Systemd) Enable() error {
 }
 
 func serviceName(serviceName string) string {
-	return DefaultServicePrefix + serviceName + DefaultServiceSuffix
+	return ServicePrefix + serviceName + ServiceSuffix
 }
 
 func (s *Systemd) reload() error {

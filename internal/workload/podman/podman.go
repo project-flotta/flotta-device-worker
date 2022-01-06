@@ -84,7 +84,7 @@ func (p *podman) Exists(workloadId string) (bool, error) {
 }
 
 func (p *podman) Remove(workloadId string) error {
-	exists, err := pods.Exists(p.podmanConnection, workloadId, nil)
+	exists, err := p.Exists(workloadId)
 	if err != nil {
 		return err
 	}
@@ -179,10 +179,9 @@ func (p *podman) UpdateSecret(name, data string) error {
 	return p.CreateSecret(name, data)
 }
 
-func (p *Podman) GenerateSystemdFiles(podName string, monitoringInterval int64) (map[string]string, error) {
+func (p *Podman) GenerateSystemdFiles(podName string, monitoringInterval uint) (map[string]string, error) {
 	useName := true
-	restartSec := (uint)(monitoringInterval)
-	report, err := generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{UseName: &useName, RestartSec: &restartSec})
+	report, err := generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{UseName: &useName, RestartSec: &monitoringInterval})
 	if err != nil {
 		return nil, err
 	}
