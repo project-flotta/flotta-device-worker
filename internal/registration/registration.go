@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
 	"sync"
 	"time"
 
@@ -34,10 +35,13 @@ type Registration struct {
 	workloads        *workload.WorkloadManager
 	monitor          *datatransfer.Monitor
 	registered       bool
+	metricsStorage   metrics.API
 	lock             sync.RWMutex
 }
 
-func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient DispatcherClient, config *configuration.Manager, heartbeatManager *heartbeat.Heartbeat, workloadsManager *workload.WorkloadManager, monitorManager *datatransfer.Monitor) *Registration {
+func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient DispatcherClient,
+	config *configuration.Manager, heartbeatManager *heartbeat.Heartbeat, workloadsManager *workload.WorkloadManager,
+	monitorManager *datatransfer.Monitor, metricsStorage metrics.API) *Registration {
 	return &Registration{
 		hardware:         hardware,
 		os:               os,
@@ -47,6 +51,7 @@ func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient 
 		heartbeat:        heartbeatManager,
 		workloads:        workloadsManager,
 		monitor:          monitorManager,
+		metricsStorage:   metricsStorage,
 		lock:             sync.RWMutex{},
 	}
 }
@@ -139,6 +144,12 @@ func (r *Registration) Deregister() error {
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to deregister monitor: %v", err))
 		log.Errorf("failed to deregister monitor. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
+	}
+
+	err = r.metricsStorage.Deregister()
+	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to deregister metrics storage: %v", err))
+		log.Errorf("failed to deregister metrics storage. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 	}
 
 	r.registered = false

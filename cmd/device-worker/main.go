@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"os/signal"
+	"syscall"
 
 	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
@@ -106,12 +109,19 @@ func main() {
 	wl.RegisterObserver(dataMonitor)
 	configManager.RegisterObserver(dataMonitor)
 	dataMonitor.Start()
+
+	metricsStore, err := metrics.NewTSDB(dataDir)
+	configManager.RegisterObserver(metricsStore)
+
+	if err != nil {
+		log.Fatalf("cannot start metrics store. DeviceID: %s; err: %v", deviceId, err)
+	}
 	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor)
 
 	configManager.RegisterObserver(hbs)
 
 	deviceOs := os2.OS{}
-	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor)
+	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor, metricsStore)
 
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg))
@@ -121,7 +131,28 @@ func main() {
 		reg.RegisterDevice()
 	}
 
+	setupSignalHandler(metricsStore)
+
 	if err := s.Serve(l); err != nil {
 		log.Fatalf("cannot start worker server, err: %v", err)
+	}
+}
+
+func setupSignalHandler(metricsStore *metrics.TSDB) {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
+	go func() {
+		select {
+		case sig := <-c:
+			log.Infof("Got %s signal. Aborting...\n", sig)
+			closeComponents(metricsStore)
+			os.Exit(0)
+		}
+	}()
+}
+
+func closeComponents(metricsStore *metrics.TSDB) {
+	if err := metricsStore.Close(); err != nil {
+		log.Error(err)
 	}
 }
