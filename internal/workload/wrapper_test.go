@@ -2,82 +2,110 @@ package workload_test
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/network"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("Podman services", func() {
+const (
+	manifestPath = "/path/to/manifests"
+	authFilePath = "/path/to/authfile"
+)
+
+var _ = Describe("Workload management", func() {
 
 	var (
-		datadir  string
-		mockCtrl *gomock.Controller
-		wk       *workload.Workload
+		mockCtrl          *gomock.Controller
+		wk                *workload.Workload
+		newPodman         *podman.MockPodman
+		netfilter         *network.MockNetfilter
+		mappingRepository *mapping.MockMappingRepository
+		serviceManager    *service.MockSystemdManager
+		svc               *service.MockService
 	)
 
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
-		newPodman := podman.NewMockPodman(mockCtrl)
-		netfilter := network.NewMockNetfilter(mockCtrl)
+		newPodman = podman.NewMockPodman(mockCtrl)
+		netfilter = network.NewMockNetfilter(mockCtrl)
+		mappingRepository = mapping.NewMockMappingRepository(mockCtrl)
+		serviceManager = service.NewMockSystemdManager(mockCtrl)
+		svc = service.NewMockService(mockCtrl)
 
-		wk = workload.Workload{
-			workloads:          newPodman,
-			netfilter:          netfilter,
-			mappingRepository:  mappingRepository,
-			serviceManager:     serviceManager,
-			monitoringInterval: defaultWorkloadsMonitoringInterval,
-		}
+		wk = workload.NewWorkload(newPodman, netfilter, mappingRepository, serviceManager, 15)
 	})
 
 	AfterEach(func() {
 		mockCtrl.Finish()
 	})
 
-	Context("NonDefaultMonitoringInterval", func() {
+	Context("Systemd services", func() {
 
-		It("Emit events in case of Start failure", func() {
+		It("Create service if not exist", func() {
 
 			// given
-			workloads := []*models.Workload{}
-			workloads = append(workloads, &models.Workload{
-				Data:          &models.DataConfiguration{},
-				Name:          "stale",
-				Specification: "{}",
-			})
-			wkwMock.EXPECT().Remove("stale").Times(1)
+			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
 
-			cfg := models.DeviceConfigurationMessage{
-				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: 1}},
-				DeviceID:      "",
-				Version:       "",
-				Workloads:     workloads,
-			}
+			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
+			newPodman.EXPECT().GenerateSystemdService(gomock.Any(), gomock.Any()).Return(svc, nil)
 
-			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
-			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{
-				{Id: "stale", Name: "stale", Status: "created"},
-			}, nil).AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed to start container"))
-			wkwMock.EXPECT().PersistConfiguration().AnyTimes()
-			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("failed to start container")).AnyTimes()
+			svc.EXPECT().Add().Return(nil)
+			svc.EXPECT().Enable().Return(nil)
+			svc.EXPECT().Start().Return(nil)
+
+			serviceManager.EXPECT().Add(svc).Return(nil)
+
+			mappingRepository.EXPECT().Add("pod1", "id1")
 
 			// when
-			err := wkManager.Update(cfg)
+			err := wk.Run(pod, manifestPath, authFilePath)
 
 			// then
-			Expect(err).To(HaveOccurred())
+			Expect(err).To(BeNil())
+		})
 
-			// Check no events are generated:
-			time.Sleep(5 * time.Second)
-			events := wkManager.PopEvents()
-			Expect(len(events)).To(BeNumerically(">=", 1))
+		It("Failed to add the service", func() {
+
+			// given
+			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
+
+			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
+			newPodman.EXPECT().GenerateSystemdService(gomock.Any(), gomock.Any()).Return(svc, nil)
+
+			svc.EXPECT().Add().Return(fmt.Errorf("Failed to add service"))
+
+			// when
+			err := wk.Run(pod, manifestPath, authFilePath)
+
+			// then
+			Expect(err).NotTo(BeNil())
+		})
+
+		It("Failed to start the service", func() {
+
+			// given
+			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
+
+			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
+			newPodman.EXPECT().GenerateSystemdService(gomock.Any(), gomock.Any()).Return(svc, nil)
+
+			svc.EXPECT().Add().Return(nil)
+			svc.EXPECT().Enable().Return(nil)
+			svc.EXPECT().Start().Return(fmt.Errorf("Failed to add service"))
+
+			// when
+			err := wk.Run(pod, manifestPath, authFilePath)
+
+			// then
+			Expect(err).NotTo(BeNil())
 		})
 	})
 

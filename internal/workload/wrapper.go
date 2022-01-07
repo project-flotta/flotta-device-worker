@@ -50,6 +50,16 @@ type Workload struct {
 	monitoringInterval uint
 }
 
+func NewWorkload(p podman.Podman, n network.Netfilter, m mapping.MappingRepository, s service.SystemdManager, monitoringInterval uint) *Workload {
+	return &Workload{
+		workloads:          p,
+		netfilter:          n,
+		mappingRepository:  m,
+		serviceManager:     s,
+		monitoringInterval: monitoringInterval,
+	}
+}
+
 func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, error) {
 	newPodman, err := podman.NewPodman()
 	if err != nil {
@@ -151,7 +161,12 @@ func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath strin
 	}
 
 	// Create the system service to manage the pod:
-	svc, err := ww.createService(workload)
+	svc, err := ww.workloads.GenerateSystemdService(workloadServiceName(workload.GetName()), ww.monitoringInterval)
+	if err != nil {
+		return err
+	}
+
+	err = ww.createService(svc)
 	if err != nil {
 		return err
 	}
@@ -185,27 +200,18 @@ func (ww Workload) removeService(workloadName string) error {
 	return nil
 }
 
-func (ww Workload) createService(workload *v1.Pod) (*service.Systemd, error) {
-	units, err := ww.workloads.GenerateSystemdFiles(workloadServiceName(workload.GetName()), ww.monitoringInterval)
-	if err != nil {
-		return nil, err
+func (ww Workload) createService(svc service.Service) error {
+	if err := svc.Add(); err != nil {
+		return err
+	}
+	if err := svc.Enable(); err != nil {
+		return err
+	}
+	if err := svc.Start(); err != nil {
+		return err
 	}
 
-	svc, err := service.NewSystemd(workloadServiceName(workload.GetName()), units)
-	if err != nil {
-		return nil, err
-	}
-	if err = svc.Add(); err != nil {
-		return nil, err
-	}
-	if err = svc.Enable(); err != nil {
-		return nil, err
-	}
-	if err = svc.Start(); err != nil {
-		return nil, err
-	}
-
-	return svc, nil
+	return nil
 }
 
 func workloadServiceName(workloadName string) string {

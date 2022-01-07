@@ -13,6 +13,7 @@ import (
 	"github.com/containers/podman/v3/pkg/bindings/pods"
 	"github.com/containers/podman/v3/pkg/bindings/secrets"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 )
 
 //go:generate mockgen -package=podman -destination=mock_podman.go . Podman
@@ -26,6 +27,7 @@ type Podman interface {
 	CreateSecret(name, data string) error
 	UpdateSecret(name, data string) error
 	Exists(workloadId string) (bool, error)
+	GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error)
 }
 
 type podman struct {
@@ -179,11 +181,17 @@ func (p *podman) UpdateSecret(name, data string) error {
 	return p.CreateSecret(name, data)
 }
 
-func (p *Podman) GenerateSystemdFiles(podName string, monitoringInterval uint) (map[string]string, error) {
+func (p *podman) GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error) {
 	useName := true
 	report, err := generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{UseName: &useName, RestartSec: &monitoringInterval})
 	if err != nil {
 		return nil, err
 	}
-	return report.Units, nil
+
+	svc, err := service.NewSystemd(podName, report.Units)
+	if err != nil {
+		return nil, err
+	}
+
+	return svc, nil
 }

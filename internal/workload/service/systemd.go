@@ -18,7 +18,16 @@ const (
 	ServicePrefix         = "pod-"
 )
 
-type Systemd struct {
+type Service interface {
+	GetName() string
+	Add() error
+	Remove() error
+	Start() error
+	Stop() error
+	Enable() error
+}
+
+type systemd struct {
 	Name         string            `json:"name"`
 	RestartSec   int               `json:"restartSec"`
 	Path         string            `json:"path"`
@@ -27,19 +36,19 @@ type Systemd struct {
 }
 
 type SystemdManager interface {
-	Add(svc *Systemd) error
-	Get(name string) *Systemd
-	Remove(svc *Systemd) error
+	Add(svc Service) error
+	Get(name string) Service
+	Remove(svc Service) error
 }
 
 type systemdManager struct {
 	svcFilePath string
 	lock        sync.RWMutex
-	services    map[string]*Systemd
+	services    map[string]Service
 }
 
 func NewSystemdManager(configDir string) (SystemdManager, error) {
-	services := make(map[string]*Systemd)
+	services := make(map[string]Service)
 
 	servicePath := path.Join(configDir, "services.json")
 	servicesJson, err := ioutil.ReadFile(servicePath)
@@ -52,27 +61,27 @@ func NewSystemdManager(configDir string) (SystemdManager, error) {
 	return &systemdManager{svcFilePath: servicePath, services: services, lock: sync.RWMutex{}}, nil
 }
 
-func (mgr *systemdManager) Add(svc *Systemd) error {
+func (mgr *systemdManager) Add(svc Service) error {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
-	mgr.services[svc.Name] = svc
+	mgr.services[svc.GetName()] = svc
 
 	return mgr.write()
 }
 
-func (mgr *systemdManager) Get(name string) *Systemd {
+func (mgr *systemdManager) Get(name string) Service {
 	mgr.lock.RLock()
 	defer mgr.lock.RUnlock()
 
 	return mgr.services[name]
 }
 
-func (mgr *systemdManager) Remove(svc *Systemd) error {
+func (mgr *systemdManager) Remove(svc Service) error {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
-	delete(mgr.services, svc.Name)
+	delete(mgr.services, svc.GetName())
 
 	return mgr.write()
 }
@@ -89,7 +98,7 @@ func (mgr *systemdManager) write() error {
 	return nil
 }
 
-func NewSystemd(name string, units map[string]string) (*Systemd, error) {
+func NewSystemd(name string, units map[string]string) (Service, error) {
 	path, err := exec.LookPath("systemctl")
 	if err != nil {
 		return nil, err
@@ -100,7 +109,7 @@ func NewSystemd(name string, units map[string]string) (*Systemd, error) {
 		unitNames = append(unitNames, unit)
 	}
 
-	return &Systemd{
+	return &systemd{
 		Name:         name,
 		RestartSec:   DefaultRestartTimeout,
 		Path:         path,
@@ -109,7 +118,7 @@ func NewSystemd(name string, units map[string]string) (*Systemd, error) {
 	}, nil
 }
 
-func (svc *Systemd) Add() error {
+func (svc *systemd) Add() error {
 	for unit, content := range svc.UnitsContent {
 		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+ServiceSuffix), []byte(content), 0644)
 		if err != nil {
@@ -119,7 +128,7 @@ func (svc *Systemd) Add() error {
 	return svc.reload()
 }
 
-func (svc *Systemd) Remove() error {
+func (svc *systemd) Remove() error {
 	for _, unit := range svc.Units {
 		err := os.Remove(path.Join(DefaultUnitsPath, unit+ServiceSuffix))
 		if err != nil {
@@ -130,15 +139,19 @@ func (svc *Systemd) Remove() error {
 	return svc.reload()
 }
 
-func (s *Systemd) Start() error {
+func (s *systemd) GetName() string {
+	return s.Name
+}
+
+func (s *systemd) Start() error {
 	return s.run([]string{"start", serviceName(s.Name)})
 }
 
-func (s *Systemd) Stop() error {
+func (s *systemd) Stop() error {
 	return s.run([]string{"stop", serviceName(s.Name)})
 }
 
-func (s *Systemd) Enable() error {
+func (s *systemd) Enable() error {
 	return s.run([]string{"enable", serviceName(s.Name)})
 }
 
@@ -146,7 +159,7 @@ func serviceName(serviceName string) string {
 	return ServicePrefix + serviceName + ServiceSuffix
 }
 
-func (s *Systemd) reload() error {
+func (s *systemd) reload() error {
 	if err := s.run([]string{"daemon-reload"}); err != nil {
 		return err
 	}
@@ -158,7 +171,7 @@ func (s *Systemd) reload() error {
 	return nil
 }
 
-func (s *Systemd) run(args []string) error {
+func (s *systemd) run(args []string) error {
 	args = append([]string{s.Path}, args...)
 	cmd := exec.Cmd{
 		Path: s.Path,
