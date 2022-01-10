@@ -142,6 +142,27 @@ func (p *podman) Events(events chan *PodmanEvent) {
 	cancel := make(chan bool)
 	booltrue := true
 
+	workloads, err := p.List()
+	if err != nil {
+		log.Errorf("Cannot get the list of running pods: %v", err)
+	}
+
+	if workloads != nil {
+		for _, wrk := range workloads {
+			report, err := p.getPodReportforId(wrk.Id)
+			if err != nil {
+				log.Errorf("Cannot get pod report for pod '%v': ", wrk.Name, err)
+				continue
+			}
+			event := &PodmanEvent{
+				WorkloadName: wrk.Name,
+				Event:        StartedContainer,
+				Report:       report,
+			}
+			go func() { events <- event }()
+		}
+	}
+
 	// subroutine that reads the event chan and sending proper messages to the
 	// wrapper
 	go func() {
@@ -162,7 +183,7 @@ func (p *podman) Events(events chan *PodmanEvent) {
 						continue
 					}
 					event.Report = report
-        case podmanRemove, podmanStop:
+				case podmanRemove, podmanStop:
 					event.Event = StoppedContainer
 				default:
 					continue

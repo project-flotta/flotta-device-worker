@@ -3,16 +3,20 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"git.sr.ht/~spc/go-log"
-	"github.com/jakub-dzon/k4e-operator/models"
-	"github.com/prometheus/prometheus/model/labels"
-	"github.com/prometheus/prometheus/storage"
-	"github.com/prometheus/prometheus/tsdb"
 	"io"
 	"os"
 	"path"
 	"sync"
 	"time"
+
+	"git.sr.ht/~spc/go-log"
+	"github.com/hashicorp/go-multierror"
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/tsdb"
+
+	"github.com/jakub-dzon/k4e-operator/models"
 )
 
 const (
@@ -38,6 +42,7 @@ type API interface {
 	Deregister() error
 	GetMetricsForTimeRange(tMin time.Time, tMax time.Time) ([]Series, error)
 	AddMetric(value float64, labelsMap map[string]string) error
+	AddVector(data model.Vector, labelsMap map[string]string) error
 }
 
 type TSDB struct {
@@ -170,6 +175,21 @@ func (t *TSDB) AddMetric(value float64, labelsMap map[string]string) error {
 	return appender.Commit()
 }
 
+func (t *TSDB) AddVector(data model.Vector, labelsMap map[string]string) error {
+	var errors error
+	for _, metric := range data {
+		err := t.AddMetric(float64(metric.Value), mergeLabelsFromVector(metric.Metric, labelsMap))
+		if err != nil {
+			log.Errorf("cannot update metric: %v", err)
+			errors = multierror.Append(errors, err)
+		}
+	}
+	if errors != nil {
+		return errors
+	}
+	return nil
+}
+
 func (t *TSDB) Update(config models.DeviceConfigurationMessage) error {
 	metricsConfiguration := config.Configuration.Metrics
 	maxBytes := DefaultMaxBytes
@@ -219,4 +239,16 @@ func getAllLabelsMatchers(q storage.Querier) ([]*labels.Matcher, error) {
 
 func toDbTime(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
+}
+
+func mergeLabelsFromVector(data model.Metric, labels map[string]string) map[string]string {
+	res := map[string]string{}
+	for k, v := range labels {
+		res[k] = v
+	}
+
+	for k, v := range data {
+		res[string(k)] = string(v)
+	}
+	return res
 }
