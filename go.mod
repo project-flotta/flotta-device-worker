@@ -12,7 +12,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jakub-dzon/k4e-operator v0.0.0-20220102070936-d6c3532c82c7
+	github.com/jakub-dzon/k4e-operator v0.0.0-20220109211122-d4b9baf0c32b
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
@@ -25,6 +25,7 @@ require (
 	github.com/seqsense/s3sync v1.8.0
 	google.golang.org/grpc v1.40.0
 	k8s.io/api v0.22.4
+	k8s.io/apimachinery v0.22.4
 	sigs.k8s.io/yaml v1.2.0
 )
 

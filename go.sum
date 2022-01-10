@@ -1123,6 +1123,8 @@ github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6t
 github.com/j-keck/arping v1.0.2/go.mod h1:aJbELhR92bSk7tp79AWM/ftfc90EfEi2bQJrbBFOsPw=
 github.com/jakub-dzon/k4e-operator v0.0.0-20220102070936-d6c3532c82c7 h1:H+xpEvOBkvC+rdxFYjh4N1IAjmeoWqAdxpsnKyzQyEk=
 github.com/jakub-dzon/k4e-operator v0.0.0-20220102070936-d6c3532c82c7/go.mod h1:3H6yyrTSHG0YBMfgq06Mii2SOalBGFJwYZeECRaA4s0=
+github.com/jakub-dzon/k4e-operator v0.0.0-20220109211122-d4b9baf0c32b h1:ZW+OmoNBM564ZDTGzrTJc9ECcs+iGopTKfd6kYyw4YI=
+github.com/jakub-dzon/k4e-operator v0.0.0-20220109211122-d4b9baf0c32b/go.mod h1:3H6yyrTSHG0YBMfgq06Mii2SOalBGFJwYZeECRaA4s0=
 github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e h1:wwLKxJeO0yZLxTQcJ4QCW2OxiagxR99QJQoD+B8DoOo=
 github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e/go.mod h1:tH7J+FiCyzrZvjI4Hn/hRf5s1m5xFxUXqKQwY1tA9lA=
 github.com/jaypipes/ghw v0.7.0 h1:DO0qK9hESxkOTWyd/93hjYBRL7MdVSFqaXdcR7n4pVY=
