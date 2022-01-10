@@ -14,6 +14,8 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
+	github.com/pkg/errors v0.9.1
+	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a
 	github.com/seqsense/s3sync v1.8.0
