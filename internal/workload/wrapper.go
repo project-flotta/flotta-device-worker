@@ -19,6 +19,7 @@ const nfTableName string = "edge"
 
 type Observer interface {
 	WorkloadRemoved(workloadName string)
+	WorkloadStarted(workloadName string, report []*podman.PodReport)
 }
 
 //go:generate mockgen -package=workload -destination=mock_wrapper.go . WorkloadWrapper
@@ -133,7 +134,12 @@ func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath strin
 	if err != nil {
 		return err
 	}
-	return ww.mappingRepository.Add(workload.Name, podIds[0])
+
+	for _, observer := range ww.observers {
+		observer.WorkloadStarted(workload.Name, podIds)
+	}
+
+	return ww.mappingRepository.Add(workload.Name, podIds[0].Id)
 }
 
 func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {

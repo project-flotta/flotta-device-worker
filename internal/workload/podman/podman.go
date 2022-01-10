@@ -2,9 +2,12 @@ package podman
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
+	"git.sr.ht/~spc/go-log"
 	"github.com/containers/podman/v3/pkg/bindings"
+	"github.com/containers/podman/v3/pkg/bindings/containers"
 	"github.com/containers/podman/v3/pkg/bindings/play"
 	"github.com/containers/podman/v3/pkg/bindings/pods"
 	"github.com/containers/podman/v3/pkg/bindings/secrets"
@@ -15,7 +18,7 @@ import (
 type Podman interface {
 	List() ([]api2.WorkloadInfo, error)
 	Remove(workloadId string) error
-	Run(manifestPath, authFilePath string) ([]string, error)
+	Run(manifestPath, authFilePath string) ([]*PodReport, error)
 	Start(workloadId string) error
 	ListSecrets() (map[string]struct{}, error)
 	RemoveSecret(name string) error
@@ -27,7 +30,23 @@ type podman struct {
 	podmanConnection context.Context
 }
 
-func NewPodman() (Podman, error) {
+type ContainerReport struct {
+	IPAddress string
+	Id        string
+	Name      string
+}
+
+type PodReport struct {
+	Id         string
+	Name       string
+	Containers []*ContainerReport
+}
+
+func (p *PodReport) AppendContainer(c *ContainerReport) {
+	p.Containers = append(p.Containers, c)
+}
+
+func NewPodman() (*podman, error) {
 	podmanConnection, err := bindings.NewConnection(context.Background(), "unix://run/podman/podman.sock")
 	if err != nil {
 		return nil, err
@@ -69,7 +88,26 @@ func (p *podman) Remove(workloadId string) error {
 	return nil
 }
 
-func (p *podman) Run(manifestPath, authFilePath string) ([]string, error) {
+// getContainerDetails returns some basic information about a container
+func (p *podman) getContainerDetails(containerId string) (*ContainerReport, error) {
+	data, err := containers.Inspect(p.podmanConnection, containerId, nil)
+	if err != nil {
+		return nil, err
+	}
+	// this is the default one
+	network, ok := data.NetworkSettings.Networks["podman"]
+	if !ok {
+		return nil, fmt.Errorf("cannot retrieve container '%s' network information", containerId)
+	}
+
+	return &ContainerReport{
+		IPAddress: network.InspectBasicNetworkConfig.IPAddress,
+		Id:        containerId,
+		Name:      data.Name,
+	}, nil
+}
+
+func (p *podman) Run(manifestPath, authFilePath string) ([]*PodReport, error) {
 	options := play.KubeOptions{
 		Authfile: &authFilePath,
 	}
@@ -77,9 +115,19 @@ func (p *podman) Run(manifestPath, authFilePath string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var podIds []string
-	for _, pod := range report.Pods {
-		podIds = append(podIds, pod.ID)
+
+	var podIds = make([]*PodReport, len(report.Pods))
+	for i, pod := range report.Pods {
+		report := &PodReport{Id: pod.ID}
+		for _, container := range pod.Containers {
+			c, err := p.getContainerDetails(container)
+			if err != nil {
+				log.Errorf("cannot get container information: %v", err)
+				continue
+			}
+			report.AppendContainer(c)
+		}
+		podIds[i] = report
 	}
 	return podIds, nil
 }

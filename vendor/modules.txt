@@ -1,6 +1,9 @@
 # git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
 ## explicit
 git.sr.ht/~spc/go-log
+# github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
+github.com/Azure/go-ansiterm
+github.com/Azure/go-ansiterm/winterm
 # github.com/BurntSushi/toml v0.4.1
 github.com/BurntSushi/toml
 github.com/BurntSushi/toml/internal
@@ -205,11 +208,13 @@ github.com/containers/podman/v3/libpod/network/types
 github.com/containers/podman/v3/pkg/api/handlers
 github.com/containers/podman/v3/pkg/auth
 github.com/containers/podman/v3/pkg/bindings
+github.com/containers/podman/v3/pkg/bindings/containers
 github.com/containers/podman/v3/pkg/bindings/internal/util
 github.com/containers/podman/v3/pkg/bindings/play
 github.com/containers/podman/v3/pkg/bindings/pods
 github.com/containers/podman/v3/pkg/bindings/secrets
 github.com/containers/podman/v3/pkg/cgroups
+github.com/containers/podman/v3/pkg/copy
 github.com/containers/podman/v3/pkg/domain/entities
 github.com/containers/podman/v3/pkg/domain/entities/reports
 github.com/containers/podman/v3/pkg/domain/entities/types
@@ -224,6 +229,7 @@ github.com/containers/podman/v3/pkg/terminal
 github.com/containers/podman/v3/pkg/timetype
 github.com/containers/podman/v3/pkg/trust
 github.com/containers/podman/v3/pkg/util
+github.com/containers/podman/v3/utils
 github.com/containers/podman/v3/version
 # github.com/containers/psgo v1.7.1
 github.com/containers/psgo
@@ -506,6 +512,9 @@ github.com/mitchellh/go-homedir
 github.com/mitchellh/mapstructure
 # github.com/moby/sys/mountinfo v0.4.1
 github.com/moby/sys/mountinfo
+# github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
+github.com/moby/term
+github.com/moby/term/windows
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.2
