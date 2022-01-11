@@ -6,14 +6,26 @@ import (
 	"strings"
 
 	"git.sr.ht/~spc/go-log"
+	podmanEvents "github.com/containers/podman/v3/libpod/events"
 	"github.com/containers/podman/v3/pkg/bindings"
 	"github.com/containers/podman/v3/pkg/bindings/containers"
 	"github.com/containers/podman/v3/pkg/bindings/generate"
 	"github.com/containers/podman/v3/pkg/bindings/play"
 	"github.com/containers/podman/v3/pkg/bindings/pods"
 	"github.com/containers/podman/v3/pkg/bindings/secrets"
+	"github.com/containers/podman/v3/pkg/bindings/system"
+	"github.com/containers/podman/v3/pkg/domain/entities"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
+)
+
+const (
+	StoppedContainer = "stoppedContainer"
+	StartedContainer = "startedContainer"
+
+	podmanStart  = string(podmanEvents.Start)
+	podmanRemove = string(podmanEvents.Remove)
+	podmanStop   = string(podmanEvents.Stop)
 )
 
 //go:generate mockgen -package=podman -destination=mock_podman.go . Podman
@@ -30,8 +42,10 @@ type Podman interface {
 	GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error)
 }
 
-type podman struct {
-	podmanConnection context.Context
+type PodmanEvent struct {
+	Event        string
+	WorkloadName string
+	Report       *PodReport
 }
 
 type ContainerReport struct {
@@ -48,6 +62,10 @@ type PodReport struct {
 
 func (p *PodReport) AppendContainer(c *ContainerReport) {
 	p.Containers = append(p.Containers, c)
+}
+
+type podman struct {
+	podmanConnection context.Context
 }
 
 func NewPodman() (*podman, error) {
@@ -117,6 +135,68 @@ func (p *podman) getContainerDetails(containerId string) (*ContainerReport, erro
 		Id:        containerId,
 		Name:      data.Name,
 	}, nil
+}
+
+func (p *podman) Events(events chan *PodmanEvent) {
+	evchan := make(chan entities.Event, 1000)
+	cancel := make(chan bool)
+	booltrue := true
+
+	// subroutine that reads the event chan and sending proper messages to the
+	// wrapper
+	go func() {
+		for {
+			select {
+			case msg := <-evchan:
+				event := &PodmanEvent{
+					WorkloadName: msg.Actor.Attributes["name"],
+				}
+				switch msg.Action {
+				// create event is avoided because containers are not yet created and
+				// the flow is created->started
+				case podmanStart:
+					event.Event = StartedContainer
+					report, err := p.getPodReportforId(msg.ID)
+					if err != nil {
+						log.Error("cannot get current pod information on event: %v", err)
+						continue
+					}
+					event.Report = report
+        case podmanRemove, podmanStop:
+					event.Event = StoppedContainer
+				default:
+					continue
+				}
+				events <- event
+			}
+		}
+	}()
+
+	// subroutine to track events
+	go system.Events(p.podmanConnection, evchan, cancel, &system.EventsOptions{
+		Filters: map[string][]string{
+			"type": {"pod"},
+		},
+		Stream: &booltrue,
+	})
+}
+
+func (p *podman) getPodReportforId(podID string) (*PodReport, error) {
+	podInfo, err := pods.Inspect(p.podmanConnection, podID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	report := &PodReport{Id: podID, Name: podInfo.Name}
+	for _, container := range podInfo.Containers {
+		c, err := p.getContainerDetails(container.ID)
+		if err != nil {
+			log.Errorf("cannot get container information: %v", err)
+			continue
+		}
+		report.AppendContainer(c)
+	}
+	return report, nil
 }
 
 func (p *podman) Run(manifestPath, authFilePath string) ([]*PodReport, error) {

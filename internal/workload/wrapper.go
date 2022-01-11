@@ -73,17 +73,41 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 	if err != nil {
 		return nil, err
 	}
+
 	serviceManager, err := service.NewSystemdManager(configDir)
 	if err != nil {
 		return nil, err
 	}
-	return &Workload{
+
+	ww := &Workload{
 		workloads:          newPodman,
 		netfilter:          netfilter,
 		mappingRepository:  mappingRepository,
 		serviceManager:     serviceManager,
 		monitoringInterval: monitoringInterval,
-	}, nil
+	}
+
+	events := make(chan *podman.PodmanEvent)
+	newPodman.Events(events)
+
+	go func() {
+		for {
+			select {
+			case msg := <-events:
+				switch msg.Event {
+				case podman.StartedContainer:
+					for _, observer := range ww.observers {
+						observer.WorkloadStarted(msg.WorkloadName, []*podman.PodReport{msg.Report})
+					}
+				case podman.StoppedContainer:
+					for _, observer := range ww.observers {
+						observer.WorkloadRemoved(msg.WorkloadName)
+					}
+				}
+			}
+		}
+	}()
+	return ww, nil
 }
 
 func (ww *Workload) RegisterObserver(observer Observer) {
@@ -127,9 +151,6 @@ func (ww Workload) Remove(workloadName string) error {
 	}
 	if err := ww.mappingRepository.Remove(workloadName); err != nil {
 		return err
-	}
-	for _, observer := range ww.observers {
-		observer.WorkloadRemoved(workloadName)
 	}
 	return nil
 }
