@@ -62,6 +62,15 @@ test-coverage: test
 test-coverage-clean:
 	git ls-files --others --ignored --exclude-standard | grep "coverprofile$$" | xargs rm
 
+generate-tools:
+ifeq (, $(shell which gojsonschema))
+	go get github.com/atombender/go-jsonschema/cmd/gojsonschema
+endif
+
+generate-messages: generate-tools 
+	mkdir -p internal/ansible/model/message/
+	gojsonschema --yaml-extension yaml -p message internal/ansible/schema/ansibleRunnerJobEvent.yaml -o internal/ansible/model/message/runner-job-event-gen.go 
+
 generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(Q) go generate ./...
 
@@ -87,6 +96,7 @@ build-debug: CGO_ENABLED=1
 build-debug: build
 
 build: ## Build device worker
+build: generate-messages
 	mkdir -p ./bin
 	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_OPTIONS) -o ./bin ./cmd/device-worker
 
