@@ -2,10 +2,8 @@ package specgen
 
 import (
 	"net"
-	"strings"
 	"syscall"
 
-	"github.com/containers/common/libimage"
 	"github.com/containers/image/v5/manifest"
 	nettypes "github.com/containers/podman/v3/libpod/network/types"
 	"github.com/containers/storage/types"
@@ -211,8 +209,6 @@ type ContainerStorageConfig struct {
 	// Conflicts with Image.
 	// At least one of Image or Rootfs must be specified.
 	Rootfs string `json:"rootfs,omitempty"`
-	// RootfsOverlay tells if rootfs is actuall an overlay on top of base path
-	RootfsOverlay bool `json:"rootfs_overlay,omitempty"`
 	// ImageVolumeMode indicates how image volumes will be created.
 	// Supported modes are "ignore" (do not create), "tmpfs" (create as
 	// tmpfs), and "anonymous" (create as anonymous volumes).
@@ -255,10 +251,6 @@ type ContainerStorageConfig struct {
 	// DeviceCGroupRule are device cgroup rules that allow containers
 	// to use additional types of devices.
 	DeviceCGroupRule []spec.LinuxDeviceCgroup `json:"device_cgroup_rule,omitempty"`
-	// DevicesFrom is a way to ensure your container inherits device specific information from another container
-	DevicesFrom []string `json:"devices_from,omitempty"`
-	// HostDeviceList is used to recreate the mounted device on inherited containers
-	HostDeviceList []spec.LinuxDevice `json:"host_device_list,omitempty"`
 	// IpcNS is the container's IPC namespace.
 	// Default is private.
 	// Conflicts with ShmSize if not set to private.
@@ -272,9 +264,6 @@ type ContainerStorageConfig struct {
 	// If unset, the default, /, will be used.
 	// Optional.
 	WorkDir string `json:"work_dir,omitempty"`
-	// StorageOpts is the container's storage options
-	// Optional.
-	StorageOpts map[string]string `json:"storage_opts,omitempty"`
 	// RootfsPropagation is the rootfs propagation mode for the container.
 	// If not set, the default of rslave will be used.
 	// Optional.
@@ -401,8 +390,7 @@ type ContainerNetworkConfig struct {
 	// StaticMAC is a static MAC address to set in the container.
 	// Only available if NetNS is set to bridge.
 	// Optional.
-	// swagger:strfmt string
-	StaticMAC *nettypes.HardwareAddr `json:"static_mac,omitempty"`
+	StaticMAC *net.HardwareAddr `json:"static_mac,omitempty"`
 	// PortBindings is a set of ports to map into the container.
 	// Only available if NetNS is set to bridge or slirp.
 	// Optional.
@@ -416,7 +404,7 @@ type ContainerNetworkConfig struct {
 	// Expose is a number of ports that will be forwarded to the container
 	// if PublishExposedPorts is set.
 	// Expose is a map of uint16 (port number) to a string representing
-	// protocol i.e map[uint16]string. Allowed protocols are "tcp", "udp", and "sctp", or some
+	// protocol. Allowed protocols are "tcp", "udp", and "sctp", or some
 	// combination of the three separated by commas.
 	// If protocol is set to "" we will assume TCP.
 	// Only available if NetNS is set to Bridge or Slirp, and
@@ -517,25 +505,11 @@ type SpecGenerator struct {
 	ContainerNetworkConfig
 	ContainerResourceConfig
 	ContainerHealthCheckConfig
-
-	image             *libimage.Image `json:"-"`
-	resolvedImageName string          `json:"-"`
-}
-
-// SetImage sets the associated for the generator.
-func (s *SpecGenerator) SetImage(image *libimage.Image, resolvedImageName string) {
-	s.image = image
-	s.resolvedImageName = resolvedImageName
-}
-
-// Image returns the associated image for the generator.
-// May be nil if no image has been set yet.
-func (s *SpecGenerator) GetImage() (*libimage.Image, string) {
-	return s.image, s.resolvedImageName
 }
 
 type Secret struct {
 	Source string
+	Target string
 	UID    uint32
 	GID    uint32
 	Mode   uint32
@@ -555,12 +529,6 @@ func NewSpecGenerator(arg string, rootfs bool) *SpecGenerator {
 	csc := ContainerStorageConfig{}
 	if rootfs {
 		csc.Rootfs = arg
-		// check if rootfs should use overlay
-		lastColonIndex := strings.LastIndex(csc.Rootfs, ":")
-		if lastColonIndex != -1 && lastColonIndex+1 < len(csc.Rootfs) && csc.Rootfs[lastColonIndex+1:] == "O" {
-			csc.RootfsOverlay = true
-			csc.Rootfs = csc.Rootfs[:lastColonIndex]
-		}
 	} else {
 		csc.Image = arg
 	}

@@ -7,6 +7,7 @@ package podman
 import (
 	gomock "github.com/golang/mock/gomock"
 	api "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	service "github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 	reflect "reflect"
 )
 
@@ -45,6 +46,36 @@ func (m *MockPodman) CreateSecret(arg0, arg1 string) error {
 func (mr *MockPodmanMockRecorder) CreateSecret(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSecret", reflect.TypeOf((*MockPodman)(nil).CreateSecret), arg0, arg1)
+}
+
+// Exists mocks base method
+func (m *MockPodman) Exists(arg0 string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exists indicates an expected call of Exists
+func (mr *MockPodmanMockRecorder) Exists(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPodman)(nil).Exists), arg0)
+}
+
+// GenerateSystemdService mocks base method
+func (m *MockPodman) GenerateSystemdService(arg0 string, arg1 uint) (service.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GenerateSystemdService", arg0, arg1)
+	ret0, _ := ret[0].(service.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GenerateSystemdService indicates an expected call of GenerateSystemdService
+func (mr *MockPodmanMockRecorder) GenerateSystemdService(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSystemdService", reflect.TypeOf((*MockPodman)(nil).GenerateSystemdService), arg0, arg1)
 }
 
 // List mocks base method
@@ -106,10 +137,10 @@ func (mr *MockPodmanMockRecorder) RemoveSecret(arg0 interface{}) *gomock.Call {
 }
 
 // Run mocks base method
-func (m *MockPodman) Run(arg0, arg1 string) ([]string, error) {
+func (m *MockPodman) Run(arg0, arg1 string) ([]*PodReport, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Run", arg0, arg1)
-	ret0, _ := ret[0].([]string)
+	ret0, _ := ret[0].([]*PodReport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

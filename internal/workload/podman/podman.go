@@ -8,10 +8,12 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/containers/podman/v3/pkg/bindings"
 	"github.com/containers/podman/v3/pkg/bindings/containers"
+	"github.com/containers/podman/v3/pkg/bindings/generate"
 	"github.com/containers/podman/v3/pkg/bindings/play"
 	"github.com/containers/podman/v3/pkg/bindings/pods"
 	"github.com/containers/podman/v3/pkg/bindings/secrets"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	"github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 )
 
 //go:generate mockgen -package=podman -destination=mock_podman.go . Podman
@@ -24,6 +26,8 @@ type Podman interface {
 	RemoveSecret(name string) error
 	CreateSecret(name, data string) error
 	UpdateSecret(name, data string) error
+	Exists(workloadId string) (bool, error)
+	GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error)
 }
 
 type podman struct {
@@ -73,8 +77,16 @@ func (p *podman) List() ([]api2.WorkloadInfo, error) {
 	return workloads, nil
 }
 
-func (p *podman) Remove(workloadId string) error {
+func (p *podman) Exists(workloadId string) (bool, error) {
 	exists, err := pods.Exists(p.podmanConnection, workloadId, nil)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (p *podman) Remove(workloadId string) error {
+	exists, err := p.Exists(workloadId)
 	if err != nil {
 		return err
 	}
@@ -167,4 +179,19 @@ func (p *podman) UpdateSecret(name, data string) error {
 		return err
 	}
 	return p.CreateSecret(name, data)
+}
+
+func (p *podman) GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error) {
+	useName := true
+	report, err := generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{UseName: &useName, RestartSec: &monitoringInterval})
+	if err != nil {
+		return nil, err
+	}
+
+	svc, err := service.NewSystemd(podName, report.Units)
+	if err != nil {
+		return nil, err
+	}
+
+	return svc, nil
 }

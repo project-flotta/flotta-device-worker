@@ -42,15 +42,9 @@ type ContainersPruneReport struct {
 }
 
 type LibpodContainersPruneReport struct {
-	ID             string `json:"Id"`
-	SpaceReclaimed int64  `json:"Size"`
-	// Error which occurred during prune operation (if any).
-	// This field is optional and may be omitted if no error occurred.
-	//
-	// Extensions:
-	// x-omitempty: true
-	// x-nullable: true
-	PruneError string `json:"Err,omitempty"`
+	ID             string `json:"id"`
+	SpaceReclaimed int64  `json:"space"`
+	PruneError     string `json:"error"`
 }
 
 type Info struct {
@@ -172,8 +166,7 @@ type ExecStartConfig struct {
 }
 
 func ImageToImageSummary(l *libimage.Image) (*entities.ImageSummary, error) {
-	options := &libimage.InspectOptions{WithParent: true, WithSize: true}
-	imageData, err := l.Inspect(context.TODO(), options)
+	imageData, err := l.Inspect(context.TODO(), true)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to obtain summary for image %s", l.ID())
 	}
@@ -212,8 +205,7 @@ func ImageToImageSummary(l *libimage.Image) (*entities.ImageSummary, error) {
 }
 
 func ImageDataToImageInspect(ctx context.Context, l *libimage.Image) (*ImageInspect, error) {
-	options := &libimage.InspectOptions{WithParent: true, WithSize: true}
-	info, err := l.Inspect(context.Background(), options)
+	info, err := l.Inspect(context.Background(), true)
 	if err != nil {
 		return nil, err
 	}

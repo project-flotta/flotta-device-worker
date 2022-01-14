@@ -6,14 +6,15 @@ import (
 	"github.com/containers/podman/v3/libpod/define"
 	"github.com/containers/podman/v3/pkg/domain/entities/reports"
 	"github.com/containers/podman/v3/pkg/domain/entities/types"
+	"github.com/spf13/cobra"
 )
 
-// ServiceOptions provides the input for starting an API and sidecar pprof services
+// ServiceOptions provides the input for starting an API Service
 type ServiceOptions struct {
-	CorsHeaders string        // Cross-Origin Resource Sharing (CORS) headers
-	PProfAddr   string        // Network address to bind pprof profiles service
-	Timeout     time.Duration // Duration of inactivity the service should wait before shutting down
-	URI         string        // Path to unix domain socket service should listen on
+	URI         string         // Path to unix domain socket service should listen on
+	Timeout     time.Duration  // duration of inactivity the service should wait before shutting down
+	Command     *cobra.Command // CLI command provided. Used in V1 code
+	CorsHeaders string         // CORS headers
 }
 
 // SystemPruneOptions provides options to prune system.
@@ -100,7 +101,7 @@ type SystemVersionReport struct {
 
 // SystemUnshareOptions describes the options for the unshare command
 type SystemUnshareOptions struct {
-	RootlessNetNS bool
+	RootlessCNI bool
 }
 
 type ComponentVersion struct {

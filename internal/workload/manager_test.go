@@ -79,7 +79,7 @@ var _ = Describe("Events", func() {
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{
 				{Id: "stale", Name: "stale", Status: "created"},
 			}, nil).AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed to start container"))
 			wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("failed to start container")).AnyTimes()
 
@@ -87,7 +87,7 @@ var _ = Describe("Events", func() {
 			err := wkManager.Update(cfg)
 
 			// then
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).To(HaveOccurred())
 
 			// Check no events are generated:
 			time.Sleep(5 * time.Second)
@@ -193,7 +193,6 @@ var _ = Describe("Manager", func() {
 				Expect(pod.Spec.Volumes[0].HostPath).ToNot(BeNil(), additionalDescription)
 				Expect(pod.Spec.Volumes[0].Name).To(ContainSubstring("export-"), additionalDescription)
 				Expect(pod.Spec.Volumes[0].Name).To(BeEquivalentTo(pod.Spec.Containers[0].VolumeMounts[0].Name), additionalDescription)
-
 			}
 		})
 

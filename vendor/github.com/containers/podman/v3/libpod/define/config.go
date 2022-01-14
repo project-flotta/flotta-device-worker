@@ -78,9 +78,6 @@ const JSONLogging = "json-file"
 // NoLogging is the string conmon expects when specifying to use no log driver whatsoever
 const NoLogging = "none"
 
-// PassthroughLogging is the string conmon expects when specifying to use the passthrough driver
-const PassthroughLogging = "passthrough"
-
 // Strings used for --sdnotify option to podman
 const (
 	SdNotifyModeContainer = "container"

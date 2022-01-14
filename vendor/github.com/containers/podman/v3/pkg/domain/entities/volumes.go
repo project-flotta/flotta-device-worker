@@ -78,10 +78,8 @@ type VolumeCreateOptions struct {
 	Name string `schema:"name"`
 	// Volume driver to use
 	Driver string `schema:"driver"`
-	// User-defined key/value metadata. Provided for compatibility
+	// User-defined key/value metadata.
 	Label map[string]string `schema:"label"`
-	// User-defined key/value metadata. Preferred field, will override Label
-	Labels map[string]string `schema:"labels"`
 	// Mapping of driver options and values.
 	Options map[string]string `schema:"opts"`
 }
@@ -96,9 +94,8 @@ type VolumeConfigResponse struct {
 }
 
 type VolumeRmOptions struct {
-	All     bool
-	Force   bool
-	Timeout *uint
+	All   bool
+	Force bool
 }
 
 type VolumeRmReport struct {
