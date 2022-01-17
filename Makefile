@@ -4,9 +4,6 @@ DIST_DIR = $(shell pwd)/dist
 CGO_ENABLED = 0
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
 
-
-.PHONY: vendor
-
 ifeq ($(OS),fedora)
 	LIBEXECDIR ?= /usr/local/libexec
 else
@@ -59,6 +56,7 @@ test-coverage-clean:
 generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(Q) go generate ./...
 
+.PHONY: vendor
 vendor:
 	go mod tidy
 	go mod vendor
