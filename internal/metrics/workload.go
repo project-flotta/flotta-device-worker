@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultInterval = 60
+	defaultInterval int32 = 60
 )
 
 type WorkloadMetrics struct {
@@ -69,7 +69,7 @@ func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podm
 			urls = append(urls, getWorkloadUrls(workloadReport, cfg)...)
 		}
 
-		interval := int64(defaultInterval)
+		interval := defaultInterval
 		if cfg.Metrics.Interval > 0 {
 			interval = cfg.Metrics.Interval
 		}
