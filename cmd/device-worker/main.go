@@ -103,8 +103,12 @@ func main() {
 	configManager.RegisterObserver(metricsStore)
 	// Metrics Daemon
 	metricsDaemon := metrics.NewMetricsDaemon(metricsStore)
+
 	workloadMetricWatcher := metrics.NewWorkloadMetrics(metricsDaemon)
 	configManager.RegisterObserver(workloadMetricWatcher)
+
+	systemMetricsWatcher := metrics.NewSystemMetrics(metricsDaemon, configManager)
+	configManager.RegisterObserver(systemMetricsWatcher)
 
 	wl, err := workload2.NewWorkloadManager(dataDir, deviceId)
 	if err != nil {
