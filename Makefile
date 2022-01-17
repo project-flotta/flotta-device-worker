@@ -4,6 +4,9 @@ DIST_DIR = $(shell pwd)/dist
 CGO_ENABLED = 0
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
 
+
+.PHONY: vendor
+
 ifeq ($(OS),fedora)
 	LIBEXECDIR ?= /usr/local/libexec
 else
