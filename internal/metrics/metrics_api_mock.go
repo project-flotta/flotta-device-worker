@@ -9,6 +9,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	model "github.com/prometheus/common/model"
 )
 
 // MockAPI is a mock of API interface.
@@ -46,6 +47,20 @@ func (m *MockAPI) AddMetric(arg0 float64, arg1 map[string]string) error {
 func (mr *MockAPIMockRecorder) AddMetric(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMetric", reflect.TypeOf((*MockAPI)(nil).AddMetric), arg0, arg1)
+}
+
+// AddVector mocks base method.
+func (m *MockAPI) AddVector(arg0 model.Vector, arg1 map[string]string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddVector", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddVector indicates an expected call of AddVector.
+func (mr *MockAPIMockRecorder) AddVector(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVector", reflect.TypeOf((*MockAPI)(nil).AddVector), arg0, arg1)
 }
 
 // Close mocks base method.

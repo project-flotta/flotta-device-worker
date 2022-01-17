@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
 	"os/signal"
 	"syscall"
+
+	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
 
 	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
 	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
@@ -97,11 +98,20 @@ func main() {
 	}
 	configManager := configuration2.NewConfigurationManager(dataDir)
 
+	// --- Client metrics configuration ---
+	metricsStore, err := metrics.NewTSDB(dataDir)
+	configManager.RegisterObserver(metricsStore)
+	// Metrics Daemon
+	metricsDaemon := metrics.NewMetricsDaemon(metricsStore)
+	workloadMetricWatcher := metrics.NewWorkloadMetrics(metricsDaemon)
+	configManager.RegisterObserver(workloadMetricWatcher)
+
 	wl, err := workload2.NewWorkloadManager(dataDir, deviceId)
 	if err != nil {
 		log.Fatalf("cannot start Workload Manager. DeviceID: %s; err: %v", deviceId, err)
 	}
 	configManager.RegisterObserver(wl)
+	wl.RegisterObserver(workloadMetricWatcher)
 
 	hw := hardware2.Hardware{}
 
@@ -109,9 +119,6 @@ func main() {
 	wl.RegisterObserver(dataMonitor)
 	configManager.RegisterObserver(dataMonitor)
 	dataMonitor.Start()
-
-	metricsStore, err := metrics.NewTSDB(dataDir)
-	configManager.RegisterObserver(metricsStore)
 
 	if err != nil {
 		log.Fatalf("cannot start metrics store. DeviceID: %s; err: %v", deviceId, err)

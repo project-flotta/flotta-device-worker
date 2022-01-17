@@ -460,6 +460,7 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:ma
 github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
+github.com/creack/pty v1.1.11 h1:07n33Z8lZxZ2qwegKbObQohDhXDQxiMMz1NOUGYlesw=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/cri-o/ocicni v0.2.1-0.20210621164014-d0acc7862283 h1:7FyIYKksGvRF8XjMkG5T6uIxg8PcgZoPyO+f6kHT5+s=
 github.com/cri-o/ocicni v0.2.1-0.20210621164014-d0acc7862283/go.mod h1:vingr1ztOAzP2WyTgGbpMov9dFhbjNxdLtDv0+PhAvY=
@@ -1121,8 +1122,8 @@ github.com/insomniacslk/dhcp v0.0.0-20210120172423-cc9239ac6294/go.mod h1:TKl4jN
 github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee/go.mod h1:co9pwDoBCm1kGxawmb4sPq0cSIOOWNPT4KnHotMP1Zg=
 github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6tORTn+6F6j+Jc8TOr5osrynvN6ivFWZ2GA=
 github.com/j-keck/arping v1.0.2/go.mod h1:aJbELhR92bSk7tp79AWM/ftfc90EfEi2bQJrbBFOsPw=
-github.com/jakub-dzon/k4e-operator v0.0.0-20220102070936-d6c3532c82c7 h1:H+xpEvOBkvC+rdxFYjh4N1IAjmeoWqAdxpsnKyzQyEk=
-github.com/jakub-dzon/k4e-operator v0.0.0-20220102070936-d6c3532c82c7/go.mod h1:3H6yyrTSHG0YBMfgq06Mii2SOalBGFJwYZeECRaA4s0=
+github.com/jakub-dzon/k4e-operator v0.0.0-20220109211122-d4b9baf0c32b h1:ZW+OmoNBM564ZDTGzrTJc9ECcs+iGopTKfd6kYyw4YI=
+github.com/jakub-dzon/k4e-operator v0.0.0-20220109211122-d4b9baf0c32b/go.mod h1:3H6yyrTSHG0YBMfgq06Mii2SOalBGFJwYZeECRaA4s0=
 github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e h1:wwLKxJeO0yZLxTQcJ4QCW2OxiagxR99QJQoD+B8DoOo=
 github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e/go.mod h1:tH7J+FiCyzrZvjI4Hn/hRf5s1m5xFxUXqKQwY1tA9lA=
 github.com/jaypipes/ghw v0.7.0 h1:DO0qK9hESxkOTWyd/93hjYBRL7MdVSFqaXdcR7n4pVY=
