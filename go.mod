@@ -12,7 +12,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jakub-dzon/k4e-operator v0.0.0-20220117161531-7536dc296786
+	github.com/jakub-dzon/k4e-operator v0.0.0-20220119162917-5badd3ea1a4c
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
