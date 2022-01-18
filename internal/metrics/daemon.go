@@ -26,15 +26,17 @@ type TargetMetric struct {
 	lock             sync.RWMutex
 	store            API
 	latestSuccessRun time.Time
+	allowList        SampleFilter
 }
 
-func NewTargetMetric(targetName string, interval time.Duration, urls []string, store API) *TargetMetric {
+func NewTargetMetric(targetName string, interval time.Duration, urls []string, store API, allowList SampleFilter) *TargetMetric {
 	return &TargetMetric{
 		name:         targetName,
 		interval:     interval,
 		urls:         urls,
 		forcetrigger: make(chan bool),
 		store:        store,
+		allowList:    allowList,
 	}
 }
 
@@ -137,7 +139,7 @@ func (tg *TargetMetric) Run(ctx context.Context) model.Vector {
 			log.Errorf("cannot get metrics for workload '%v': %v", tg.name, err)
 			continue
 		}
-		res = append(res, data...)
+		res = append(res, tg.allowList.Filter(data)...)
 	}
 	return res
 }
@@ -145,7 +147,8 @@ func (tg *TargetMetric) Run(ctx context.Context) model.Vector {
 //go:generate mockgen -package=metrics -destination=mock_daemon.go . MetricsDaemon
 type MetricsDaemon interface {
 	Start()
-	AddTarget(targetName string, urls []string, interval time.Duration, labelsMap map[string]string)
+	AddTarget(targetName string, urls []string, interval time.Duration)
+	AddFilteredTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter)
 	DeleteTarget(targetName string)
 }
 
@@ -188,10 +191,9 @@ func (md *metricsDaemon) startTarget(target *TargetMetric) {
 	go target.Start()
 }
 
-// AddTarget adds a target to  listen for the  given workloadName.
-func (md *metricsDaemon) AddTarget(targetName string, urls []string, interval time.Duration, labelsMap map[string]string) {
-
-	target := NewTargetMetric(targetName, interval, urls, md.store)
+// AddFilteredTarget adds a metrics scraping target with filtering
+func (md *metricsDaemon) AddFilteredTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter) {
+	target := NewTargetMetric(targetName, interval, urls, md.store, allowList)
 	log.Debugf("added target '%v' with the following urls: '%+v", targetName, urls)
 
 	// stop if it is already present.
@@ -201,7 +203,11 @@ func (md *metricsDaemon) AddTarget(targetName string, urls []string, interval ti
 	defer md.lock.Unlock()
 	md.targets[targetName] = target
 	md.startTarget(target)
-	return
+}
+
+// AddTarget adds a metrics scraping target
+func (md *metricsDaemon) AddTarget(targetName string, urls []string, interval time.Duration) {
+	md.AddFilteredTarget(targetName, urls, interval, &PermissiveAllowList{})
 }
 
 // DeleteTarget deletes a target from getting metrics.

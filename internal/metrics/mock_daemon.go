@@ -34,16 +34,28 @@ func (m *MockMetricsDaemon) EXPECT() *MockMetricsDaemonMockRecorder {
 	return m.recorder
 }
 
-// AddTarget mocks base method.
-func (m *MockMetricsDaemon) AddTarget(arg0 string, arg1 []string, arg2 time.Duration, arg3 map[string]string) {
+// AddFilteredTarget mocks base method.
+func (m *MockMetricsDaemon) AddFilteredTarget(arg0 string, arg1 []string, arg2 time.Duration, arg3 SampleFilter) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AddTarget", arg0, arg1, arg2, arg3)
+	m.ctrl.Call(m, "AddFilteredTarget", arg0, arg1, arg2, arg3)
+}
+
+// AddFilteredTarget indicates an expected call of AddFilteredTarget.
+func (mr *MockMetricsDaemonMockRecorder) AddFilteredTarget(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddFilteredTarget", reflect.TypeOf((*MockMetricsDaemon)(nil).AddFilteredTarget), arg0, arg1, arg2, arg3)
+}
+
+// AddTarget mocks base method.
+func (m *MockMetricsDaemon) AddTarget(arg0 string, arg1 []string, arg2 time.Duration) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddTarget", arg0, arg1, arg2)
 }
 
 // AddTarget indicates an expected call of AddTarget.
-func (mr *MockMetricsDaemonMockRecorder) AddTarget(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockMetricsDaemonMockRecorder) AddTarget(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTarget", reflect.TypeOf((*MockMetricsDaemon)(nil).AddTarget), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTarget", reflect.TypeOf((*MockMetricsDaemon)(nil).AddTarget), arg0, arg1, arg2)
 }
 
 // DeleteTarget mocks base method.

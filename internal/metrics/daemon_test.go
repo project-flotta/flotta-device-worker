@@ -2,6 +2,7 @@ package metrics_test
 
 import (
 	"fmt"
+	"github.com/jakub-dzon/k4e-operator/models"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -51,11 +52,7 @@ var _ = Describe("Daemon", func() {
 			// given
 
 			store := metrics.NewMockAPI(mockCtrl)
-			target := metrics.NewTargetMetric(
-				"wrk1",
-				1*time.Minute,
-				[]string{fmt.Sprintf("%s/metrics", server.URL)},
-				store)
+			target := metrics.NewTargetMetric("wrk1", 1*time.Minute, []string{fmt.Sprintf("%s/metrics", server.URL)}, store, &metrics.PermissiveAllowList{})
 
 			started := time.Now()
 			checkExecuting := func() bool {
@@ -84,6 +81,42 @@ var _ = Describe("Daemon", func() {
 			Expect(target.IsStopped()).To(BeTrue())
 		})
 
+		It("Get filtered metrics correctly", func() {
+			// given
+			store := metrics.NewMockAPI(mockCtrl)
+			filter := metrics.NewRestrictiveAllowList(&models.MetricsAllowList{
+				Names: []string{"prometheus_samples_queue_capacity"},
+			})
+			target := metrics.NewTargetMetric("wrk1", 1*time.Minute, []string{fmt.Sprintf("%s/metrics", server.URL)}, store, filter)
+
+			started := time.Now()
+			checkExecuting := func() bool {
+				return target.LatestSuccessRun().After(started)
+			}
+
+			// then
+			store.EXPECT().AddVector(gomock.Any(), gomock.Any()).
+				Times(1).
+				Return(nil).
+				Do(func(data model.Vector, labelsMap map[string]string) error {
+					defer GinkgoRecover()
+					Expect(data).Should(HaveLen(1))
+					Expect(data[0].Metric).Should(HaveKeyWithValue(model.LabelName(model.MetricNameLabel), model.LabelValue("prometheus_samples_queue_capacity")))
+					Expect(labelsMap).Should(HaveKeyWithValue("metric-source", "wrk1"))
+					return nil
+				})
+
+			// when
+			go target.Start()
+			target.ForceEvent()
+
+			// then
+			Eventually(checkExecuting, 10, 1).Should(BeTrue(), "Run was not executed")
+
+			target.Stop()
+			Expect(target.IsStopped()).To(BeTrue())
+		})
+
 	})
 
 	Context("Daemon", func() {
@@ -94,7 +127,7 @@ var _ = Describe("Daemon", func() {
 			daemon := metrics.NewMetricsDaemon(metrics.NewMockAPI(mockCtrl))
 
 			// when
-			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second, map[string]string{})
+			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second)
 
 			// then
 			targets := daemon.GetTargets()
@@ -108,9 +141,9 @@ var _ = Describe("Daemon", func() {
 			daemon := metrics.NewMetricsDaemon(metrics.NewMockAPI(mockCtrl))
 
 			// when
-			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second, map[string]string{})
-			daemon.AddTarget("wrk2", []string{"http://192.168.1.1:8080"}, time.Second, map[string]string{})
-			daemon.AddTarget("wrk3", []string{"http://192.168.1.1:8080"}, time.Second, map[string]string{})
+			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second)
+			daemon.AddTarget("wrk2", []string{"http://192.168.1.1:8080"}, time.Second)
+			daemon.AddTarget("wrk3", []string{"http://192.168.1.1:8080"}, time.Second)
 			daemon.DeleteTarget("wrk2")
 
 			// then

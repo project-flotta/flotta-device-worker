@@ -33,7 +33,8 @@ func NewSystemMetrics(daemon MetricsDaemon, config DeviceConfigurationProvider) 
 	sm := &SystemMetrics{
 		daemon: daemon,
 	}
-	daemon.AddTarget("system", []string{NodeExporterMetricsEndpoint}, time.Duration(expectedConfiguration.Interval)*time.Second, nil)
+	filter := getSampleFilter(expectedConfiguration.AllowList)
+	daemon.AddFilteredTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(expectedConfiguration.Interval)*time.Second, filter)
 	sm.latestConfig.Store(&expectedConfiguration)
 	return sm
 }
@@ -47,8 +48,8 @@ func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error 
 			return nil
 		}
 	}
-
-	sm.daemon.AddTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, nil)
+	filter := getSampleFilter(newConfiguration.AllowList)
+	sm.daemon.AddFilteredTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
 	sm.latestConfig.Store(&newConfiguration)
 
 	return nil
@@ -58,6 +59,16 @@ func expectedConfiguration(config models.DeviceConfiguration) models.SystemMetri
 	newConfiguration := defaultSystemMetricsConfiguration
 	if config.Metrics != nil && config.Metrics.System != nil {
 		newConfiguration = *config.Metrics.System
+		if newConfiguration.Interval == 0 {
+			newConfiguration.Interval = DefaultSystemMetricsScrapingInterval
+		}
 	}
 	return newConfiguration
+}
+
+func getSampleFilter(allowList *models.MetricsAllowList) SampleFilter {
+	if allowList == nil {
+		return DefaultSystemAllowList()
+	}
+	return NewRestrictiveAllowList(allowList)
 }

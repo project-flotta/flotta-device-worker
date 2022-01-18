@@ -5,36 +5,37 @@
 package podman
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	api "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
 	service "github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
-	reflect "reflect"
 )
 
-// MockPodman is a mock of Podman interface
+// MockPodman is a mock of Podman interface.
 type MockPodman struct {
 	ctrl     *gomock.Controller
 	recorder *MockPodmanMockRecorder
 }
 
-// MockPodmanMockRecorder is the mock recorder for MockPodman
+// MockPodmanMockRecorder is the mock recorder for MockPodman.
 type MockPodmanMockRecorder struct {
 	mock *MockPodman
 }
 
-// NewMockPodman creates a new mock instance
+// NewMockPodman creates a new mock instance.
 func NewMockPodman(ctrl *gomock.Controller) *MockPodman {
 	mock := &MockPodman{ctrl: ctrl}
 	mock.recorder = &MockPodmanMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPodman) EXPECT() *MockPodmanMockRecorder {
 	return m.recorder
 }
 
-// CreateSecret mocks base method
+// CreateSecret mocks base method.
 func (m *MockPodman) CreateSecret(arg0, arg1 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateSecret", arg0, arg1)
@@ -42,13 +43,13 @@ func (m *MockPodman) CreateSecret(arg0, arg1 string) error {
 	return ret0
 }
 
-// CreateSecret indicates an expected call of CreateSecret
+// CreateSecret indicates an expected call of CreateSecret.
 func (mr *MockPodmanMockRecorder) CreateSecret(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSecret", reflect.TypeOf((*MockPodman)(nil).CreateSecret), arg0, arg1)
 }
 
-// Exists mocks base method
+// Exists mocks base method.
 func (m *MockPodman) Exists(arg0 string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Exists", arg0)
@@ -57,13 +58,13 @@ func (m *MockPodman) Exists(arg0 string) (bool, error) {
 	return ret0, ret1
 }
 
-// Exists indicates an expected call of Exists
+// Exists indicates an expected call of Exists.
 func (mr *MockPodmanMockRecorder) Exists(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPodman)(nil).Exists), arg0)
 }
 
-// GenerateSystemdService mocks base method
+// GenerateSystemdService mocks base method.
 func (m *MockPodman) GenerateSystemdService(arg0 string, arg1 uint) (service.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateSystemdService", arg0, arg1)
@@ -72,13 +73,13 @@ func (m *MockPodman) GenerateSystemdService(arg0 string, arg1 uint) (service.Ser
 	return ret0, ret1
 }
 
-// GenerateSystemdService indicates an expected call of GenerateSystemdService
+// GenerateSystemdService indicates an expected call of GenerateSystemdService.
 func (mr *MockPodmanMockRecorder) GenerateSystemdService(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSystemdService", reflect.TypeOf((*MockPodman)(nil).GenerateSystemdService), arg0, arg1)
 }
 
-// List mocks base method
+// List mocks base method.
 func (m *MockPodman) List() ([]api.WorkloadInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List")
@@ -87,13 +88,13 @@ func (m *MockPodman) List() ([]api.WorkloadInfo, error) {
 	return ret0, ret1
 }
 
-// List indicates an expected call of List
+// List indicates an expected call of List.
 func (mr *MockPodmanMockRecorder) List() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockPodman)(nil).List))
 }
 
-// ListSecrets mocks base method
+// ListSecrets mocks base method.
 func (m *MockPodman) ListSecrets() (map[string]struct{}, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSecrets")
@@ -102,13 +103,13 @@ func (m *MockPodman) ListSecrets() (map[string]struct{}, error) {
 	return ret0, ret1
 }
 
-// ListSecrets indicates an expected call of ListSecrets
+// ListSecrets indicates an expected call of ListSecrets.
 func (mr *MockPodmanMockRecorder) ListSecrets() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSecrets", reflect.TypeOf((*MockPodman)(nil).ListSecrets))
 }
 
-// Remove mocks base method
+// Remove mocks base method.
 func (m *MockPodman) Remove(arg0 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Remove", arg0)
@@ -116,13 +117,13 @@ func (m *MockPodman) Remove(arg0 string) error {
 	return ret0
 }
 
-// Remove indicates an expected call of Remove
+// Remove indicates an expected call of Remove.
 func (mr *MockPodmanMockRecorder) Remove(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockPodman)(nil).Remove), arg0)
 }
 
-// RemoveSecret mocks base method
+// RemoveSecret mocks base method.
 func (m *MockPodman) RemoveSecret(arg0 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoveSecret", arg0)
@@ -130,13 +131,13 @@ func (m *MockPodman) RemoveSecret(arg0 string) error {
 	return ret0
 }
 
-// RemoveSecret indicates an expected call of RemoveSecret
+// RemoveSecret indicates an expected call of RemoveSecret.
 func (mr *MockPodmanMockRecorder) RemoveSecret(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveSecret", reflect.TypeOf((*MockPodman)(nil).RemoveSecret), arg0)
 }
 
-// Run mocks base method
+// Run mocks base method.
 func (m *MockPodman) Run(arg0, arg1 string) ([]*PodReport, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Run", arg0, arg1)
@@ -145,13 +146,13 @@ func (m *MockPodman) Run(arg0, arg1 string) ([]*PodReport, error) {
 	return ret0, ret1
 }
 
-// Run indicates an expected call of Run
+// Run indicates an expected call of Run.
 func (mr *MockPodmanMockRecorder) Run(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockPodman)(nil).Run), arg0, arg1)
 }
 
-// Start mocks base method
+// Start mocks base method.
 func (m *MockPodman) Start(arg0 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start", arg0)
@@ -159,13 +160,13 @@ func (m *MockPodman) Start(arg0 string) error {
 	return ret0
 }
 
-// Start indicates an expected call of Start
+// Start indicates an expected call of Start.
 func (mr *MockPodmanMockRecorder) Start(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockPodman)(nil).Start), arg0)
 }
 
-// UpdateSecret mocks base method
+// UpdateSecret mocks base method.
 func (m *MockPodman) UpdateSecret(arg0, arg1 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSecret", arg0, arg1)
@@ -173,7 +174,7 @@ func (m *MockPodman) UpdateSecret(arg0, arg1 string) error {
 	return ret0
 }
 
-// UpdateSecret indicates an expected call of UpdateSecret
+// UpdateSecret indicates an expected call of UpdateSecret.
 func (mr *MockPodmanMockRecorder) UpdateSecret(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSecret", reflect.TypeOf((*MockPodman)(nil).UpdateSecret), arg0, arg1)
