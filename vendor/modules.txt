@@ -450,7 +450,7 @@ github.com/hpcloud/tail/winfile
 github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
-# github.com/jakub-dzon/k4e-operator v0.0.0-20220109211122-d4b9baf0c32b
+# github.com/jakub-dzon/k4e-operator v0.0.0-20220117161531-7536dc296786
 ## explicit
 github.com/jakub-dzon/k4e-operator/models
 # github.com/jaypipes/ghw v0.7.0
