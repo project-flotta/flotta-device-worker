@@ -107,8 +107,7 @@ var _ = Describe("Workload", func() {
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
 				[]string{"http://192.168.1.1:9000/custom_metrics"},
-				50*time.Second,
-				gomock.Any()).Times(1)
+				50*time.Second).Times(1)
 
 			// when
 			wrk.WorkloadStarted("wrk1", []*podman.PodReport{report})
@@ -143,8 +142,7 @@ var _ = Describe("Workload", func() {
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
 				[]string{"http://192.168.1.1:8888/c1/"},
-				50*time.Second,
-				gomock.Any()).Times(1)
+				50*time.Second).Times(1)
 
 			// when
 			wrk.WorkloadStarted("wrk1", []*podman.PodReport{report})
@@ -188,8 +186,7 @@ var _ = Describe("Workload", func() {
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
 				[]string{"http://192.168.1.1:9000/", "http://192.168.1.2:8888/"},
-				50*time.Second,
-				gomock.Any()).Times(1)
+				50*time.Second).Times(1)
 
 			// when
 			wrk.WorkloadStarted("wrk1", []*podman.PodReport{report})
@@ -234,8 +231,7 @@ var _ = Describe("Workload", func() {
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
 				[]string{"http://192.168.1.2:8888/c2/"},
-				50*time.Second,
-				gomock.Any()).Times(1)
+				50*time.Second).Times(1)
 
 			// when
 			wrk.WorkloadStarted("wrk1", []*podman.PodReport{report})
@@ -279,8 +275,7 @@ var _ = Describe("Workload", func() {
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
 				[]string{"http://192.168.1.1:8888/c1/", "http://192.168.1.2:9000/custom_metrics", "http://192.168.1.3:8888/c3/"},
-				50*time.Second,
-				gomock.Any()).Times(1)
+				50*time.Second).Times(1)
 
 			// when
 			wrk.WorkloadStarted("wrk1", []*podman.PodReport{report})

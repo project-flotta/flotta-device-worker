@@ -5,9 +5,10 @@
 package configuration
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	models "github.com/jakub-dzon/k4e-operator/models"
-	reflect "reflect"
 )
 
 // MockObserver is a mock of Observer interface.

@@ -16,6 +16,12 @@ var _ = Describe("System", func() {
 	)
 
 	var (
+		defaultFilter = metrics.DefaultSystemAllowList()
+
+		customAllowList = &models.MetricsAllowList{
+			Names: []string{"allow_a", "allow_b"}}
+		customFilter = metrics.NewRestrictiveAllowList(customAllowList)
+
 		mockCtrl       *gomock.Controller
 		daemonMock     *metrics.MockMetricsDaemon
 		systemMetrics  *metrics.SystemMetrics
@@ -35,10 +41,10 @@ var _ = Describe("System", func() {
 	It("should add node_exporter endpoint for scraping at start: default configuration", func() {
 		// given
 		configProvider.EXPECT().GetDeviceConfiguration().Return(models.DeviceConfiguration{})
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
-			gomock.Nil()).
+			gomock.Eq(defaultFilter)).
 			Times(1)
 
 		// when
@@ -53,15 +59,38 @@ var _ = Describe("System", func() {
 		config := models.DeviceConfiguration{
 			Metrics: &models.MetricsConfiguration{
 				System: &models.SystemMetricsConfiguration{
-					Interval: duration,
+					Interval:  duration,
+					AllowList: customAllowList,
 				},
 			},
 		}
 		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
-			gomock.Nil())
+			gomock.Eq(customFilter))
+
+		// when
+		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+
+		// then
+		// daemonMock expectation met
+	})
+
+	It("should add node_exporter endpoint for scraping at start: custom configuration with interval unset", func() {
+		// given
+		config := models.DeviceConfiguration{
+			Metrics: &models.MetricsConfiguration{
+				System: &models.SystemMetricsConfiguration{
+					AllowList: customAllowList,
+				},
+			},
+		}
+		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
+			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
+			gomock.Eq(customFilter))
 
 		// when
 		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
@@ -78,10 +107,10 @@ var _ = Describe("System", func() {
 			}
 		configProvider.EXPECT().GetDeviceConfiguration().Return(noMetricsConfig)
 
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
-			gomock.Nil()).
+			gomock.Eq(defaultFilter)).
 			Times(1)
 
 		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
@@ -102,10 +131,10 @@ var _ = Describe("System", func() {
 			}
 		configProvider.EXPECT().GetDeviceConfiguration().Return(noMetricsConfig)
 
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
-			gomock.Nil()).
+			gomock.Eq(defaultFilter)).
 			Times(1)
 
 		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
@@ -126,15 +155,16 @@ var _ = Describe("System", func() {
 			models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
 					System: &models.SystemMetricsConfiguration{
-						Interval: duration,
+						Interval:  duration,
+						AllowList: customAllowList,
 					},
 				},
 			}
 		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
-			gomock.Nil()).
+			gomock.Eq(customFilter)).
 			Times(1)
 
 		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
@@ -155,15 +185,16 @@ var _ = Describe("System", func() {
 			models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
 					System: &models.SystemMetricsConfiguration{
-						Interval: duration,
+						Interval:  duration,
+						AllowList: customAllowList,
 					},
 				},
 			}
 		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
-			gomock.Nil()).
+			gomock.Eq(customFilter)).
 			Times(1)
 
 		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
@@ -188,21 +219,22 @@ var _ = Describe("System", func() {
 			models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
 					System: &models.SystemMetricsConfiguration{
-						Interval: duration,
+						Interval:  duration,
+						AllowList: customAllowList,
 					},
 				},
 			}
 
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
-			gomock.Nil()).
+			gomock.Eq(customFilter)).
 			Times(1).
 			After(
-				daemonMock.EXPECT().AddTarget(gomock.Any(),
+				daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 					gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 					gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
-					gomock.Nil()).
+					gomock.Eq(defaultFilter)).
 					Times(1),
 			)
 
@@ -227,22 +259,23 @@ var _ = Describe("System", func() {
 			models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
 					System: &models.SystemMetricsConfiguration{
-						Interval: duration,
+						Interval:  duration,
+						AllowList: customAllowList,
 					},
 				},
 			}
 		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
 
-		daemonMock.EXPECT().AddTarget(gomock.Any(),
+		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
-			gomock.Nil()).
+			gomock.Eq(defaultFilter)).
 			Times(1).
 			After(
-				daemonMock.EXPECT().AddTarget(gomock.Any(),
+				daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 					gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 					gomock.Eq(time.Second*time.Duration(duration)),
-					gomock.Nil()).
+					gomock.Eq(customFilter)).
 					Times(1),
 			)
 
