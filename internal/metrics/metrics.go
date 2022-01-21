@@ -190,6 +190,10 @@ func (t *TSDB) AddVector(data model.Vector, labelsMap map[string]string) error {
 	return nil
 }
 
+func (t *TSDB) Init(config models.DeviceConfigurationMessage) error {
+	return t.Update(config)
+}
+
 func (t *TSDB) Update(config models.DeviceConfigurationMessage) error {
 	metricsConfiguration := config.Configuration.Metrics
 	maxBytes := DefaultMaxBytes

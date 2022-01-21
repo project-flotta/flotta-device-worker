@@ -2,6 +2,7 @@ package configuration_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -89,6 +90,65 @@ var _ = Describe("Configuration", func() {
 
 	})
 
+	Context("RegisterObserver", func() {
+
+		BeforeEach(func() {
+			cfg.Workloads = []*models.Workload{
+				{Name: "foo", Specification: ""},
+				{Name: "bar", Specification: ""},
+			}
+			file, err := json.MarshalIndent(cfg, "", " ")
+			Expect(err).NotTo(HaveOccurred())
+
+			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Init is called correctlty", func() {
+
+			// given
+			configManager := configuration.NewConfigurationManager(datadir)
+
+			// then
+			observerMock := configuration.NewMockObserver(mockCtrl)
+
+			observerMock.EXPECT().Init(gomock.Any()).Do(func(configuration models.DeviceConfigurationMessage) error {
+				Expect(configuration.Workloads).To(HaveLen(2))
+				Expect(configuration.Workloads[0].Name).To(Equal("foo"))
+				Expect(configuration.Workloads[1].Name).To(Equal("bar"))
+				return nil
+			}).Times(1)
+
+			// when
+			configManager.RegisterObserver(observerMock)
+		})
+
+		It("If init observer failed, still keep added into observers", func() {
+
+			// given
+			configManager := configuration.NewConfigurationManager(datadir)
+
+			// then
+			observerMock := configuration.NewMockObserver(mockCtrl)
+
+			observerMock.EXPECT().Init(gomock.Any()).Return(errors.New("Failed"))
+			observerMock.EXPECT().Update(gomock.Any()).Do(func(configuration models.DeviceConfigurationMessage) error {
+				Expect(configuration.Workloads).To(HaveLen(3))
+				return nil
+			}).Times(1)
+
+			// when
+			configManager.RegisterObserver(observerMock)
+
+			cfg.Workloads = append(cfg.Workloads, &models.Workload{Name: "newOne", Specification: "xx"})
+			err := configManager.Update(cfg)
+
+			// then
+			Expect(err).To(BeNil())
+		})
+
+	})
+
 	Context("Update", func() {
 
 		It("Works as expected", func() {
@@ -98,6 +158,7 @@ var _ = Describe("Configuration", func() {
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+			observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 			configManager.RegisterObserver(observerMock)
 
 			// when
@@ -116,15 +177,18 @@ var _ = Describe("Configuration", func() {
 			configManager := configuration.NewConfigurationManager(datadir)
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
+			observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
 			configManager.RegisterObserver(observerMock)
 
 			failingObserverMock := configuration.NewMockObserver(mockCtrl)
 			failingObserverMock.EXPECT().Update(gomock.Any()).Return(fmt.Errorf("failing")).Times(1)
+			failingObserverMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 			configManager.RegisterObserver(failingObserverMock)
 
 			thirdObserverMock := configuration.NewMockObserver(mockCtrl)
 			thirdObserverMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+			thirdObserverMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 			configManager.RegisterObserver(thirdObserverMock)
 
 			// when
@@ -146,10 +210,12 @@ var _ = Describe("Configuration", func() {
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+			observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 			configManager.RegisterObserver(observerMock)
 
 			failingObserverMock := configuration.NewMockObserver(mockCtrl)
 			failingObserverMock.EXPECT().Update(gomock.Any()).Return(fmt.Errorf("failing")).Times(1)
+			failingObserverMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 			configManager.RegisterObserver(failingObserverMock)
 
 			// when
@@ -179,6 +245,7 @@ var _ = Describe("Configuration", func() {
 
 				observerMock := configuration.NewMockObserver(mockCtrl)
 				observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(0)
+				observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 				configManager.RegisterObserver(observerMock)
 
 				// when
@@ -201,6 +268,7 @@ var _ = Describe("Configuration", func() {
 
 				observerMock := configuration.NewMockObserver(mockCtrl)
 				observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+				observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 				configManager.RegisterObserver(observerMock)
 
 				// when
@@ -396,6 +464,7 @@ var _ = Describe("Configuration", func() {
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+			observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 
 			configManager := configuration.NewConfigurationManager(datadir)
 			configManager.RegisterObserver(observerMock)
@@ -445,6 +514,7 @@ var _ = Describe("Configuration", func() {
 
 			observerMock := configuration.NewMockObserver(mockCtrl)
 			observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(2)
+			observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
 
 			configManager := configuration.NewConfigurationManager(datadir)
 			configManager.RegisterObserver(observerMock)

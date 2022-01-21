@@ -32,6 +32,10 @@ func (wrkM *WorkloadMetrics) getWorkload(workloadName string) *models.Workload {
 	return wrkM.workloadConfig[workloadName]
 }
 
+func (wrkM *WorkloadMetrics) Init(config models.DeviceConfigurationMessage) error {
+	return wrkM.Update(config)
+}
+
 func (wrkM *WorkloadMetrics) Update(config models.DeviceConfigurationMessage) error {
 	cfg := map[string]*models.Workload{}
 	for _, workload := range config.Workloads {
