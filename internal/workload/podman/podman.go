@@ -3,6 +3,7 @@ package podman
 import (
 	"context"
 	"fmt"
+	"github.com/jakub-dzon/k4e-device-worker/internal/service"
 	"strings"
 
 	"git.sr.ht/~spc/go-log"
@@ -16,7 +17,6 @@ import (
 	"github.com/containers/podman/v3/pkg/bindings/system"
 	"github.com/containers/podman/v3/pkg/domain/entities"
 	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 )
 
 const (
@@ -289,7 +289,7 @@ func (p *podman) GenerateSystemdService(podName string, monitoringInterval uint)
 		return nil, err
 	}
 
-	svc, err := service.NewSystemd(podName, report.Units)
+	svc, err := service.NewSystemd(podName, "pod-", report.Units)
 	if err != nil {
 		return nil, err
 	}

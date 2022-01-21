@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	"github.com/jakub-dzon/k4e-device-worker/internal/service"
 	"github.com/jakub-dzon/k4e-operator/models"
 )
 
@@ -17,36 +18,34 @@ const (
 
 var defaultSystemMetricsConfiguration = models.SystemMetricsConfiguration{Interval: DefaultSystemMetricsScrapingInterval}
 
-//go:generate mockgen -package=metrics -destination=configuration_provider_mock.go . DeviceConfigurationProvider
-type DeviceConfigurationProvider interface {
-	GetDeviceConfiguration() models.DeviceConfiguration
-}
-
 type SystemMetrics struct {
 	latestConfig atomic.Value
 	daemon       MetricsDaemon
 	config       configuration.Manager
+	nodeExporter service.Service
 }
 
-func NewSystemMetrics(daemon MetricsDaemon, config DeviceConfigurationProvider) *SystemMetrics {
-	expectedConfiguration := expectedConfiguration(config.GetDeviceConfiguration())
-
-	sm := &SystemMetrics{
-		daemon: daemon,
+func NewSystemMetrics(daemon MetricsDaemon) (*SystemMetrics, error) {
+	nodeExporter, err := service.NewSystemd("node_exporter", "", nil)
+	if err != nil {
+		return nil, err
 	}
-	filter := getSampleFilter(expectedConfiguration.AllowList)
-	daemon.AddFilteredTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(expectedConfiguration.Interval)*time.Second, filter)
-	sm.latestConfig.Store(&expectedConfiguration)
-	return sm
+	return NewSystemMetricsWithNodeExporter(daemon, nodeExporter), nil
+}
+
+func NewSystemMetricsWithNodeExporter(daemon MetricsDaemon, nodeExporter service.Service) *SystemMetrics {
+	return &SystemMetrics{
+		daemon:       daemon,
+		nodeExporter: nodeExporter,
+	}
 }
 
 func (sm *SystemMetrics) Init(config models.DeviceConfigurationMessage) error {
-	// No need due to the work is made on NewSystemMetrics
-	return nil
+	return sm.Update(config)
 }
 
 func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error {
-	newConfiguration := expectedConfiguration(*config.Configuration)
+	newConfiguration := expectedConfiguration(config.Configuration)
 	latestConfig := sm.latestConfig.Load()
 	if latestConfig != nil {
 		oldConfiguration := latestConfig.(*models.SystemMetricsConfiguration)
@@ -54,14 +53,23 @@ func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error 
 			return nil
 		}
 	}
-	filter := getSampleFilter(newConfiguration.AllowList)
-	sm.daemon.AddFilteredTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
-	sm.latestConfig.Store(&newConfiguration)
 
+	if err := sm.ensureNodeExporterState(newConfiguration); err != nil {
+		return err
+	}
+
+	if newConfiguration.Disabled {
+		sm.daemon.DeleteTarget(systemTargetName)
+	} else {
+		filter := getSampleFilter(newConfiguration.AllowList)
+		sm.daemon.AddFilteredTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
+	}
+
+	sm.latestConfig.Store(&newConfiguration)
 	return nil
 }
 
-func expectedConfiguration(config models.DeviceConfiguration) models.SystemMetricsConfiguration {
+func expectedConfiguration(config *models.DeviceConfiguration) models.SystemMetricsConfiguration {
 	newConfiguration := defaultSystemMetricsConfiguration
 	if config.Metrics != nil && config.Metrics.System != nil {
 		newConfiguration = *config.Metrics.System
@@ -77,4 +85,31 @@ func getSampleFilter(allowList *models.MetricsAllowList) SampleFilter {
 		return DefaultSystemAllowList()
 	}
 	return NewRestrictiveAllowList(allowList)
+}
+
+func (sm *SystemMetrics) ensureNodeExporterDisabled() error {
+	if err := sm.nodeExporter.Stop(); err != nil {
+		return err
+	}
+	if err := sm.nodeExporter.Disable(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sm *SystemMetrics) ensureNodeExporterEnabled() error {
+	if err := sm.nodeExporter.Enable(); err != nil {
+		return err
+	}
+	if err := sm.nodeExporter.Start(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sm *SystemMetrics) ensureNodeExporterState(config models.SystemMetricsConfiguration) error {
+	if config.Disabled {
+		return sm.ensureNodeExporterDisabled()
+	}
+	return sm.ensureNodeExporterEnabled()
 }

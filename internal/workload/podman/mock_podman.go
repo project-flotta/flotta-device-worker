@@ -8,8 +8,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	service "github.com/jakub-dzon/k4e-device-worker/internal/service"
 	api "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
-	service "github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 )
 
 // MockPodman is a mock of Podman interface.
