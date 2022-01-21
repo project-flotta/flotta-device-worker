@@ -1,11 +1,12 @@
 package metrics
 
 import (
-	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	"github.com/jakub-dzon/k4e-operator/models"
 	"reflect"
 	"sync/atomic"
 	"time"
+
+	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
+	"github.com/jakub-dzon/k4e-operator/models"
 )
 
 const (
@@ -37,6 +38,11 @@ func NewSystemMetrics(daemon MetricsDaemon, config DeviceConfigurationProvider) 
 	daemon.AddFilteredTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(expectedConfiguration.Interval)*time.Second, filter)
 	sm.latestConfig.Store(&expectedConfiguration)
 	return sm
+}
+
+func (sm *SystemMetrics) Init(config models.DeviceConfigurationMessage) error {
+	// No need due to the work is made on NewSystemMetrics
+	return nil
 }
 
 func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error {

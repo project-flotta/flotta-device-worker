@@ -98,6 +98,12 @@ func (s *Heartbeat) HasStarted() bool {
 	return s.ticker != nil
 }
 
+// Init no-op due to we need to an update from the source of truth in this
+// case(API)
+func (s *Heartbeat) Init(config models.DeviceConfigurationMessage) error {
+	return nil
+}
+
 func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {
 	periodSeconds := s.getInterval(*config.Configuration)
 	log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, s.data.workloadManager.GetDeviceID())

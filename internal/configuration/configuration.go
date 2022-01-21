@@ -31,6 +31,7 @@ var (
 
 //go:generate mockgen -package=configuration -destination=configuration_mock.go . Observer
 type Observer interface {
+	Init(configuration models.DeviceConfigurationMessage) error
 	Update(configuration models.DeviceConfigurationMessage) error
 }
 
@@ -70,6 +71,12 @@ func NewConfigurationManager(dataDir string) *Manager {
 }
 
 func (m *Manager) RegisterObserver(observer Observer) {
+	// Always trigger the Init phase when register an observer to retrieve the
+	// current config.
+	err := observer.Init(*m.deviceConfiguration)
+	if err != nil {
+		log.Error("Running config init observer failed: ", err)
+	}
 	m.observers = append(m.observers, observer)
 }
 

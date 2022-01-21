@@ -34,6 +34,20 @@ func (m *MockObserver) EXPECT() *MockObserverMockRecorder {
 	return m.recorder
 }
 
+// Init mocks base method.
+func (m *MockObserver) Init(arg0 models.DeviceConfigurationMessage) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Init", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Init indicates an expected call of Init.
+func (mr *MockObserverMockRecorder) Init(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockObserver)(nil).Init), arg0)
+}
+
 // Update mocks base method.
 func (m *MockObserver) Update(arg0 models.DeviceConfigurationMessage) error {
 	m.ctrl.T.Helper()

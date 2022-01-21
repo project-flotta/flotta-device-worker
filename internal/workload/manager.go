@@ -106,6 +106,10 @@ func (w *WorkloadManager) GetDeviceID() string {
 	return w.deviceId
 }
 
+func (w *WorkloadManager) Init(configuration models.DeviceConfigurationMessage) error {
+	return w.Update(configuration)
+}
+
 func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage) error {
 	w.managementLock.Lock()
 	defer w.managementLock.Unlock()
