@@ -36,12 +36,13 @@ type Registration struct {
 	monitor          *datatransfer.Monitor
 	registered       bool
 	metricsStorage   metrics.API
+	systemMetrics    *metrics.SystemMetrics
 	lock             sync.RWMutex
 }
 
 func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient DispatcherClient,
 	config *configuration.Manager, heartbeatManager *heartbeat.Heartbeat, workloadsManager *workload.WorkloadManager,
-	monitorManager *datatransfer.Monitor, metricsStorage metrics.API) *Registration {
+	monitorManager *datatransfer.Monitor, metricsStorage metrics.API, systemMetrics *metrics.SystemMetrics) *Registration {
 	return &Registration{
 		hardware:         hardware,
 		os:               os,
@@ -52,6 +53,7 @@ func NewRegistration(hardware *hardware2.Hardware, os *os2.OS, dispatcherClient 
 		workloads:        workloadsManager,
 		monitor:          monitorManager,
 		metricsStorage:   metricsStorage,
+		systemMetrics:    systemMetrics,
 		lock:             sync.RWMutex{},
 	}
 }
@@ -144,6 +146,12 @@ func (r *Registration) Deregister() error {
 	if err != nil {
 		errors = multierror.Append(errors, fmt.Errorf("failed to deregister monitor: %v", err))
 		log.Errorf("failed to deregister monitor. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
+	}
+
+	err = r.systemMetrics.Deregister()
+	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to deregister system metrics: %v", err))
+		log.Errorf("failed to deregister system metrics. DeviceID: %s; err: %v", r.workloads.GetDeviceID(), err)
 	}
 
 	err = r.metricsStorage.Deregister()

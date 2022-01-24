@@ -135,7 +135,7 @@ func main() {
 	configManager.RegisterObserver(hbs)
 
 	deviceOs := os2.OS{}
-	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor, metricsStore)
+	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor, metricsStore, systemMetricsWatcher)
 
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg))
