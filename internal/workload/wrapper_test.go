@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/golang/mock/gomock"
+	"github.com/jakub-dzon/k4e-device-worker/internal/service"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/network"
 	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/service"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"

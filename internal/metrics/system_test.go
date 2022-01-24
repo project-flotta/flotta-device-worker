@@ -1,8 +1,10 @@
 package metrics_test
 
 import (
+	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"github.com/jakub-dzon/k4e-device-worker/internal/service"
 	"github.com/jakub-dzon/k4e-operator/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -16,107 +18,123 @@ var _ = Describe("System", func() {
 	)
 
 	var (
-		defaultFilter = metrics.DefaultSystemAllowList()
-
 		customAllowList = &models.MetricsAllowList{
 			Names: []string{"allow_a", "allow_b"}}
 		customFilter = metrics.NewRestrictiveAllowList(customAllowList)
 
-		mockCtrl       *gomock.Controller
-		daemonMock     *metrics.MockMetricsDaemon
-		systemMetrics  *metrics.SystemMetrics
-		configProvider *metrics.MockDeviceConfigurationProvider
+		noMetricsConfig = models.DeviceConfigurationMessage{
+			Configuration: &models.DeviceConfiguration{
+				Metrics: &models.MetricsConfiguration{},
+			},
+		}
+		customConfig = models.DeviceConfigurationMessage{
+			Configuration: &models.DeviceConfiguration{
+				Metrics: &models.MetricsConfiguration{
+					System: &models.SystemMetricsConfiguration{
+						Interval:  duration,
+						AllowList: customAllowList,
+					},
+				},
+			},
+		}
+		defaultFilter = metrics.DefaultSystemAllowList()
+
+		mockCtrl         *gomock.Controller
+		daemonMock       *metrics.MockMetricsDaemon
+		nodeExporterMock *service.MockService
 	)
 
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		daemonMock = metrics.NewMockMetricsDaemon(mockCtrl)
-		configProvider = metrics.NewMockDeviceConfigurationProvider(mockCtrl)
+		nodeExporterMock = service.NewMockService(mockCtrl)
 	})
 
 	AfterEach(func() {
 		mockCtrl.Finish()
 	})
 
-	It("should add node_exporter endpoint for scraping at start: default configuration", func() {
+	It("should add node_exporter endpoint for scraping at init: default configuration", func() {
 		// given
-		configProvider.EXPECT().GetDeviceConfiguration().Return(models.DeviceConfiguration{})
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(defaultFilter)).
 			Times(1)
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start()
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
 
 		// when
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+		err := sm.Init(noMetricsConfig)
 
 		// then
+		Expect(err).ToNot(HaveOccurred())
 		// daemonMock expectation met
 	})
 
-	It("should add node_exporter endpoint for scraping at start: custom configuration", func() {
+	It("should add node_exporter endpoint for scraping at init: custom configuration", func() {
 		// given
-		config := models.DeviceConfiguration{
-			Metrics: &models.MetricsConfiguration{
-				System: &models.SystemMetricsConfiguration{
-					Interval:  duration,
-					AllowList: customAllowList,
-				},
-			},
-		}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
 			gomock.Eq(customFilter))
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start()
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
 
 		// when
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+		err := sm.Init(customConfig)
 
 		// then
+		Expect(err).ToNot(HaveOccurred())
 		// daemonMock expectation met
 	})
 
-	It("should add node_exporter endpoint for scraping at start: custom configuration with interval unset", func() {
+	It("should add node_exporter endpoint for scraping at init: custom configuration with interval unset", func() {
 		// given
-		config := models.DeviceConfiguration{
-			Metrics: &models.MetricsConfiguration{
-				System: &models.SystemMetricsConfiguration{
-					AllowList: customAllowList,
+		config := models.DeviceConfigurationMessage{
+			Configuration: &models.DeviceConfiguration{
+				Metrics: &models.MetricsConfiguration{
+					System: &models.SystemMetricsConfiguration{
+						AllowList: customAllowList,
+					},
 				},
 			},
 		}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(customFilter))
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start()
+
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
 
 		// when
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+		err := sm.Init(config)
 
 		// then
+		Expect(err).ToNot(HaveOccurred())
 		// daemonMock expectation met
 	})
 
-	It("should not re-add node_exporter endpoint for scraping when default configuration is used on start and in update", func() {
+	It("should not re-add node_exporter endpoint for scraping when default configuration is used on init and in update", func() {
 		// given
-		noMetricsConfig :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{},
-			}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(noMetricsConfig)
-
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(defaultFilter)).
 			Times(1)
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start()
 
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+		systemMetrics := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+		err := systemMetrics.Init(noMetricsConfig)
+		Expect(err).ToNot(HaveOccurred())
 
 		// when
-		err := systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &noMetricsConfig})
+		err = systemMetrics.Update(noMetricsConfig)
 
 		// then
 		Expect(err).To(Not(HaveOccurred()))
@@ -125,54 +143,47 @@ var _ = Describe("System", func() {
 
 	It("should not re-add node_exporter endpoint for scraping when default configuration is used repeatedly in update", func() {
 		// given
-		noMetricsConfig :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{},
-			}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(noMetricsConfig)
-
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(defaultFilter)).
 			Times(1)
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start()
 
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
-		err := systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &noMetricsConfig})
+		systemMetrics := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+		err := systemMetrics.Init(noMetricsConfig)
+		Expect(err).ToNot(HaveOccurred())
+		err = systemMetrics.Update(noMetricsConfig)
 		Expect(err).To(Not(HaveOccurred()))
 
 		// when
-		err = systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &noMetricsConfig})
+		err = systemMetrics.Update(noMetricsConfig)
 
 		// then
 		Expect(err).To(Not(HaveOccurred()))
 		// daemonMock expectation met
 	})
 
-	It("should not re-add node_exporter endpoint for scraping when same custom configuration is used on start and in update", func() {
+	It("should not re-add node_exporter endpoint for scraping when same custom configuration is used on init and in update", func() {
 		// given
-		config :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
-						Interval:  duration,
-						AllowList: customAllowList,
-					},
-				},
-			}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
 			gomock.Eq(customFilter)).
 			Times(1)
 
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
-		err := systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &config})
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start()
+
+		systemMetrics := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+		err := systemMetrics.Init(customConfig)
+		Expect(err).ToNot(HaveOccurred())
+		err = systemMetrics.Update(customConfig)
 		Expect(err).To(Not(HaveOccurred()))
 
 		// when
-		err = systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &config})
+		err = systemMetrics.Update(customConfig)
 
 		// then
 		Expect(err).To(Not(HaveOccurred()))
@@ -181,26 +192,21 @@ var _ = Describe("System", func() {
 
 	It("should not re-add node_exporter endpoint for scraping when same custom configuration is used repeatedly in update", func() {
 		// given
-		config :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
-						Interval:  duration,
-						AllowList: customAllowList,
-					},
-				},
-			}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
 			gomock.Eq(customFilter)).
 			Times(1)
 
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start()
+
+		systemMetrics := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+		err := systemMetrics.Init(customConfig)
+		Expect(err).ToNot(HaveOccurred())
 
 		// when
-		err := systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &config})
+		err = systemMetrics.Update(customConfig)
 
 		// then
 		Expect(err).To(Not(HaveOccurred()))
@@ -209,22 +215,6 @@ var _ = Describe("System", func() {
 
 	It("should re-add node_exporter endpoint for scraping when configuration changes from default to custom", func() {
 		// given
-		noMetricsConfig :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{},
-			}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(noMetricsConfig)
-
-		config :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
-						Interval:  duration,
-						AllowList: customAllowList,
-					},
-				},
-			}
-
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(duration)),
@@ -237,11 +227,15 @@ var _ = Describe("System", func() {
 					gomock.Eq(defaultFilter)).
 					Times(1),
 			)
+		nodeExporterMock.EXPECT().Enable().Times(2)
+		nodeExporterMock.EXPECT().Start().Times(2)
 
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+		systemMetrics := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+		err := systemMetrics.Init(noMetricsConfig)
 
 		// when
-		err := systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &config})
+		Expect(err).ToNot(HaveOccurred())
+		err = systemMetrics.Update(customConfig)
 
 		// then
 		Expect(err).To(Not(HaveOccurred()))
@@ -250,22 +244,6 @@ var _ = Describe("System", func() {
 
 	It("should re-add node_exporter endpoint for scraping when configuration changes from custom to default", func() {
 		// given
-		noMetricsConfig :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{},
-			}
-
-		config :=
-			models.DeviceConfiguration{
-				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
-						Interval:  duration,
-						AllowList: customAllowList,
-					},
-				},
-			}
-		configProvider.EXPECT().GetDeviceConfiguration().Return(config)
-
 		daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
 			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
@@ -278,14 +256,161 @@ var _ = Describe("System", func() {
 					gomock.Eq(customFilter)).
 					Times(1),
 			)
+		nodeExporterMock.EXPECT().Enable().Times(2)
+		nodeExporterMock.EXPECT().Start().Times(2)
 
-		systemMetrics = metrics.NewSystemMetrics(daemonMock, configProvider)
+		systemMetrics := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+		err := systemMetrics.Init(customConfig)
 
 		// when
-		err := systemMetrics.Update(models.DeviceConfigurationMessage{Configuration: &noMetricsConfig})
+		Expect(err).ToNot(HaveOccurred())
+		err = systemMetrics.Update(noMetricsConfig)
 
 		// then
 		Expect(err).To(Not(HaveOccurred()))
 		// daemonMock expectation met
 	})
+
+	It("should disable node_exporter at init", func() {
+		// given
+		config := models.DeviceConfigurationMessage{
+			Configuration: &models.DeviceConfiguration{
+				Metrics: &models.MetricsConfiguration{
+					System: &models.SystemMetricsConfiguration{
+						Disabled: true,
+					},
+				},
+			},
+		}
+		daemonMock.EXPECT().DeleteTarget("system")
+		nodeExporterMock.EXPECT().Disable()
+		nodeExporterMock.EXPECT().Stop()
+
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+
+		// when
+		err := sm.Init(config)
+
+		// then
+		Expect(err).ToNot(HaveOccurred())
+		// daemonMock expectation met
+	})
+
+	It("should enabling node_exporter at init fail on starting", func() {
+		// given
+		nodeExporterMock.EXPECT().Enable()
+		nodeExporterMock.EXPECT().Start().Return(fmt.Errorf("boom"))
+
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+
+		// when
+		err := sm.Init(noMetricsConfig)
+
+		// then
+		Expect(err).To(HaveOccurred())
+		// daemonMock expectation met
+	})
+
+	It("should enabling node_exporter at init fail", func() {
+		// given
+		nodeExporterMock.EXPECT().Enable().Return(fmt.Errorf("boom"))
+
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+
+		// when
+		err := sm.Init(noMetricsConfig)
+
+		// then
+		Expect(err).To(HaveOccurred())
+		// daemonMock expectation met
+	})
+
+	It("should disable node_exporter at init fail on disabling", func() {
+		// given
+		config := models.DeviceConfigurationMessage{
+			Configuration: &models.DeviceConfiguration{
+				Metrics: &models.MetricsConfiguration{
+					System: &models.SystemMetricsConfiguration{
+						Disabled: true,
+					},
+				},
+			},
+		}
+		nodeExporterMock.EXPECT().Stop()
+		nodeExporterMock.EXPECT().Disable().Return(fmt.Errorf("boom"))
+
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+
+		// when
+		err := sm.Init(config)
+
+		// then
+		Expect(err).To(HaveOccurred())
+		// daemonMock expectation met
+	})
+
+	It("should disable node_exporter at init fail on stopping", func() {
+		// given
+		config := models.DeviceConfigurationMessage{
+			Configuration: &models.DeviceConfiguration{
+				Metrics: &models.MetricsConfiguration{
+					System: &models.SystemMetricsConfiguration{
+						Disabled: true,
+					},
+				},
+			},
+		}
+		nodeExporterMock.EXPECT().Stop().Return(fmt.Errorf("boom"))
+
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+
+		// when
+		err := sm.Init(config)
+
+		// then
+		Expect(err).To(HaveOccurred())
+		// daemonMock expectation met
+	})
+
+	It("should disable node_exporter at update", func() {
+		// given
+		daemonMock.EXPECT().DeleteTarget("system").After(
+			daemonMock.EXPECT().AddFilteredTarget(gomock.Any(),
+				gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+				gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
+				gomock.Eq(defaultFilter)).
+				Times(1),
+		)
+		nodeExporterMock.EXPECT().Disable().
+			After(
+				nodeExporterMock.EXPECT().Enable(),
+			)
+
+		nodeExporterMock.EXPECT().Stop().
+			After(
+				nodeExporterMock.EXPECT().Start(),
+			)
+
+		config := models.DeviceConfigurationMessage{
+			Configuration: &models.DeviceConfiguration{
+				Metrics: &models.MetricsConfiguration{
+					System: &models.SystemMetricsConfiguration{
+						Disabled: true,
+					},
+				},
+			},
+		}
+
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+		err := sm.Init(noMetricsConfig)
+		Expect(err).ToNot(HaveOccurred())
+
+		// when
+		err = sm.Update(config)
+
+		// then
+		Expect(err).ToNot(HaveOccurred())
+		// daemonMock expectation met
+	})
+
 })

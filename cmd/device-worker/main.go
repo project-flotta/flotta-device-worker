@@ -107,7 +107,10 @@ func main() {
 	workloadMetricWatcher := metrics.NewWorkloadMetrics(metricsDaemon)
 	configManager.RegisterObserver(workloadMetricWatcher)
 
-	systemMetricsWatcher := metrics.NewSystemMetrics(metricsDaemon, configManager)
+	systemMetricsWatcher, err := metrics.NewSystemMetrics(metricsDaemon)
+	if err != nil {
+		log.Fatalf("cannot initialize system metrics. DeviceID: %s; err: %v", deviceId, err)
+	}
 	configManager.RegisterObserver(systemMetricsWatcher)
 
 	wl, err := workload2.NewWorkloadManager(dataDir, deviceId)
