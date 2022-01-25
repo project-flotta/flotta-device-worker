@@ -142,7 +142,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			continue
 		}
 
-		podYaml, err := w.toPodYaml(pod)
+		podYaml, err := w.toPodYaml(pod, workload.Configmaps)
 		if err != nil {
 			errors = multierror.Append(errors, fmt.Errorf("cannot create pod's Yaml. DeviceID: %s; err:  %v", w.deviceId, err))
 			continue
@@ -259,12 +259,18 @@ func (w *WorkloadManager) getManifestPath(workloadName string) string {
 	return path.Join(w.getWorkloadDirPath(workloadName), WorkloadFileName)
 }
 
-func (w *WorkloadManager) toPodYaml(pod *v1.Pod) ([]byte, error) {
+func (w *WorkloadManager) toPodYaml(pod *v1.Pod, configmaps models.ConfigmapList) ([]byte, error) {
 	podYaml, err := yaml.Marshal(pod)
 	if err != nil {
 		return nil, err
 	}
-	return podYaml, nil
+
+	cmYaml := ""
+	if len(configmaps) > 0 {
+		cmYaml = strings.Join(configmaps, "---\n")
+	}
+
+	return []byte(strings.Join([]string{string(podYaml), string(cmYaml)}, "---\n")), nil
 }
 
 func (w *WorkloadManager) indexWorkloads() (map[string]api2.WorkloadInfo, error) {
