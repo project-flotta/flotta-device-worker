@@ -33,6 +33,8 @@ var _ = Describe("Registration", func() {
 		wkwMock        *workload.MockWorkloadWrapper
 		dispatcherMock *registration.MockDispatcherClient
 		metricsMock    *metrics.MockAPI
+		daemonMock     *metrics.MockMetricsDaemon
+		systemMetrics  *metrics.SystemMetrics
 		configManager  *configuration.Manager
 		hb             *heartbeat.Heartbeat
 		hw             = &hardware.Hardware{}
@@ -58,6 +60,9 @@ var _ = Describe("Registration", func() {
 		configManager = configuration.NewConfigurationManager(datadir)
 		monitor = datatransfer.NewMonitor(wkManager, configManager)
 
+		daemonMock = metrics.NewMockMetricsDaemon(mockCtrl)
+		systemMetrics = metrics.NewSystemMetricsWithNodeExporter(daemonMock, nil)
+
 		hb = heartbeat.NewHeartbeatService(dispatcherMock,
 			configManager,
 			wkManager,
@@ -80,7 +85,7 @@ var _ = Describe("Registration", func() {
 		It("Work as expected", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock)
+			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			// then
 			dispatcherMock.EXPECT().Send(gomock.Any(), RegistrationMatcher()).Times(1)
@@ -95,7 +100,7 @@ var _ = Describe("Registration", func() {
 		It("Try to re-register", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock)
+			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 			reg.RetryAfter = 1
 
 			// then
@@ -126,12 +131,13 @@ var _ = Describe("Registration", func() {
 		It("Works as expected", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock)
+			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
 			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
 			metricsMock.EXPECT().Deregister()
+			daemonMock.EXPECT().DeleteTarget("system")
 
 			// when
 			err := reg.Deregister()
@@ -145,12 +151,13 @@ var _ = Describe("Registration", func() {
 		It("Return error if anything fails", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock)
+			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("failed"))
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
 			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
 			metricsMock.EXPECT().Deregister()
+			daemonMock.EXPECT().DeleteTarget("system")
 
 			// when
 			err := reg.Deregister()
@@ -166,12 +173,13 @@ var _ = Describe("Registration", func() {
 			err := osUtil.Remove(configFile)
 			Expect(err).NotTo(HaveOccurred())
 
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock)
+			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
 			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
 			metricsMock.EXPECT().Deregister()
+			daemonMock.EXPECT().DeleteTarget("system")
 
 			// when
 			err = reg.Deregister()
@@ -184,17 +192,18 @@ var _ = Describe("Registration", func() {
 		It("Is able to register after deregister", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock)
+			reg := registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			wkwMock.EXPECT().List()
 			wkwMock.EXPECT().RemoveTable()
 			wkwMock.EXPECT().RemoveMappingFile()
 			metricsMock.EXPECT().Deregister()
+			daemonMock.EXPECT().DeleteTarget("system")
 
 			err = reg.Deregister()
 			Expect(err).NotTo(HaveOccurred())
 
-			reg = registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock)
+			reg = registration.NewRegistration(hw, os, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
 
 			// then
 			dispatcherMock.EXPECT().Send(gomock.Any(), RegistrationMatcher()).Times(1)

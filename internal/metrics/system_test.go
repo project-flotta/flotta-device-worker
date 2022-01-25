@@ -413,4 +413,16 @@ var _ = Describe("System", func() {
 		// daemonMock expectation met
 	})
 
+	It("should delete system target on de-registration", func() {
+		// given
+		daemonMock.EXPECT().DeleteTarget("system")
+		sm := metrics.NewSystemMetricsWithNodeExporter(daemonMock, nodeExporterMock)
+
+		// when
+		err := sm.Deregister()
+
+		// then
+		Expect(err).ToNot(HaveOccurred())
+		// daemonMock expectation met
+	})
 })

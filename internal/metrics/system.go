@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"git.sr.ht/~spc/go-log"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -66,6 +67,12 @@ func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error 
 	}
 
 	sm.latestConfig.Store(&newConfiguration)
+	return nil
+}
+
+func (sm *SystemMetrics) Deregister() error {
+	log.Info("stopping system metrics")
+	sm.daemon.DeleteTarget("system")
 	return nil
 }
 
