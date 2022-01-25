@@ -313,7 +313,7 @@ var _ = Describe("Datatransfer", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("Cannot retrieve storage configuration", func() {
+		It("Ignored missing storage configuration on init", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration = nil
@@ -322,7 +322,7 @@ var _ = Describe("Datatransfer", func() {
 			err := monitor.Init(cfg)
 
 			// then
-			Expect(err).To(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
@@ -338,7 +338,7 @@ var _ = Describe("Datatransfer", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("Failed with invalid device configuration", func() {
+		It("Ignored invalid device configuration on update", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration = nil
@@ -347,10 +347,10 @@ var _ = Describe("Datatransfer", func() {
 			err := monitor.Update(cfg)
 
 			// then
-			Expect(err).To(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("Failed with invalid storage configuration", func() {
+		It("Ignored missing storage configuration", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration.Storage = nil
@@ -359,7 +359,7 @@ var _ = Describe("Datatransfer", func() {
 			err := monitor.Update(cfg)
 
 			// then
-			Expect(err).To(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Failed with invalid s3 configuration", func() {

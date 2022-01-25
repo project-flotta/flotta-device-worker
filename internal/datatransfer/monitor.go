@@ -240,16 +240,11 @@ func (m *Monitor) Init(configuration models.DeviceConfigurationMessage) error {
 }
 
 func (m *Monitor) Update(configuration models.DeviceConfigurationMessage) error {
-	if configuration.Configuration == nil {
-		return fmt.Errorf("cannot retrieve configuration info. DeviceID: %s;", m.workloads.GetDeviceID())
+	if configuration.Configuration == nil || configuration.Configuration.Storage == nil || configuration.Configuration.Storage.S3 == nil {
+		return nil
 	}
 
-	storage := configuration.Configuration.Storage
-	if storage == nil {
-		return fmt.Errorf("cannot retrieve storage info. DeviceID: %s;", m.workloads.GetDeviceID())
-	}
-
-	s3sync, err := s3.NewSync(*storage.S3)
+	s3sync, err := s3.NewSync(*configuration.Configuration.Storage.S3)
 	if err != nil {
 		return fmt.Errorf("observer update failed. DeviceID: %s; err: %s", m.workloads.GetDeviceID(), err)
 	}

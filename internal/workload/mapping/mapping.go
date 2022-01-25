@@ -86,7 +86,7 @@ func (m *mappingRepository) RemoveMappingFile() error {
 	defer m.lock.Unlock()
 
 	log.Infof("deleting %s file", m.mappingFilePath)
-	err := os.Remove(m.mappingFilePath)
+	err := os.RemoveAll(m.mappingFilePath)
 	if err != nil {
 		log.Errorf("failed to delete %s: %v", m.mappingFilePath, err)
 		return err

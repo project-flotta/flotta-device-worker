@@ -164,7 +164,7 @@ func (ww Workload) RemoveTable() error {
 	return nil
 }
 func (ww Workload) RemoveMappingFile() error {
-	log.Infof("deleting table %s", nfTableName)
+	log.Infof("deleting mapping file")
 	if err := ww.mappingRepository.RemoveMappingFile(); err != nil {
 		log.Errorf("failed to remove mapping file: %v", err)
 		return err
