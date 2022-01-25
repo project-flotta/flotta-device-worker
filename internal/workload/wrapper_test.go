@@ -64,6 +64,7 @@ var _ = Describe("Workload management", func() {
 			serviceManager.EXPECT().Add(svc).Return(nil)
 
 			mappingRepository.EXPECT().Add("pod1", "id1")
+			mappingRepository.EXPECT().GetId("pod1").Return("id1")
 
 			// when
 			err := wk.Run(pod, manifestPath, authFilePath)
@@ -76,6 +77,9 @@ var _ = Describe("Workload management", func() {
 
 			// given
 			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
+
+			mappingRepository.EXPECT().Add("pod1", "id1")
+			mappingRepository.EXPECT().GetId("pod1").Return("id1")
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(gomock.Any(), gomock.Any()).Return(svc, nil)
@@ -93,6 +97,9 @@ var _ = Describe("Workload management", func() {
 
 			// given
 			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
+
+			mappingRepository.EXPECT().Add("pod1", "id1")
+			mappingRepository.EXPECT().GetId("pod1").Return("id1")
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(gomock.Any(), gomock.Any()).Return(svc, nil)

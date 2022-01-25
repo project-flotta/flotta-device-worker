@@ -2,6 +2,7 @@ package workload
 
 import (
 	"fmt"
+
 	"github.com/jakub-dzon/k4e-device-worker/internal/service"
 
 	"git.sr.ht/~spc/go-log"
@@ -180,26 +181,31 @@ func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath strin
 		return err
 	}
 
-	// Create the system service to manage the pod:
-	svc, err := ww.workloads.GenerateSystemdService(workloadServiceName(workload.GetName()), ww.monitoringInterval)
-	if err != nil {
+	// Must be called before GenerateSystemdService:
+	if err = ww.mappingRepository.Add(workload.Name, podIds[0].Id); err != nil {
 		return err
+	}
+
+	// Create the system service to manage the pod:
+	svc, err := ww.workloads.GenerateSystemdService(ww.workloadId(workload.GetName()), ww.monitoringInterval)
+	if err != nil {
+		return fmt.Errorf("Error while generating systemd service: %v", err)
 	}
 
 	err = ww.createService(svc)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error while creating service: %v", err)
 	}
 	err = ww.serviceManager.Add(svc)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error while updating service manager: %v", err)
 	}
 
-	return ww.mappingRepository.Add(workload.Name, podIds[0].Id)
+	return nil
 }
 
 func (ww Workload) removeService(workloadName string) error {
-	svc := ww.serviceManager.Get(workloadServiceName(workloadName))
+	svc := ww.serviceManager.Get(ww.workloadId(workloadName))
 	if svc == nil {
 		return nil
 	}
@@ -234,8 +240,8 @@ func (ww Workload) createService(svc service.Service) error {
 	return nil
 }
 
-func workloadServiceName(workloadName string) string {
-	return workloadName + "_pod"
+func (ww Workload) workloadId(workloadName string) string {
+	return ww.mappingRepository.GetId(workloadName)
 }
 
 func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {
