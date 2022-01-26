@@ -57,6 +57,7 @@ generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject
 	$(Q) go generate ./...
 
 .PHONY: vendor
+
 vendor:
 	go mod tidy
 	go mod vendor
@@ -100,7 +101,7 @@ rpm-tarball:
 	    | gzip > k4e-agent-$(VERSION).tar.gz
 
 rpm-src: rpm-tarball
-	cp k4e-agent-$(VERSION).tar.gz $(HOME)/rpmbuild/SOURCES/
+	install -D -m644 k4e-agent-$(VERSION).tar.gz --target-directory `rpmbuild -E %_sourcedir`
 	rpmbuild -bs \
 		-D "VERSION $(VERSION)" \
 		-D "RELEASE $(RELEASE)" \
@@ -114,11 +115,10 @@ rpm-build: rpm-src
 	rpmbuild $(RPMBUILD_OPTS) --rebuild $(HOME)/rpmbuild/SRPMS/k4e-agent-$(VERSION)-$(RELEASE).*.src.rpm
 
 rpm: ## Create rpm build
-rpm: rpm-build
+	RPMBUILD_OPTS=--target=x86_64 $(MAKE) rpm-build
 
 rpm-arm64: ## Create rpm build for arm64
-rpm-arm64: RPMBUILD_OPTS=--target=aarch64
-rpm-arm64: rpm-build
+	RPMBUILD_OPTS=--target=aarch64  $(MAKE) rpm-build
 
 dist: ## Create distribution packages
 dist: build build-arm64 rpm rpm-arm64
