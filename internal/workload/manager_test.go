@@ -25,6 +25,12 @@ const (
 	podSpec  = `containers:
     - name: alpine
       image: quay.io/libpod/alpine:latest`
+	cmSpec = `kind: ConfigMap
+metadata:
+  name: mycm
+data:
+  key1: data
+`
 )
 
 var _ = Describe("Events", func() {
@@ -234,6 +240,41 @@ var _ = Describe("Manager", func() {
 				authFile, _ := ioutil.ReadFile(authFilePath)
 				Expect(authFile).To(BeEquivalentTo("authFile-" + wkName))
 			}
+		})
+
+		It("Runs workloads with configmap", func() {
+
+			// given
+			workloads := []*models.Workload{}
+
+			wkName := fmt.Sprintf("test")
+			workloads = append(workloads, &models.Workload{
+				Name:          wkName,
+				Specification: podSpec,
+				Configmaps:    models.ConfigmapList{cmSpec},
+			})
+			wkwMock.EXPECT().Remove(wkName).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+
+			cfg := models.DeviceConfigurationMessage{
+				Workloads: workloads,
+			}
+
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
+			wkwMock.EXPECT().List().AnyTimes()
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			pod := getPodFor(datadir, wkName)
+			Expect(pod.Name).To(BeEquivalentTo(wkName))
+
+			manifestPath := getManifestPath(datadir, wkName)
+			Expect(manifestPath).To(BeAnExistingFile())
+			manifestFile, _ := ioutil.ReadFile(manifestPath)
+			Expect(manifestFile).To(ContainSubstring(cmSpec))
 		})
 
 		It("Workload Run failed", func() {

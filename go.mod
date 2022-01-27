@@ -32,6 +32,7 @@ require (
 replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
+	github.com/jakub-dzon/k4e-operator => github.com/machacekondra/k4e-operator v0.0.0-20220127085750-56bb57ed3c9d
 	github.com/redhatinsights/yggdrasil => github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820
