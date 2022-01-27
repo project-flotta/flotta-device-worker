@@ -27,7 +27,6 @@ jobs:
 
       - name: Build the source RPM
         run: |
-          mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
           make rpm-tarball
           make rpm-src
 
