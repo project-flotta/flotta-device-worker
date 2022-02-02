@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	UserAgent = fmt.Sprintf("k4e-device-worker")
+	UserAgent = fmt.Sprintf("flotta-device-worker")
 )
 
 type Scraper interface {

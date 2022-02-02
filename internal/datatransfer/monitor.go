@@ -157,7 +157,7 @@ func (m *Monitor) getFsSync() (FileSync, error) {
 	}
 	// Copy here to be able to always use that pointer meanwhile update the
 	// config. Related to:
-	// https://github.com/jakub-dzon/k4e-device-worker/pull/38#discussion_r735290220
+	// https://github.com/project-flotta/flotta-device-worker/pull/38#discussion_r735290220
 	res := m.fsSync
 	return res, nil
 }
