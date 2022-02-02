@@ -33,7 +33,9 @@ func DefaultSystemAllowList() SampleFilter {
 		"node_memory_MemFree_bytes":      {},
 		"node_memory_MemTotal_bytes":     {},
 
-		"node_network_info": {},
+		"node_network_info":                 {},
+		"node_network_receive_bytes_total":  {},
+		"node_network_transmit_bytes_total": {},
 	}
 	// TODO: set defaults
 	return &RestrictiveAllowList{
