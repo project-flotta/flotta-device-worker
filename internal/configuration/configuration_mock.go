@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	models "github.com/jakub-dzon/k4e-operator/models"
+	models "github.com/project-flotta/flotta-operator/models"
 )
 
 // MockObserver is a mock of Observer interface.

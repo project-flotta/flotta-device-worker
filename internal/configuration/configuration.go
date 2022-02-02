@@ -13,7 +13,7 @@ import (
 	"git.sr.ht/~spc/go-log"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 )
 
 var (

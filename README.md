@@ -1,7 +1,7 @@
 # Hacking
 
 Because this project is part of k4e task force, all contributing guidelines are
-inherit from [k4e-operator](https://github.com/jakub-dzon/k4e-operator) project.
+inherit from [k4e-operator](https://github.com/project-flotta/flotta-operator) project.
 Detail information about this project is below.
 
 ## System dependencies

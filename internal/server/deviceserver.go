@@ -7,7 +7,7 @@ import (
 	"git.sr.ht/~spc/go-log"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 

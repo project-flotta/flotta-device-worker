@@ -13,7 +13,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 )
 
 var _ = Describe("Datatransfer", func() {

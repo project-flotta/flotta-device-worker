@@ -14,7 +14,7 @@ import (
 
 	"git.sr.ht/~spc/go-log"
 	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )

@@ -2,7 +2,7 @@ package metrics_test
 
 import (
 	"fmt"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 	"net/http"
 	"net/http/httptest"
 	"time"

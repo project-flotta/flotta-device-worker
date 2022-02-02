@@ -12,7 +12,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	hw "github.com/project-flotta/flotta-device-worker/internal/hardware"
 	workld "github.com/project-flotta/flotta-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 

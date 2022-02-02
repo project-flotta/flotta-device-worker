@@ -17,7 +17,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/heartbeat"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
@@ -90,7 +90,6 @@ func (r *Registration) registerDeviceOnce() error {
 	}
 	registrationInfo := models.RegistrationInfo{
 		Hardware:  hardwareInformation,
-		OsImageID: r.os.GetOsImageId(),
 	}
 	content, err := json.Marshal(registrationInfo)
 	if err != nil {
