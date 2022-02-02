@@ -68,6 +68,11 @@ func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podm
 			continue
 		}
 
+		var filter SampleFilter = &PermissiveAllowList{}
+		if cfg.Metrics.AllowList != nil {
+			filter = NewRestrictiveAllowList(cfg.Metrics.AllowList)
+		}
+
 		urls := []string{}
 		for _, workloadReport := range report {
 			urls = append(urls, getWorkloadUrls(workloadReport, cfg)...)
@@ -78,7 +83,11 @@ func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podm
 			interval = cfg.Metrics.Interval
 		}
 		// log for this is part of the AddTarget function
-		wrkM.daemon.AddTarget(workload.Name, urls, time.Duration(interval)*time.Second)
+		wrkM.daemon.AddFilteredTarget(
+			workload.Name,
+			urls,
+			time.Duration(interval)*time.Second,
+			filter)
 	}
 }
 
