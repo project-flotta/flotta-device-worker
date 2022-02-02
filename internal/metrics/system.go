@@ -1,10 +1,11 @@
 package metrics
 
 import (
-	"git.sr.ht/~spc/go-log"
 	"reflect"
 	"sync/atomic"
 	"time"
+
+	"git.sr.ht/~spc/go-log"
 
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
@@ -63,7 +64,7 @@ func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error 
 		sm.daemon.DeleteTarget(systemTargetName)
 	} else {
 		filter := getSampleFilter(newConfiguration.AllowList)
-		sm.daemon.AddFilteredTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
+		sm.daemon.AddTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
 	}
 
 	sm.latestConfig.Store(&newConfiguration)

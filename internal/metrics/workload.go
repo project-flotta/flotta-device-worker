@@ -83,7 +83,7 @@ func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podm
 			interval = cfg.Metrics.Interval
 		}
 		// log for this is part of the AddTarget function
-		wrkM.daemon.AddFilteredTarget(
+		wrkM.daemon.AddTarget(
 			workload.Name,
 			urls,
 			time.Duration(interval)*time.Second,
