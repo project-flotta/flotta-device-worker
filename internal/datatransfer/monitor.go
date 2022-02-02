@@ -8,11 +8,11 @@ import (
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer/s3"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/s3"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
+	"github.com/project-flotta/flotta-operator/models"
 )
 
 type Monitor struct {
@@ -157,7 +157,7 @@ func (m *Monitor) getFsSync() (FileSync, error) {
 	}
 	// Copy here to be able to always use that pointer meanwhile update the
 	// config. Related to:
-	// https://github.com/jakub-dzon/k4e-device-worker/pull/38#discussion_r735290220
+	// https://github.com/project-flotta/flotta-device-worker/pull/38#discussion_r735290220
 	res := m.fsSync
 	return res, nil
 }

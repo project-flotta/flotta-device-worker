@@ -2,7 +2,7 @@ package metrics_test
 
 import (
 	"fmt"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/model"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 )
 
 var _ = Describe("Daemon", func() {

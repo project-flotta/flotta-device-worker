@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/service"
+	"github.com/project-flotta/flotta-device-worker/internal/service"
 
 	"git.sr.ht/~spc/go-log"
 	podmanEvents "github.com/containers/podman/v3/libpod/events"
@@ -17,7 +17,7 @@ import (
 	"github.com/containers/podman/v3/pkg/bindings/secrets"
 	"github.com/containers/podman/v3/pkg/bindings/system"
 	"github.com/containers/podman/v3/pkg/domain/entities"
-	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 )
 
 const (

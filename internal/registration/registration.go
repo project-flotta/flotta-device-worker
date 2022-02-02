@@ -4,20 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"sync"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
-	hardware2 "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
-	"github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
-	os2 "github.com/jakub-dzon/k4e-device-worker/internal/os"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
+	hardware2 "github.com/project-flotta/flotta-device-worker/internal/hardware"
+	"github.com/project-flotta/flotta-device-worker/internal/heartbeat"
+	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
@@ -90,7 +90,6 @@ func (r *Registration) registerDeviceOnce() error {
 	}
 	registrationInfo := models.RegistrationInfo{
 		Hardware:  hardwareInformation,
-		OsImageID: r.os.GetOsImageId(),
 	}
 	content, err := json.Marshal(registrationInfo)
 	if err != nil {

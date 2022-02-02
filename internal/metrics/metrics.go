@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 )
 
 const (

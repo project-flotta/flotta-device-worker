@@ -97,22 +97,22 @@ install-arm64: build-arm64
 
 
 rpm-tarball:
-	 (git archive --prefix k4e-agent-$(VERSION)/ HEAD ) \
-	    | gzip > k4e-agent-$(VERSION).tar.gz
+	 (git archive --prefix flotta-agent-$(VERSION)/ HEAD ) \
+	    | gzip > flotta-agent-$(VERSION).tar.gz
 
 rpm-src: rpm-tarball
-	install -D -m644 k4e-agent-$(VERSION).tar.gz --target-directory `rpmbuild -E %_sourcedir`
+	install -D -m644 flotta-agent-$(VERSION).tar.gz --target-directory `rpmbuild -E %_sourcedir`
 	rpmbuild -bs \
 		-D "VERSION $(VERSION)" \
 		-D "RELEASE $(RELEASE)" \
 		-D "_libexecdir $(LIBEXECDIR)" \
-		--buildroot $(DIST_DIR) ./k4e-agent.spec
+		--buildroot $(DIST_DIR) ./flotta-agent.spec
 
 rpm-copr: rpm-src
-	copr build eloyocoto/k4e-test $(HOME)/rpmbuild/SRPMS/k4e-agent-$(VERSION)-$(RELEASE).*.src.rpm
+	copr build eloyocoto/k4e-test $(HOME)/rpmbuild/SRPMS/flotta-agent-$(VERSION)-$(RELEASE).*.src.rpm
 
 rpm-build: rpm-src
-	rpmbuild $(RPMBUILD_OPTS) --rebuild $(HOME)/rpmbuild/SRPMS/k4e-agent-$(VERSION)-$(RELEASE).*.src.rpm
+	rpmbuild $(RPMBUILD_OPTS) --rebuild $(HOME)/rpmbuild/SRPMS/flotta-agent-$(VERSION)-$(RELEASE).*.src.rpm
 
 rpm: ## Create rpm build
 	RPMBUILD_OPTS=--target=x86_64 $(MAKE) rpm-build

@@ -8,11 +8,11 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-	cfg "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
-	hw "github.com/jakub-dzon/k4e-device-worker/internal/hardware"
-	workld "github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-operator/models"
+	cfg "github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
+	hw "github.com/project-flotta/flotta-device-worker/internal/hardware"
+	workld "github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 

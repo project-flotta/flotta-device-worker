@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-operator/models"
 	"github.com/prometheus/common/model"
 )
 

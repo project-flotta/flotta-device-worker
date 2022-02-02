@@ -7,8 +7,8 @@ import (
 
 	"git.sr.ht/~spc/go-log"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
-	"github.com/jakub-dzon/k4e-operator/models"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
+	"github.com/project-flotta/flotta-operator/models"
 )
 
 const (
