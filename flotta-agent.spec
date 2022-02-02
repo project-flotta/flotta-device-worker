@@ -1,11 +1,11 @@
 %define _build_id_links none
 
-Name:       k4e-agent
+Name:       flotta-agent
 Version:    1.0
 Release:    1%{?dist}
-Summary:    Agent application for the K4E (Kubernetes for Edge) solution
+Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
-Group:      K4E
+Group:      Flotta
 License:    GPL
 Source0:    https://github.com/jakub-dzon/%{name}-%{version}.tar.gz
 
@@ -19,7 +19,7 @@ Provides:       %{name} = %{version}-%{release}
 Provides:       golang(%{go_import_path}) = %{version}-%{release}
 
 %description
-The K4E agent communicates with the K4E control plane. It reports the status of the appliance and of the running PODs/containers. Agent is responsible for starting and stopping PODs that are based on commands from the control plane.
+The Flotta agent communicates with the Flotta control plane. It reports the status of the appliance and of the running PODs/containers. Agent is responsible for starting and stopping PODs that are based on commands from the control plane.
 
 %post
 systemctl enable --now podman.socket
@@ -29,13 +29,13 @@ systemctl enable --now nftables.service
 tar fx %{SOURCE0}
 
 %build
-cd k4e-agent-%{VERSION}
+cd flotta-agent-%{VERSION}
 export CGO_ENABLED=0 
 export GOFLAGS="-mod=vendor -tags=containers_image_openpgp"
 go build -o ./bin/device-worker ./cmd/device-worker
 
 %install
-cd k4e-agent-%{VERSION}
+cd flotta-agent-%{VERSION}
 mkdir -p %{buildroot}%{_libexecdir}/yggdrasil/
 install ./bin/device-worker %{buildroot}%{_libexecdir}/yggdrasil/device-worker
 
