@@ -147,8 +147,7 @@ func (tg *TargetMetric) Run(ctx context.Context) model.Vector {
 //go:generate mockgen -package=metrics -destination=mock_daemon.go . MetricsDaemon
 type MetricsDaemon interface {
 	Start()
-	AddTarget(targetName string, urls []string, interval time.Duration)
-	AddFilteredTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter)
+	AddTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter)
 	DeleteTarget(targetName string)
 }
 
@@ -191,8 +190,8 @@ func (md *metricsDaemon) startTarget(target *TargetMetric) {
 	go target.Start()
 }
 
-// AddFilteredTarget adds a metrics scraping target with filtering
-func (md *metricsDaemon) AddFilteredTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter) {
+// AddTarget adds a metrics scraping target with filtering
+func (md *metricsDaemon) AddTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter) {
 	target := NewTargetMetric(targetName, interval, urls, md.store, allowList)
 	log.Debugf("added target '%v' with the following urls: '%+v", targetName, urls)
 
@@ -203,11 +202,6 @@ func (md *metricsDaemon) AddFilteredTarget(targetName string, urls []string, int
 	defer md.lock.Unlock()
 	md.targets[targetName] = target
 	md.startTarget(target)
-}
-
-// AddTarget adds a metrics scraping target
-func (md *metricsDaemon) AddTarget(targetName string, urls []string, interval time.Duration) {
-	md.AddFilteredTarget(targetName, urls, interval, &PermissiveAllowList{})
 }
 
 // DeleteTarget deletes a target from getting metrics.

@@ -2,10 +2,11 @@ package metrics_test
 
 import (
 	"fmt"
-	"github.com/project-flotta/flotta-operator/models"
 	"net/http"
 	"net/http/httptest"
 	"time"
+
+	"github.com/project-flotta/flotta-operator/models"
 
 	gomock "github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -127,7 +128,7 @@ var _ = Describe("Daemon", func() {
 			daemon := metrics.NewMetricsDaemon(metrics.NewMockAPI(mockCtrl))
 
 			// when
-			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second)
+			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
 
 			// then
 			targets := daemon.GetTargets()
@@ -141,9 +142,9 @@ var _ = Describe("Daemon", func() {
 			daemon := metrics.NewMetricsDaemon(metrics.NewMockAPI(mockCtrl))
 
 			// when
-			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second)
-			daemon.AddTarget("wrk2", []string{"http://192.168.1.1:8080"}, time.Second)
-			daemon.AddTarget("wrk3", []string{"http://192.168.1.1:8080"}, time.Second)
+			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
+			daemon.AddTarget("wrk2", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
+			daemon.AddTarget("wrk3", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
 			daemon.DeleteTarget("wrk2")
 
 			// then
