@@ -2,7 +2,7 @@ package metrics_test
 
 import (
 	"github.com/google/uuid"
-	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"github.com/jakub-dzon/k4e-operator/models"
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"

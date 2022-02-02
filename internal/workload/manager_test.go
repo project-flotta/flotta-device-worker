@@ -13,8 +13,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-operator/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

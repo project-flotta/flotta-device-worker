@@ -1,4 +1,4 @@
-module github.com/jakub-dzon/k4e-device-worker
+module github.com/project-flotta/flotta-device-worker
 
 go 1.16
 

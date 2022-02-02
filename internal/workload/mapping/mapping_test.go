@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

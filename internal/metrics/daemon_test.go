@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/model"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 )
 
 var _ = Describe("Daemon", func() {

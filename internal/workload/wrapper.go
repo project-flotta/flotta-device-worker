@@ -3,14 +3,14 @@ package workload
 import (
 	"fmt"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/service"
+	"github.com/project-flotta/flotta-device-worker/internal/service"
 
 	"git.sr.ht/~spc/go-log"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
-	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/mapping"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/network"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
+	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/network"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
 	v1 "k8s.io/api/core/v1"
 
 	_ "github.com/golang/mock/mockgen/model"

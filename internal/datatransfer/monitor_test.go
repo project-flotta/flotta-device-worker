@@ -9,10 +9,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-operator/models"
 )
 

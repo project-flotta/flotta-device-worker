@@ -8,10 +8,10 @@ import (
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer/s3"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload/podman"
+	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/s3"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
 	"github.com/jakub-dzon/k4e-operator/models"
 )
 

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"git.sr.ht/~spc/go-log"
-	configuration2 "github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	registration2 "github.com/jakub-dzon/k4e-device-worker/internal/registration"
+	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
+	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
 	"github.com/jakub-dzon/k4e-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )

@@ -1,7 +1,7 @@
 package metrics_test
 
 import (
-	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"io/ioutil"

@@ -2,7 +2,7 @@ package registration_test
 
 import (
 	"fmt"
-	"github.com/jakub-dzon/k4e-device-worker/internal/metrics"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"io/ioutil"
 	osUtil "os"
 
@@ -11,13 +11,13 @@ import (
 	. "github.com/onsi/gomega"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 
-	"github.com/jakub-dzon/k4e-device-worker/internal/configuration"
-	"github.com/jakub-dzon/k4e-device-worker/internal/datatransfer"
-	"github.com/jakub-dzon/k4e-device-worker/internal/hardware"
-	"github.com/jakub-dzon/k4e-device-worker/internal/heartbeat"
-	"github.com/jakub-dzon/k4e-device-worker/internal/os"
-	"github.com/jakub-dzon/k4e-device-worker/internal/registration"
-	"github.com/jakub-dzon/k4e-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
+	"github.com/project-flotta/flotta-device-worker/internal/hardware"
+	"github.com/project-flotta/flotta-device-worker/internal/heartbeat"
+	"github.com/project-flotta/flotta-device-worker/internal/os"
+	"github.com/project-flotta/flotta-device-worker/internal/registration"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
 )
 
 const (

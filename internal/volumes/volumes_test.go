@@ -1,7 +1,7 @@
 package volumes_test
 
 import (
-	"github.com/jakub-dzon/k4e-device-worker/internal/volumes"
+	"github.com/project-flotta/flotta-device-worker/internal/volumes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"

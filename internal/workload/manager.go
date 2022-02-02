@@ -10,10 +10,10 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/jakub-dzon/k4e-device-worker/internal/volumes"
+	"github.com/project-flotta/flotta-device-worker/internal/volumes"
 
 	"git.sr.ht/~spc/go-log"
-	api2 "github.com/jakub-dzon/k4e-device-worker/internal/workload/api"
+	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/jakub-dzon/k4e-operator/models"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
