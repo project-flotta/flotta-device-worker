@@ -3,6 +3,7 @@ package heartbeat_test
 import (
 	"context"
 	"fmt"
+	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 
 	"github.com/golang/mock/gomock"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
@@ -33,6 +34,7 @@ var _ = Describe("Heartbeat", func() {
 		hb            = &heartbeat.Heartbeat{}
 		err           error
 		client        Dispatcher
+		deviceOs      *os2.OS
 	)
 
 	BeforeEach(func() {
@@ -47,11 +49,14 @@ var _ = Describe("Heartbeat", func() {
 
 		configManager = configuration.NewConfigurationManager(datadir)
 		client = Dispatcher{}
+		gracefulRebootChannel := make(chan struct{})
+		deviceOs = os2.NewOS(gracefulRebootChannel)
 		hb = heartbeat.NewHeartbeatService(&client,
 			configManager,
 			wkManager,
 			hw,
-			monitor)
+			monitor,
+			deviceOs)
 	})
 
 	AfterEach(func() {
@@ -62,7 +67,7 @@ var _ = Describe("Heartbeat", func() {
 		It("Report empty workloads an up status", func() {
 			//given
 			wkwMock.EXPECT().List().Times(1)
-			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor)
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor, deviceOs)
 
 			//when
 			heartbeatInfo := hbData.RetrieveInfo()
@@ -74,7 +79,7 @@ var _ = Describe("Heartbeat", func() {
 
 		It("Report workload correctly", func() {
 			//given
-			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor)
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor, deviceOs)
 
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{{
 				Id:     "test",
@@ -96,7 +101,7 @@ var _ = Describe("Heartbeat", func() {
 
 		It("Cannot retrieve the list of workloads", func() {
 			//given
-			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor)
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor, deviceOs)
 
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{}, fmt.Errorf("invalid list")).AnyTimes()
 

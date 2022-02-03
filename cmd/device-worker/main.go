@@ -29,6 +29,7 @@ import (
 )
 
 var yggdDispatchSocketAddr string
+var gracefulRebootChannel chan struct{}
 
 const (
 	defaultDataDir = "/var/local/yggdrasil"
@@ -122,6 +123,10 @@ func main() {
 
 	hw := hardware2.Hardware{}
 
+	gracefulRebootChannel = make(chan struct{})
+	deviceOs := os2.NewOS(gracefulRebootChannel)
+	configManager.RegisterObserver(deviceOs)
+
 	dataMonitor := datatransfer.NewMonitor(wl, configManager)
 	wl.RegisterObserver(dataMonitor)
 	configManager.RegisterObserver(dataMonitor)
@@ -130,12 +135,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot start metrics store. DeviceID: %s; err: %v", deviceId, err)
 	}
-	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor)
 
+	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, deviceOs)
 	configManager.RegisterObserver(hbs)
 
-	deviceOs := os2.OS{}
-	reg := registration2.NewRegistration(&hw, &deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor, metricsStore, systemMetricsWatcher)
+	reg := registration2.NewRegistration(&hw, deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor, metricsStore, systemMetricsWatcher)
 
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg))
@@ -147,8 +151,45 @@ func main() {
 
 	setupSignalHandler(metricsStore)
 
+	go listenStartGracefulRebootChannel(wl, dataMonitor, systemMetricsWatcher, metricsStore, hbs,
+		gracefulRebootChannel, deviceOs)
+
 	if err := s.Serve(l); err != nil {
 		log.Fatalf("cannot start worker server, err: %v", err)
+	}
+
+}
+
+func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor *datatransfer.Monitor,
+	systemMetricsWatcher *metrics.SystemMetrics, metricsStore *metrics.TSDB, hbs *heartbeat2.Heartbeat,
+	gracefulRebootChannel chan struct{}, deviceOs *os2.OS) {
+	// listen to the channel for getting StartGracefulReboot signal
+	for {
+		select {
+		case <-gracefulRebootChannel:
+			log.Info("A graceful reboot request was received")
+			if err := wl.StopWorkloads(); err != nil {
+				log.Fatalf("cannot graceful reboot the workloads: %v", err)
+			}
+
+			if err := dataMonitor.Deregister(); err != nil {
+				log.Fatalf("cannot graceful reboot dataMonitor: %v", err)
+			}
+
+			if err := systemMetricsWatcher.Deregister(); err != nil {
+				log.Fatalf("cannot graceful reboot systemMetricsWatcher: %v", err)
+			}
+
+			if err := metricsStore.Deregister(); err != nil {
+				log.Fatalf("cannot graceful reboot metricsStore: %v", err)
+			}
+
+			if err := hbs.Deregister(); err != nil {
+				log.Fatalf("cannot graceful reboot the heartbeat service: %v", err)
+			}
+
+			deviceOs.GracefulRebootCompletionChannel <- struct{}{}
+		}
 	}
 }
 

@@ -29,6 +29,7 @@ type WorkloadWrapper interface {
 	RegisterObserver(Observer)
 	List() ([]api.WorkloadInfo, error)
 	Remove(string) error
+	Stop(string) error
 	Run(*v1.Pod, string, string) error
 	Start(*v1.Pod) error
 	PersistConfiguration() error
@@ -153,6 +154,15 @@ func (ww Workload) Remove(workloadName string) error {
 		return err
 	}
 	return nil
+}
+
+func (ww Workload) Stop(workloadName string) error {
+	id := ww.mappingRepository.GetId(workloadName)
+	if id == "" {
+		id = workloadName
+	}
+	err := ww.workloads.Stop(id)
+	return err
 }
 
 func (ww Workload) RemoveTable() error {
