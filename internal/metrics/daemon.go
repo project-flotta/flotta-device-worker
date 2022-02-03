@@ -67,13 +67,15 @@ func (tg *TargetMetric) Start() {
 
 	getdata := func() {
 		log.Debugf("ticker run for workload '%v'", tg.name)
-		ctx, _ := context.WithTimeout(context.Background(), scrapeTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), scrapeTimeout)
+		defer cancel()
 		data := tg.Run(ctx)
 		err := tg.Store(data, map[string]string{metricSource: tg.name})
 		if err != nil {
 			log.Error("cannot store target information:", err)
 		}
 	}
+
 	for {
 		select {
 		case <-tg.forcetrigger:
@@ -116,7 +118,6 @@ func (tg *TargetMetric) Stop() {
 		tg.cancel()
 	}
 	tg.cancel = nil
-	return
 }
 
 func (tg *TargetMetric) createScraper() {
@@ -183,7 +184,6 @@ func (md *metricsDaemon) Start() {
 	for _, target := range md.targets {
 		md.startTarget(target)
 	}
-	return
 }
 
 func (md *metricsDaemon) startTarget(target *TargetMetric) {

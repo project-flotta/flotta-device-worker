@@ -36,11 +36,6 @@ type WorkloadManager struct {
 	deviceId       string
 }
 
-type podAndPath struct {
-	pod          v1.Pod
-	manifestPath string
-}
-
 func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, error) {
 	wrapper, err := newWorkloadInstance(dataDir, defaultWorkloadsMonitoringInterval)
 	if err != nil {
@@ -469,20 +464,9 @@ func (w *WorkloadManager) podModified(manifestPath string, podYaml []byte) bool 
 	return !bytes.Equal(file, podYaml)
 }
 
-func (w *WorkloadManager) getAuthFilePathIfExists(workloadName string) string {
-	authFilePath := w.getAuthFilePath(workloadName)
-	if _, err := os.Stat(authFilePath); err != nil {
-		return ""
-	}
-	return authFilePath
-}
-
 func (w *WorkloadManager) podAuthModified(authPath string, auth string) bool {
 	if _, err := os.Stat(authPath); err != nil {
-		if auth == "" {
-			return false
-		}
-		return true
+		return auth != ""
 	}
 	file, err := ioutil.ReadFile(authPath) //#nosec
 	if err != nil {

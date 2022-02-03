@@ -7,7 +7,6 @@ import (
 
 	"git.sr.ht/~spc/go-log"
 
-	"github.com/project-flotta/flotta-device-worker/internal/configuration"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-operator/models"
 )
@@ -23,7 +22,6 @@ var defaultSystemMetricsConfiguration = models.SystemMetricsConfiguration{Interv
 type SystemMetrics struct {
 	latestConfig atomic.Value
 	daemon       MetricsDaemon
-	config       configuration.Manager
 	nodeExporter service.Service
 }
 

@@ -65,10 +65,11 @@ type PodReport struct {
 func (p *PodReport) AppendContainer(c *ContainerReport) {
 	p.Containers = append(p.Containers, c)
 }
+
 const DefaultTimeoutForStoppingInSeconds int = 5
 
 type podman struct {
-	podmanConnection context.Context
+	podmanConnection   context.Context
 	timeoutForStopping int
 }
 
@@ -152,59 +153,60 @@ func (p *podman) Events(events chan *PodmanEvent) {
 		log.Errorf("Cannot get the list of running pods: %v", err)
 	}
 
-	if workloads != nil {
-		for _, wrk := range workloads {
-			report, err := p.getPodReportforId(wrk.Id)
-			if err != nil {
-				log.Errorf("Cannot get pod report for pod '%v': ", wrk.Name, err)
-				continue
-			}
-			event := &PodmanEvent{
-				WorkloadName: wrk.Name,
-				Event:        StartedContainer,
-				Report:       report,
-			}
-			go func() { events <- event }()
+	for _, wrk := range workloads {
+		report, err := p.getPodReportforId(wrk.Id)
+		if err != nil {
+			log.Errorf("Cannot get pod report for pod '%v', err: %v ", wrk.Name, err)
+			continue
 		}
+		event := &PodmanEvent{
+			WorkloadName: wrk.Name,
+			Event:        StartedContainer,
+			Report:       report,
+		}
+		go func() { events <- event }()
 	}
 
 	// subroutine that reads the event chan and sending proper messages to the
 	// wrapper
 	go func() {
 		for {
-			select {
-			case msg := <-evchan:
-				event := &PodmanEvent{
-					WorkloadName: msg.Actor.Attributes["name"],
-				}
-				switch msg.Action {
-				// create event is avoided because containers are not yet created and
-				// the flow is created->started
-				case podmanStart:
-					event.Event = StartedContainer
-					report, err := p.getPodReportforId(msg.ID)
-					if err != nil {
-						log.Error("cannot get current pod information on event: %v", err)
-						continue
-					}
-					event.Report = report
-				case podmanRemove, podmanStop:
-					event.Event = StoppedContainer
-				default:
+			msg := <-evchan
+			event := &PodmanEvent{
+				WorkloadName: msg.Actor.Attributes["name"],
+			}
+			switch msg.Action {
+			// create event is avoided because containers are not yet created and
+			// the flow is created->started
+			case podmanStart:
+				event.Event = StartedContainer
+				report, err := p.getPodReportforId(msg.ID)
+				if err != nil {
+					log.Error("cannot get current pod information on event: ", err)
 					continue
 				}
-				events <- event
+				event.Report = report
+			case podmanRemove, podmanStop:
+				event.Event = StoppedContainer
+			default:
+				continue
 			}
+			events <- event
 		}
 	}()
 
 	// subroutine to track events
-	go system.Events(p.podmanConnection, evchan, cancel, &system.EventsOptions{
-		Filters: map[string][]string{
-			"type": {"pod"},
-		},
-		Stream: &booltrue,
-	})
+	go func() {
+		err := system.Events(p.podmanConnection, evchan, cancel, &system.EventsOptions{
+			Filters: map[string][]string{
+				"type": {"pod"},
+			},
+			Stream: &booltrue,
+		})
+		if err != nil {
+			log.Error("Cannot get podman events, err: ", err)
+		}
+	}()
 }
 
 func (p *podman) getPodReportforId(podID string) (*PodReport, error) {

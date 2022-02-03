@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"git.sr.ht/~spc/go-log"
-	"github.com/project-flotta/flotta-operator/models"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"git.sr.ht/~spc/go-log"
+	"github.com/project-flotta/flotta-operator/models"
 )
 
 const (
@@ -141,7 +142,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 		}
 
 		cmd = exec.Command("rpm-ostree", "upgrade")
-		stdout, err = cmd.Output()
+		_, err = cmd.Output()
 
 		if err != nil {
 			log.Errorf("Failed to run 'rpm-ostree upgrade', err: %v", err)
@@ -151,7 +152,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 		o.GracefulRebootFlow()
 
 		cmd = exec.Command("systemctl", "reboot")
-		stdout, err = cmd.Output()
+		_, err = cmd.Output()
 
 		if err != nil {
 			return fmt.Errorf("failed to run 'systemctl reboot': %s", err)
@@ -241,7 +242,7 @@ func ensureScriptExists(fileName string, script string) error {
 			if err != nil {
 				return err
 			}
-			err = greenbootFailFile.Chmod(755)
+			err = greenbootFailFile.Chmod(0755)
 			if err != nil {
 				return err
 			}

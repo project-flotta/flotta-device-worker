@@ -4,20 +4,17 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
-	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
-	"io"
-	"net/http"
 )
 
 const (
 	acceptHeader = `application/openmetrics-text; version=0.0.1,text/plain;version=0.0.4;q=0.5,*/*;q=0.1`
-)
-
-var (
-	UserAgent = fmt.Sprintf("flotta-device-worker")
+	UserAgent    = "flotta-device-worker"
 )
 
 type Scraper interface {

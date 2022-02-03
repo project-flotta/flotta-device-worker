@@ -53,7 +53,6 @@ func (wrkM *WorkloadMetrics) Update(config models.DeviceConfigurationMessage) er
 func (wrkM *WorkloadMetrics) WorkloadRemoved(workloadName string) {
 	log.Infof("removing target metrics for workload '%v'", workloadName)
 	wrkM.daemon.DeleteTarget(workloadName)
-	return
 }
 
 func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podman.PodReport) {

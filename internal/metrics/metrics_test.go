@@ -1,12 +1,13 @@
 package metrics_test
 
 import (
-	"github.com/project-flotta/flotta-device-worker/internal/metrics"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"io/ioutil"
 	"math/rand"
 	"time"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 )
 
 var _ = Describe("Metrics", func() {
@@ -19,6 +20,7 @@ var _ = Describe("Metrics", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		tsdb, err = metrics.NewTSDB(tmpDir)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {

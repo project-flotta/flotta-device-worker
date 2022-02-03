@@ -13,11 +13,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
-	"github.com/project-flotta/flotta-device-worker/internal/workload"
-	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
-	"github.com/project-flotta/flotta-operator/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	api "github.com/project-flotta/flotta-device-worker/internal/workload/api"
+	"github.com/project-flotta/flotta-operator/models"
 )
 
 const (
@@ -247,7 +247,7 @@ var _ = Describe("Manager", func() {
 			// given
 			workloads := []*models.Workload{}
 
-			wkName := fmt.Sprintf("test")
+			wkName := "test"
 			workloads = append(workloads, &models.Workload{
 				Name:          wkName,
 				Specification: podSpec,
@@ -279,6 +279,7 @@ var _ = Describe("Manager", func() {
 
 		It("Workload Run failed", func() {
 			// given
+			var merr *multierror.Error
 			cfg := models.DeviceConfigurationMessage{
 				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: 1}},
 				DeviceID:      "",
@@ -297,7 +298,7 @@ var _ = Describe("Manager", func() {
 
 			// when
 			err := wkManager.Update(cfg)
-			merr, _ := err.(*multierror.Error)
+			merr, _ = err.(*multierror.Error)
 
 			// then
 			Expect(err).To(HaveOccurred())

@@ -108,7 +108,7 @@ func (t *TSDB) GetMetricsForTimeRange(tMin time.Time, tMax time.Time) ([]Series,
 	t.dbLock.RLock()
 	defer t.dbLock.RUnlock()
 
-	q, err := t.db.Querier(nil, toDbTime(tMin), toDbTime(tMax))
+	q, err := t.db.Querier(context.TODO(), toDbTime(tMin), toDbTime(tMax))
 	if err != nil {
 		log.Error(err)
 		return nil, err

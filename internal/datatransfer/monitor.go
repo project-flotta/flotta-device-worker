@@ -68,7 +68,6 @@ func (m *Monitor) GetLastSuccessfulSyncTime(workloadName string) *time.Time {
 // WorkloadStarted is defined to satisfied the workload.Observer Interface, do
 // nothing.
 func (m *Monitor) WorkloadStarted(workloadName string, report []*podman.PodReport) {
-	return
 }
 
 func (m *Monitor) WorkloadRemoved(workloadName string) {

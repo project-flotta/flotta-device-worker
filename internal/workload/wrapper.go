@@ -93,17 +93,15 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 
 	go func() {
 		for {
-			select {
-			case msg := <-events:
-				switch msg.Event {
-				case podman.StartedContainer:
-					for _, observer := range ww.observers {
-						observer.WorkloadStarted(msg.WorkloadName, []*podman.PodReport{msg.Report})
-					}
-				case podman.StoppedContainer:
-					for _, observer := range ww.observers {
-						observer.WorkloadRemoved(msg.WorkloadName)
-					}
+			msg := <-events
+			switch msg.Event {
+			case podman.StartedContainer:
+				for _, observer := range ww.observers {
+					observer.WorkloadStarted(msg.WorkloadName, []*podman.PodReport{msg.Report})
+				}
+			case podman.StoppedContainer:
+				for _, observer := range ww.observers {
+					observer.WorkloadRemoved(msg.WorkloadName)
 				}
 			}
 		}
