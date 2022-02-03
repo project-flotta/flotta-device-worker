@@ -22,9 +22,9 @@ const (
 )
 
 type Deployments struct {
-	Checksum string `json:"checksum"`
-	Timestamp int `json:"timestamp"`
-	Booted bool `json:"booted"`
+	Checksum  string `json:"checksum"`
+	Timestamp int    `json:"timestamp"`
+	Booted    bool   `json:"booted"`
 }
 
 type StatusStruct struct {
@@ -54,7 +54,7 @@ func NewOS(gracefulRebootChannel chan struct{}) *OS {
 	}
 }
 
-func (o *OS) UpdateRpmOstreeStatus()  {
+func (o *OS) UpdateRpmOstreeStatus() {
 	cmd := exec.Command("rpm-ostree", "status", "--json")
 	stdout, err := cmd.Output()
 
@@ -63,7 +63,7 @@ func (o *OS) UpdateRpmOstreeStatus()  {
 	}
 
 	resUnMarsh := StatusStruct{}
-	if err := json.Unmarshal([]byte(stdout), &resUnMarsh); err != nil{
+	if err := json.Unmarshal([]byte(stdout), &resUnMarsh); err != nil {
 		log.Error("Failed to unmarshal json")
 	}
 
@@ -72,17 +72,17 @@ func (o *OS) UpdateRpmOstreeStatus()  {
 	}
 
 	// go over the deployments, check which one is the booted one and if it's the required
-	for _, deployment := range resUnMarsh.Deployments{
+	for _, deployment := range resUnMarsh.Deployments {
 		if deployment.Booted {
 			o.OsCommit = deployment.Checksum
-			if o.RequestedOsCommit == UnknownOsImageId{
-				o.LastUpgradeTime = time.Unix(int64(deployment.Timestamp),0).String()
+			if o.RequestedOsCommit == UnknownOsImageId {
+				o.LastUpgradeTime = time.Unix(int64(deployment.Timestamp), 0).String()
 				o.LastUpgradeStatus = "succeeded"
 			}
 		}
 
-		if deployment.Checksum == o.RequestedOsCommit{
-			o.LastUpgradeTime = time.Unix(int64(deployment.Timestamp),0).String()
+		if deployment.Checksum == o.RequestedOsCommit {
+			o.LastUpgradeTime = time.Unix(int64(deployment.Timestamp), 0).String()
 			if !deployment.Booted {
 				o.LastUpgradeStatus = "failed"
 			} else {
@@ -105,7 +105,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 	if newOSInfo.HostedObjectsURL != o.HostedObjectsURL {
 		log.Infof("Hosted Images URL has been changed to %s", newOSInfo.HostedObjectsURL)
 		err := updateURLInEdgeConfFile(newOSInfo.HostedObjectsURL)
-		if err != nil{
+		if err != nil {
 			log.Error("Failed updating file edge.conf")
 			return err
 		}
@@ -116,7 +116,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 		log.Infof("The requested commit ID has been changed to %s", newOSInfo.CommitID)
 		o.RequestedOsCommit = newOSInfo.CommitID
 
-		if ! o.AutomaticallyUpgrade{
+		if !o.AutomaticallyUpgrade {
 			log.Infof("AutomaticallyUpgrade is false, upgrade should be triggered manually")
 			return nil
 		}
@@ -129,7 +129,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 			return err
 		}
 
-		if !strings.Contains(string(stdout), newOSInfo.CommitID){
+		if !strings.Contains(string(stdout), newOSInfo.CommitID) {
 			log.Errorf("Failed to find the commit ID %s, err %v", newOSInfo.CommitID, err)
 			return fmt.Errorf("cannot find the new commit ID. %s", newOSInfo.CommitID)
 		}
@@ -163,7 +163,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 	return nil
 }
 
-func (o *OS) GracefulRebootFlow(){
+func (o *OS) GracefulRebootFlow() {
 	log.Info("Starting graceful reboot")
 	// send signal for graceful rebooting
 	o.GracefulRebootChannel <- struct{}{}
@@ -182,7 +182,7 @@ func (o *OS) GracefulRebootFlow(){
 	}
 }
 
-func (o *OS) GetUpgradeStatus() *models.UpgradeStatus{
+func (o *OS) GetUpgradeStatus() *models.UpgradeStatus {
 	var upgradeStatus models.UpgradeStatus
 	o.UpdateRpmOstreeStatus()
 	upgradeStatus.CurrentCommitID = o.OsCommit
@@ -192,7 +192,7 @@ func (o *OS) GetUpgradeStatus() *models.UpgradeStatus{
 	return &upgradeStatus
 }
 
-func updateURLInEdgeConfFile(newURL string) error{
+func updateURLInEdgeConfFile(newURL string) error {
 	input, err := ioutil.ReadFile(EdgeConfFileName)
 	if err != nil {
 		return err
@@ -201,12 +201,12 @@ func updateURLInEdgeConfFile(newURL string) error{
 
 	for i, line := range lines {
 		if strings.Contains(line, "url=") {
-			lines[i] = "url="+newURL
+			lines[i] = "url=" + newURL
 		}
 	}
 
 	output := strings.Join(lines, "\n")
-	err = ioutil.WriteFile(EdgeConfFileName, []byte(output), 0644)
+	err = ioutil.WriteFile(EdgeConfFileName, []byte(output), 0600)
 	if err != nil {
 		return err
 	}
@@ -214,26 +214,26 @@ func updateURLInEdgeConfFile(newURL string) error{
 	return nil
 }
 
-func updateGreenbootScripts() error{
+func updateGreenbootScripts() error {
 	log.Info("Update Greenboot scripts")
-	if err := ensureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil{
+	if err := ensureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil {
 		return err
 	}
 
-	if err := ensureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil{
+	if err := ensureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func ensureScriptExists(fileName string, script string) error{
+func ensureScriptExists(fileName string, script string) error {
 	_, err := os.Stat(fileName)
 	if err == nil {
 		log.Infof("File %s already exists", fileName)
-	} else{
+	} else {
 		if errors.Is(err, os.ErrNotExist) {
-			greenbootFailFile, err := os.Create(fileName)
+			greenbootFailFile, err := os.Create(fileName) //#nosec
 			if err != nil {
 				return err
 			}
@@ -252,4 +252,3 @@ func ensureScriptExists(fileName string, script string) error{
 
 	return nil
 }
-

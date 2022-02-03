@@ -41,7 +41,8 @@ func NewMonitor(workloadsManager *workload.WorkloadManager, configManager *confi
 func (m *Monitor) Start() {
 	go func() {
 		for range m.ticker.C {
-			m.syncPaths()
+			err := m.syncPaths()
+			log.Error("Cannot sync paths: ", err)
 		}
 		log.Infof("the monitor was stopped. DeviceID: %s;", m.workloads.GetDeviceID())
 	}()

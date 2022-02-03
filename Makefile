@@ -4,6 +4,8 @@ DIST_DIR = $(shell pwd)/dist
 CGO_ENABLED = 0
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
 
+DOCKER ?= podman
+
 ifeq ($(OS),fedora)
 	LIBEXECDIR ?= /usr/local/libexec
 else
@@ -38,6 +40,9 @@ endif
 ifeq (, $(shell which gover))
 	GO111MODULE=off go get github.com/sozorogami/gover
 endif
+
+gosec: ## Run gosec locally
+	$(DOCKER) run --rm -it -v $(PWD):/opt/data/:z docker.io/securego/gosec -exclude-generated /opt/data/...
 
 test: ## Run unit test on device worker
 test: test-tools

@@ -36,7 +36,7 @@ type mappingRepository struct {
 func NewMappingRepository(configDir string) (MappingRepository, error) {
 	mappingFilePath := path.Join(configDir, "workload-mapping.json")
 
-	mappingJson, err := ioutil.ReadFile(mappingFilePath)
+	mappingJson, err := ioutil.ReadFile(mappingFilePath) //#nosec
 	var mappings []mapping
 	if err == nil {
 		err := json.Unmarshal(mappingJson, &mappings)
@@ -131,7 +131,7 @@ func (m *mappingRepository) persist() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(m.mappingFilePath, mappingsJson, 0640)
+	err = ioutil.WriteFile(m.mappingFilePath, mappingsJson, 0640) //#nosec
 	if err != nil {
 		return err
 	}

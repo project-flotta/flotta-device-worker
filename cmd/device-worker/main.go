@@ -89,6 +89,7 @@ func main() {
 	// Register as a Worker service with gRPC and start accepting connections.
 	dataDir := path.Join(baseDataDir, "device")
 	log.Infof("Data directory: %s", dataDir)
+	/* #nosec */
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}

@@ -53,7 +53,7 @@ type TSDB struct {
 
 func NewTSDB(dataDir string) (*TSDB, error) {
 	metricsDir := path.Join(dataDir, "metrics")
-	if err := os.MkdirAll(metricsDir, 0755); err != nil {
+	if err := os.MkdirAll(metricsDir, 0750); err != nil {
 		log.Error(err)
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}

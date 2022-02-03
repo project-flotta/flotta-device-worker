@@ -56,11 +56,12 @@ func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceId s
 
 func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval uint, deviceId string) (*WorkloadManager, error) {
 	workloadsDir := path.Join(dataDir, "workloads")
-	if err := os.MkdirAll(workloadsDir, 0755); err != nil {
+	if err := os.MkdirAll(workloadsDir, 0750); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
 	volumesDir := path.Join(dataDir, "volumes")
-	if err := os.MkdirAll(volumesDir, 0755); err != nil {
+
+	if err := os.MkdirAll(volumesDir, 0750); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
 	manager := WorkloadManager{
@@ -220,6 +221,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 func (w *WorkloadManager) ensureWorkloadDirExists(workloadName string) error {
 	workloadDirPath := w.getWorkloadDirPath(workloadName)
 	if _, err := os.Stat(workloadDirPath); err != nil {
+		/* #nosec */
 		if err := os.MkdirAll(workloadDirPath, 0755); err != nil {
 			return err
 		}
@@ -244,7 +246,7 @@ func (w *WorkloadManager) manageAuthFile(authFilePath, authFile string) (string,
 }
 
 func (w *WorkloadManager) storeFile(filePath string, content []byte) error {
-	return ioutil.WriteFile(filePath, content, 0640)
+	return ioutil.WriteFile(filePath, content, 0600)
 }
 
 func (w *WorkloadManager) getAuthFilePath(workloadName string) string {
@@ -289,7 +291,7 @@ func (w *WorkloadManager) RegisterObserver(observer Observer) {
 	w.workloads.RegisterObserver(observer)
 }
 
-func (w *WorkloadManager) StopWorkloads() error{
+func (w *WorkloadManager) StopWorkloads() error {
 	w.managementLock.Lock()
 	defer w.managementLock.Unlock()
 
@@ -460,7 +462,7 @@ func (w *WorkloadManager) podConfigurationModified(manifestPath string, podYaml 
 }
 
 func (w *WorkloadManager) podModified(manifestPath string, podYaml []byte) bool {
-	file, err := ioutil.ReadFile(manifestPath)
+	file, err := ioutil.ReadFile(manifestPath) //#nosec
 	if err != nil {
 		return true
 	}
@@ -482,7 +484,7 @@ func (w *WorkloadManager) podAuthModified(authPath string, auth string) bool {
 		}
 		return true
 	}
-	file, err := ioutil.ReadFile(authPath)
+	file, err := ioutil.ReadFile(authPath) //#nosec
 	if err != nil {
 		return true
 	}

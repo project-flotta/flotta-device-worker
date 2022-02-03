@@ -29,3 +29,15 @@ jobs:
 
     - name: Checking generated files are up to date
       run: git diff --quiet internal/ || (echo "There are not committed changes"; git diff internal/| tee; exit 1)
+
+  security-Scanner:
+    name: Security Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: '-exclude-generated  ./...'
