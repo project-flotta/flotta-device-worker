@@ -53,7 +53,7 @@ type TSDB struct {
 
 func NewTSDB(dataDir string) (*TSDB, error) {
 	metricsDir := path.Join(dataDir, "metrics")
-	if err := os.MkdirAll(metricsDir, 0755); err != nil {
+	if err := os.MkdirAll(metricsDir, 0750); err != nil {
 		log.Error(err)
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
@@ -108,7 +108,7 @@ func (t *TSDB) GetMetricsForTimeRange(tMin time.Time, tMax time.Time) ([]Series,
 	t.dbLock.RLock()
 	defer t.dbLock.RUnlock()
 
-	q, err := t.db.Querier(nil, toDbTime(tMin), toDbTime(tMax))
+	q, err := t.db.Querier(context.TODO(), toDbTime(tMin), toDbTime(tMax))
 	if err != nil {
 		log.Error(err)
 		return nil, err

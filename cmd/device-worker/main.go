@@ -89,6 +89,7 @@ func main() {
 	// Register as a Worker service with gRPC and start accepting connections.
 	dataDir := path.Join(baseDataDir, "device")
 	log.Infof("Data directory: %s", dataDir)
+	/* #nosec */
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
@@ -101,6 +102,9 @@ func main() {
 
 	// --- Client metrics configuration ---
 	metricsStore, err := metrics.NewTSDB(dataDir)
+	if err != nil {
+		log.Fatalf("cannot initialize TSDB, err: %v", err)
+	}
 	configManager.RegisterObserver(metricsStore)
 	// Metrics Daemon
 	metricsDaemon := metrics.NewMetricsDaemon(metricsStore)
@@ -165,44 +169,40 @@ func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor
 	gracefulRebootChannel chan struct{}, deviceOs *os2.OS) {
 	// listen to the channel for getting StartGracefulReboot signal
 	for {
-		select {
-		case <-gracefulRebootChannel:
-			log.Info("A graceful reboot request was received")
-			if err := wl.StopWorkloads(); err != nil {
-				log.Fatalf("cannot graceful reboot the workloads: %v", err)
-			}
-
-			if err := dataMonitor.Deregister(); err != nil {
-				log.Fatalf("cannot graceful reboot dataMonitor: %v", err)
-			}
-
-			if err := systemMetricsWatcher.Deregister(); err != nil {
-				log.Fatalf("cannot graceful reboot systemMetricsWatcher: %v", err)
-			}
-
-			if err := metricsStore.Deregister(); err != nil {
-				log.Fatalf("cannot graceful reboot metricsStore: %v", err)
-			}
-
-			if err := hbs.Deregister(); err != nil {
-				log.Fatalf("cannot graceful reboot the heartbeat service: %v", err)
-			}
-
-			deviceOs.GracefulRebootCompletionChannel <- struct{}{}
+		<-gracefulRebootChannel
+		log.Info("A graceful reboot request was received")
+		if err := wl.StopWorkloads(); err != nil {
+			log.Fatalf("cannot graceful reboot the workloads: %v", err)
 		}
+
+		if err := dataMonitor.Deregister(); err != nil {
+			log.Fatalf("cannot graceful reboot dataMonitor: %v", err)
+		}
+
+		if err := systemMetricsWatcher.Deregister(); err != nil {
+			log.Fatalf("cannot graceful reboot systemMetricsWatcher: %v", err)
+		}
+
+		if err := metricsStore.Deregister(); err != nil {
+			log.Fatalf("cannot graceful reboot metricsStore: %v", err)
+		}
+
+		if err := hbs.Deregister(); err != nil {
+			log.Fatalf("cannot graceful reboot the heartbeat service: %v", err)
+		}
+
+		deviceOs.GracefulRebootCompletionChannel <- struct{}{}
 	}
 }
 
 func setupSignalHandler(metricsStore *metrics.TSDB) {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		select {
-		case sig := <-c:
-			log.Infof("Got %s signal. Aborting...\n", sig)
-			closeComponents(metricsStore)
-			os.Exit(0)
-		}
+		sig := <-c
+		log.Infof("Got %s signal. Aborting...\n", sig)
+		closeComponents(metricsStore)
+		os.Exit(0)
 	}()
 }
 

@@ -54,7 +54,7 @@ func NewSystemdManager(configDir string) (SystemdManager, error) {
 	services := make(map[string]Service)
 
 	servicePath := path.Join(configDir, "services.json")
-	servicesJson, err := ioutil.ReadFile(servicePath)
+	servicesJson, err := ioutil.ReadFile(servicePath) //#nosec
 	if err == nil {
 		err := json.Unmarshal(servicesJson, &services)
 		if err != nil {
@@ -94,7 +94,7 @@ func (mgr *systemdManager) write() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(mgr.svcFilePath, svcJson, 0640)
+	err = ioutil.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func NewSystemd(name string, serviceNamePrefix string, units map[string]string) 
 
 func (s *systemd) Add() error {
 	for unit, content := range s.UnitsContent {
-		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+ServiceSuffix), []byte(content), 0644)
+		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+ServiceSuffix), []byte(content), 0644) //#nosec
 		if err != nil {
 			return err
 		}

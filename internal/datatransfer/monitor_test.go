@@ -101,7 +101,8 @@ var _ = Describe("Datatransfer", func() {
 			WorkloadsMonitoringInterval: 0,
 		}
 
-		configManager.Update(cfg)
+		err := configManager.Update(cfg)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
@@ -277,7 +278,8 @@ var _ = Describe("Datatransfer", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration.Storage = nil
-			configManager.Update(cfg)
+			err := configManager.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// when
 			res := monitor.HasStorageDefined()
@@ -290,7 +292,8 @@ var _ = Describe("Datatransfer", func() {
 			// given
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			cfg.Configuration.Storage.S3 = nil
-			configManager.Update(cfg)
+			err := configManager.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// when
 			res := monitor.HasStorageDefined()

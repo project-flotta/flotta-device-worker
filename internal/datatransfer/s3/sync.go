@@ -86,7 +86,7 @@ func createHttpClient(caBundle []byte) *http.Client {
 	}
 	rootCAs.AppendCertsFromPEM(caBundle)
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{RootCAs: rootCAs},
+		TLSClientConfig: &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 	}
 	client := &http.Client{Transport: tr}
 	return client

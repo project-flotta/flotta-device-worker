@@ -93,17 +93,15 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 
 	go func() {
 		for {
-			select {
-			case msg := <-events:
-				switch msg.Event {
-				case podman.StartedContainer:
-					for _, observer := range ww.observers {
-						observer.WorkloadStarted(msg.WorkloadName, []*podman.PodReport{msg.Report})
-					}
-				case podman.StoppedContainer:
-					for _, observer := range ww.observers {
-						observer.WorkloadRemoved(msg.WorkloadName)
-					}
+			msg := <-events
+			switch msg.Event {
+			case podman.StartedContainer:
+				for _, observer := range ww.observers {
+					observer.WorkloadStarted(msg.WorkloadName, []*podman.PodReport{msg.Report})
+				}
+			case podman.StoppedContainer:
+				for _, observer := range ww.observers {
+					observer.WorkloadRemoved(msg.WorkloadName)
 				}
 			}
 		}
@@ -221,7 +219,7 @@ func (ww Workload) removeService(workloadName string) error {
 	}
 
 	// Ignore stop failure:
-	svc.Stop()
+	_ = svc.Stop()
 
 	// Remove the service from the system:
 	if err := svc.Remove(); err != nil {
@@ -279,7 +277,7 @@ func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {
 }
 
 func (ww Workload) Start(workload *v1.Pod) error {
-	ww.netfilter.DeleteChain(nfTableName, workload.Name)
+	_ = ww.netfilter.DeleteChain(nfTableName, workload.Name)
 	if err := ww.applyNetworkConfiguration(workload); err != nil {
 		return err
 	}

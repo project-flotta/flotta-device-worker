@@ -41,7 +41,8 @@ func NewMonitor(workloadsManager *workload.WorkloadManager, configManager *confi
 func (m *Monitor) Start() {
 	go func() {
 		for range m.ticker.C {
-			m.syncPaths()
+			err := m.syncPaths()
+			log.Error("Cannot sync paths: ", err)
 		}
 		log.Infof("the monitor was stopped. DeviceID: %s;", m.workloads.GetDeviceID())
 	}()
@@ -67,7 +68,6 @@ func (m *Monitor) GetLastSuccessfulSyncTime(workloadName string) *time.Time {
 // WorkloadStarted is defined to satisfied the workload.Observer Interface, do
 // nothing.
 func (m *Monitor) WorkloadStarted(workloadName string, report []*podman.PodReport) {
-	return
 }
 
 func (m *Monitor) WorkloadRemoved(workloadName string) {

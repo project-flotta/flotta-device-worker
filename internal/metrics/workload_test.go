@@ -5,6 +5,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
 	"github.com/project-flotta/flotta-operator/models"
@@ -71,7 +72,8 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// when
 			wrk.WorkloadStarted("wrk1", []*podman.PodReport{report})
@@ -101,7 +103,9 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// then
 			daemonMock.EXPECT().AddTarget(
@@ -137,7 +141,9 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// then
 			daemonMock.EXPECT().AddTarget(
@@ -182,7 +188,9 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// then
 			daemonMock.EXPECT().AddTarget(
@@ -228,7 +236,8 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// then
 			daemonMock.EXPECT().AddTarget(
@@ -273,7 +282,9 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// then
 			daemonMock.EXPECT().AddTarget(
@@ -308,7 +319,9 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// then
 			daemonMock.EXPECT().AddTarget(
@@ -342,7 +355,8 @@ var _ = Describe("Workload", func() {
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
 			}
-			wrk.Update(cfg)
+			err := wrk.Update(cfg)
+			Expect(err).NotTo(HaveOccurred())
 
 			// then
 			daemonMock.EXPECT().AddTarget(

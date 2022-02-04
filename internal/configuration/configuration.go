@@ -46,7 +46,7 @@ type Manager struct {
 func NewConfigurationManager(dataDir string) *Manager {
 	deviceConfigFile := path.Join(dataDir, "device-config.json")
 	log.Infof("device config file: %s", deviceConfigFile)
-	file, err := ioutil.ReadFile(deviceConfigFile)
+	file, err := ioutil.ReadFile(deviceConfigFile) //#nosec
 	var deviceConfiguration models.DeviceConfigurationMessage
 	initialConfig := atomic.Value{}
 	initialConfig.Store(false)
@@ -130,7 +130,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	}
 
 	log.Tracef("writing config to %s: %v", m.deviceConfigFile, file)
-	err = ioutil.WriteFile(m.deviceConfigFile, file, 0640)
+	err = ioutil.WriteFile(m.deviceConfigFile, file, 0600)
 	if err != nil {
 		errors = multierror.Append(fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
 		return errors
