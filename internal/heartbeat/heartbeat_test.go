@@ -3,6 +3,7 @@ package heartbeat_test
 import (
 	"context"
 	"fmt"
+
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 
 	"github.com/golang/mock/gomock"
@@ -189,5 +190,9 @@ func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOpt
 }
 
 func (d *Dispatcher) Register(ctx context.Context, in *pb.RegistrationRequest, opts ...grpc.CallOption) (*pb.RegistrationResponse, error) {
+	return nil, nil
+}
+
+func (d *Dispatcher) GetConfig(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.Config, error) {
 	return nil, nil
 }

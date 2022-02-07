@@ -3,13 +3,16 @@ RELEASE = 1
 DIST_DIR = $(shell pwd)/dist
 CGO_ENABLED = 0
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
+BUILDROOT ?=
 
 DOCKER ?= podman
 
 ifeq ($(OS),fedora)
 	LIBEXECDIR ?= /usr/local/libexec
+	SYSCONFDIR ?= /usr/local/etc
 else
 	LIBEXECDIR ?= /usr/libexec
+	SYSCONFDIR ?= /etc
 endif
 
 export GOFLAGS=-mod=vendor -tags=containers_image_openpgp
@@ -88,16 +91,20 @@ build-arm64: ## Build device worker for arm64
 
 ##@ Deployment
 
+install-worker-config:
+	mkdir -p $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/
+	sed 's,#LIBEXEC#,$(LIBEXECDIR),g' config/device-worker.toml > $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/device-worker.toml
+
 install: ## Install device-worker with debug enabled
-install-debug: build-debug
+install-debug: build-debug install-worker-config
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install: ## Install device-worker
-install: build
+install: build install-worker-config
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install-arm64: ## Install device-worker on arm64.
-install-arm64: build-arm64
+install-arm64: build-arm64 install-worker-config
 	sudo install -D -m 755 ./bin/device-worker-aarch64 $(LIBEXECDIR)/yggdrasil/device-worker
 
 

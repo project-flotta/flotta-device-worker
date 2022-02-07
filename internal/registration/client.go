@@ -14,4 +14,6 @@ type DispatcherClient interface {
 	Register(ctx context.Context, in *pb.RegistrationRequest, opts ...grpc.CallOption) (*pb.RegistrationResponse, error)
 	// Send is called by a worker to send data to the dispatcher.
 	Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Receipt, error)
+
+	GetConfig(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.Config, error)
 }

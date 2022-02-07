@@ -667,7 +667,7 @@ github.com/prometheus/prometheus/tsdb/tombstones
 github.com/prometheus/prometheus/tsdb/tsdbutil
 github.com/prometheus/prometheus/tsdb/wal
 github.com/prometheus/prometheus/util/testutil
-# github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a => github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e
+# github.com/redhatinsights/yggdrasil v0.0.0-20220210193750-d696ee7a54bb
 ## explicit
 github.com/redhatinsights/yggdrasil/protocol
 # github.com/rivo/uniseg v0.2.0
@@ -957,7 +957,6 @@ sigs.k8s.io/structured-merge-diff/v4/value
 sigs.k8s.io/yaml
 # github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 # github.com/containers/buildah => github.com/containers/buildah v1.23.1
-# github.com/redhatinsights/yggdrasil => github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e
 # k8s.io/client-go => k8s.io/client-go v0.21.0
 # sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820
 # sigs.k8s.io/cluster-api-provider-azure => github.com/openshift/cluster-api-provider-azure v0.1.0-alpha.3.0.20201016155852-4090a6970205

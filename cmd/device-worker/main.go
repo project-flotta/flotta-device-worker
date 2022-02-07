@@ -38,7 +38,7 @@ const (
 func main() {
 	log.SetFlags(0) // No datatime, is already done on yggradsil server
 
-	logLevel, ok := os.LookupEnv("LOG_LEVEL")
+	logLevel, ok := os.LookupEnv("YGG_LOG_LEVEL")
 	if !ok {
 		logLevel = "ERROR"
 	}
@@ -53,7 +53,7 @@ func main() {
 		log.Fatal("missing YGG_SOCKET_ADDR environment variable")
 	}
 
-	baseDataDir, ok := os.LookupEnv("BASE_DATA_DIR")
+	baseDataDir, ok := os.LookupEnv("YGG_CONFIG_DIR")
 	if !ok {
 		log.Warnf("missing BASE_DATA_DIR environment variable. Using default: %s", defaultDataDir)
 		baseDataDir = defaultDataDir
@@ -93,7 +93,7 @@ func main() {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
-	deviceId, ok := os.LookupEnv("DEVICE_ID")
+	deviceId, ok := os.LookupEnv("YGG_CLIENT_ID")
 	if !ok {
 		log.Warn("DEVICE_ID environment variable has not been set")
 		deviceId = "unknown"

@@ -38,11 +38,16 @@ go build -o ./bin/device-worker ./cmd/device-worker
 cd flotta-agent-%{VERSION}
 mkdir -p %{buildroot}%{_libexecdir}/yggdrasil/
 install ./bin/device-worker %{buildroot}%{_libexecdir}/yggdrasil/device-worker
+make install-worker-config LIBEXECDIR=%{_libexecdir} BUILDROOT=%{buildroot} SYSCONFDIR=%{_sysconfdir}
 
 %files
 %{_libexecdir}/yggdrasil/device-worker
+%{_sysconfdir}/yggdrasil/
 
 %changelog
+
+* Fri Feb 11 2022 Eloy Coto <eloycoto@acalustra.com> 1.1
+Using latest version of yggdrasil
 
 * Tue Nov 02 2021 Eloy Coto <eloycoto@acalustra.com> 1.0
 Compile Go code directly on the RPM spec, don't ship binaries.
