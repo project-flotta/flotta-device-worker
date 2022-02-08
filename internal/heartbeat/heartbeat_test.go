@@ -50,7 +50,8 @@ var _ = Describe("Heartbeat", func() {
 		configManager = configuration.NewConfigurationManager(datadir)
 		client = Dispatcher{}
 		gracefulRebootChannel := make(chan struct{})
-		deviceOs = os2.NewOS(gracefulRebootChannel)
+		osExecCommands := os2.NewOsExecCommands()
+		deviceOs = os2.NewOS(gracefulRebootChannel, osExecCommands)
 		hb = heartbeat.NewHeartbeatService(&client,
 			configManager,
 			wkManager,

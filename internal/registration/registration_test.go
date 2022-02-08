@@ -65,7 +65,8 @@ var _ = Describe("Registration", func() {
 		systemMetrics = metrics.NewSystemMetricsWithNodeExporter(daemonMock, nil)
 
 		gracefulRebootChannel := make(chan struct{})
-		deviceOs = os.NewOS(gracefulRebootChannel)
+		osExecCommands := os.NewOsExecCommands()
+		deviceOs = os.NewOS(gracefulRebootChannel, osExecCommands)
 
 		hb = heartbeat.NewHeartbeatService(dispatcherMock,
 			configManager,
