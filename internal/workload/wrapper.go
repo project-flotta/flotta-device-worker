@@ -35,6 +35,7 @@ type WorkloadWrapper interface {
 	PersistConfiguration() error
 	RemoveTable() error
 	RemoveMappingFile() error
+	RemoveServicesFile() error
 	ListSecrets() (map[string]struct{}, error)
 	RemoveSecret(string) error
 	CreateSecret(string, string) error
@@ -171,6 +172,16 @@ func (ww Workload) RemoveTable() error {
 	}
 	return nil
 }
+
+func (ww Workload) RemoveServicesFile() error {
+	log.Infof("deleting services file")
+	if err := ww.serviceManager.RemoveServicesFile(); err != nil {
+		log.Errorf("failed to remove services file: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (ww Workload) RemoveMappingFile() error {
 	log.Infof("deleting mapping file")
 	if err := ww.mappingRepository.RemoveMappingFile(); err != nil {

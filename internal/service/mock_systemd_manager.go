@@ -74,3 +74,17 @@ func (mr *MockSystemdManagerMockRecorder) Remove(arg0 interface{}) *gomock.Call 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockSystemdManager)(nil).Remove), arg0)
 }
+
+// RemoveServicesFile mocks base method.
+func (m *MockSystemdManager) RemoveServicesFile() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveServicesFile")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveServicesFile indicates an expected call of RemoveServicesFile.
+func (mr *MockSystemdManagerMockRecorder) RemoveServicesFile() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveServicesFile", reflect.TypeOf((*MockSystemdManager)(nil).RemoveServicesFile))
+}

@@ -42,6 +42,7 @@ type SystemdManager interface {
 	Add(svc Service) error
 	Get(name string) Service
 	Remove(svc Service) error
+	RemoveServicesFile() error
 }
 
 type systemdManager struct {
@@ -62,6 +63,20 @@ func NewSystemdManager(configDir string) (SystemdManager, error) {
 		}
 	}
 	return &systemdManager{svcFilePath: servicePath, services: services, lock: sync.RWMutex{}}, nil
+}
+
+func (mgr *systemdManager) RemoveServicesFile() error {
+	mgr.lock.Lock()
+	defer mgr.lock.Unlock()
+
+	log.Infof("deleting %s file", mgr.svcFilePath)
+	err := os.Remove(mgr.svcFilePath)
+	if err != nil {
+		log.Errorf("failed to delete %s: %v", mgr.svcFilePath, err)
+		return err
+	}
+
+	return nil
 }
 
 func (mgr *systemdManager) Add(svc Service) error {

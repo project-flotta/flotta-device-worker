@@ -2,9 +2,10 @@ package registration_test
 
 import (
 	"fmt"
-	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"io/ioutil"
 	osUtil "os"
+
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 
 	gomock "github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -140,6 +141,7 @@ var _ = Describe("Registration", func() {
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
 			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
+			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
 			metricsMock.EXPECT().Deregister()
 			daemonMock.EXPECT().DeleteTarget("system")
 
@@ -160,6 +162,7 @@ var _ = Describe("Registration", func() {
 			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("failed"))
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
 			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
+			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
 			metricsMock.EXPECT().Deregister()
 			daemonMock.EXPECT().DeleteTarget("system")
 
@@ -182,6 +185,7 @@ var _ = Describe("Registration", func() {
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().RemoveTable().AnyTimes()
 			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
+			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
 			metricsMock.EXPECT().Deregister()
 			daemonMock.EXPECT().DeleteTarget("system")
 
@@ -201,6 +205,7 @@ var _ = Describe("Registration", func() {
 			wkwMock.EXPECT().List()
 			wkwMock.EXPECT().RemoveTable()
 			wkwMock.EXPECT().RemoveMappingFile()
+			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
 			metricsMock.EXPECT().Deregister()
 			daemonMock.EXPECT().DeleteTarget("system")
 
