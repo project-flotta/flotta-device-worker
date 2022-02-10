@@ -114,7 +114,7 @@ rpm-src: rpm-tarball
 		--buildroot $(DIST_DIR) ./flotta-agent.spec
 
 rpm-copr: rpm-src
-	copr build eloyocoto/k4e-test $(HOME)/rpmbuild/SRPMS/flotta-agent-$(VERSION)-$(RELEASE).*.src.rpm
+	copr build project-flotta/flotta/ $(HOME)/rpmbuild/SRPMS/flotta-agent-$(VERSION)-$(RELEASE).*.src.rpm
 
 rpm-build: rpm-src
 	rpmbuild $(RPMBUILD_OPTS) --rebuild $(HOME)/rpmbuild/SRPMS/flotta-agent-$(VERSION)-$(RELEASE).*.src.rpm
