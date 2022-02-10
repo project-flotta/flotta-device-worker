@@ -161,6 +161,20 @@ func (mr *MockWorkloadWrapperMockRecorder) RemoveSecret(arg0 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveSecret", reflect.TypeOf((*MockWorkloadWrapper)(nil).RemoveSecret), arg0)
 }
 
+// RemoveServicesFile mocks base method.
+func (m *MockWorkloadWrapper) RemoveServicesFile() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveServicesFile")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveServicesFile indicates an expected call of RemoveServicesFile.
+func (mr *MockWorkloadWrapperMockRecorder) RemoveServicesFile() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveServicesFile", reflect.TypeOf((*MockWorkloadWrapper)(nil).RemoveServicesFile))
+}
+
 // RemoveTable mocks base method.
 func (m *MockWorkloadWrapper) RemoveTable() error {
 	m.ctrl.T.Helper()

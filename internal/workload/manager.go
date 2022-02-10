@@ -334,6 +334,12 @@ func (w *WorkloadManager) Deregister() error {
 		log.Errorf("failed to remove mapping file. DeviceID: %s; err: %v", w.deviceId, err)
 	}
 
+	err = w.removeServicesFile()
+	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("failed to remove services file: %v", err))
+		log.Errorf("failed to remove services file. DeviceID: %s; err: %v", w.deviceId, err)
+	}
+
 	w.deregistered = true
 	return errors
 }
@@ -408,6 +414,16 @@ func (w *WorkloadManager) deleteTable() error {
 	err := w.workloads.RemoveTable()
 	if err != nil {
 		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkloadManager) removeServicesFile() error {
+	log.Infof("deleting services file. DeviceID: %s;", w.deviceId)
+	err := w.workloads.RemoveServicesFile()
+	if err != nil {
 		return err
 	}
 
