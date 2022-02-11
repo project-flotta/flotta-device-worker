@@ -5,6 +5,7 @@ CGO_ENABLED = 0
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
 
 DOCKER ?= podman
+IMG ?= quay.io/project-flotta/edgedevice:latest
 
 ifeq ($(OS),fedora)
 	LIBEXECDIR ?= /usr/local/libexec
@@ -124,6 +125,10 @@ rpm: ## Create rpm build
 
 rpm-arm64: ## Create rpm build for arm64
 	RPMBUILD_OPTS=--target=aarch64  $(MAKE) rpm-build
+
+deploy-container-image:
+	$(DOCKER) build ./tools/ -t ${IMG}
+	$(DOCKER) push ${IMG}
 
 dist: ## Create distribution packages
 dist: build build-arm64 rpm rpm-arm64
