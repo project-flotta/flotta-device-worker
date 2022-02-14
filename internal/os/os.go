@@ -2,11 +2,7 @@ package os
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -21,6 +17,7 @@ const (
 	TimeoutToGracefulRebootInSeconds = 10
 	EdgeConfFileName                 = "/etc/ostree/remotes.d/edge.conf"
 )
+
 
 type Deployments struct {
 	Checksum  string `json:"checksum"`
@@ -41,9 +38,10 @@ type OS struct {
 	LastUpgradeTime                 string
 	GracefulRebootChannel           chan struct{}
 	GracefulRebootCompletionChannel chan struct{}
+	osExecCommands                  OsExecCommands
 }
 
-func NewOS(gracefulRebootChannel chan struct{}) *OS {
+func NewOS(gracefulRebootChannel chan struct{}, osExecCommands OsExecCommands) *OS {
 	gracefulRebootCompletionChannel := make(chan struct{})
 	return &OS{
 		AutomaticallyUpgrade:            true,
@@ -52,24 +50,26 @@ func NewOS(gracefulRebootChannel chan struct{}) *OS {
 		HostedObjectsURL:                "",
 		GracefulRebootChannel:           gracefulRebootChannel,
 		GracefulRebootCompletionChannel: gracefulRebootCompletionChannel,
+		osExecCommands:                  osExecCommands,
 	}
 }
 
-func (o *OS) UpdateRpmOstreeStatus() {
-	cmd := exec.Command("rpm-ostree", "status", "--json")
-	stdout, err := cmd.Output()
-
+func (o *OS) updateOsStatus(){
+	stdout, err := o.osExecCommands.RpmOstreeStatus()
 	if err != nil {
-		log.Error("Failed to run 'rpm-ostree status'")
+		log.Errorf("failed to run 'rpm-ostree status', err: %v", err)
+		return
 	}
 
 	resUnMarsh := StatusStruct{}
-	if err := json.Unmarshal([]byte(stdout), &resUnMarsh); err != nil {
-		log.Error("Failed to unmarshal json")
+	if err := json.Unmarshal([]byte(stdout), &resUnMarsh); err != nil{
+		log.Errorf("failed to unmarshal json, err: %v", err)
+		return
 	}
 
 	if len(resUnMarsh.Deployments) == 0 {
-		log.Error("Failed to unmarshal json")
+		log.Errorf("no deployments in 'rpmostree status'")
+		return
 	}
 
 	// go over the deployments, check which one is the booted one and if it's the required
@@ -105,7 +105,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 
 	if newOSInfo.HostedObjectsURL != o.HostedObjectsURL {
 		log.Infof("Hosted Images URL has been changed to %s", newOSInfo.HostedObjectsURL)
-		err := updateURLInEdgeConfFile(newOSInfo.HostedObjectsURL)
+		err := o.osExecCommands.UpdateUrlInEdgeRemote(newOSInfo.HostedObjectsURL, EdgeConfFileName)
 		if err != nil {
 			log.Error("Failed updating file edge.conf")
 			return err
@@ -122,11 +122,8 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 			return nil
 		}
 
-		cmd := exec.Command("rpm-ostree", "update", "--preview")
-		stdout, err := cmd.Output()
-
+		stdout, err := o.osExecCommands.RpmOstreeUpdatePreview()
 		if err != nil {
-			log.Errorf("Failed to run 'rpm-ostree update --preview', err: %v", err)
 			return err
 		}
 
@@ -135,36 +132,29 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 			return fmt.Errorf("cannot find the new commit ID. %s", newOSInfo.CommitID)
 		}
 
-		err = updateGreenbootScripts()
+		err = o.updateGreenbootScripts()
 		if err != nil {
 			log.Errorf("Failed to update Greenboot scripts, err: %v", err)
 			return err
 		}
 
-		cmd = exec.Command("rpm-ostree", "upgrade")
-		_, err = cmd.Output()
-
+		err = o.osExecCommands.RpmOstreeUpgrade()
 		if err != nil {
-			log.Errorf("Failed to run 'rpm-ostree upgrade', err: %v", err)
 			return err
 		}
 
-		o.GracefulRebootFlow()
+		o.gracefulRebootFlow()
 
-		cmd = exec.Command("systemctl", "reboot")
-		_, err = cmd.Output()
-
+		err = o.osExecCommands.SystemReboot()
 		if err != nil {
-			return fmt.Errorf("failed to run 'systemctl reboot': %s", err)
+			return err
 		}
-
-		return nil
 	}
 
 	return nil
 }
 
-func (o *OS) GracefulRebootFlow() {
+func (o *OS) gracefulRebootFlow(){
 	log.Info("Starting graceful reboot")
 	// send signal for graceful rebooting
 	o.GracefulRebootChannel <- struct{}{}
@@ -185,7 +175,7 @@ func (o *OS) GracefulRebootFlow() {
 
 func (o *OS) GetUpgradeStatus() *models.UpgradeStatus {
 	var upgradeStatus models.UpgradeStatus
-	o.UpdateRpmOstreeStatus()
+	o.updateOsStatus()
 	upgradeStatus.CurrentCommitID = o.OsCommit
 	upgradeStatus.LastUpgradeTime = o.LastUpgradeTime
 	upgradeStatus.LastUpgradeStatus = o.LastUpgradeStatus
@@ -193,62 +183,14 @@ func (o *OS) GetUpgradeStatus() *models.UpgradeStatus {
 	return &upgradeStatus
 }
 
-func updateURLInEdgeConfFile(newURL string) error {
-	input, err := ioutil.ReadFile(EdgeConfFileName)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(string(input), "\n")
-
-	for i, line := range lines {
-		if strings.Contains(line, "url=") {
-			lines[i] = "url=" + newURL
-		}
-	}
-
-	output := strings.Join(lines, "\n")
-	err = ioutil.WriteFile(EdgeConfFileName, []byte(output), 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func updateGreenbootScripts() error {
+func (o *OS) updateGreenbootScripts() error{
 	log.Info("Update Greenboot scripts")
-	if err := ensureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil {
+	if err := o.osExecCommands.EnsureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil{
 		return err
 	}
 
-	if err := ensureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil {
+	if err := o.osExecCommands.EnsureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil{
 		return err
-	}
-
-	return nil
-}
-
-func ensureScriptExists(fileName string, script string) error {
-	_, err := os.Stat(fileName)
-	if err == nil {
-		log.Infof("File %s already exists", fileName)
-	} else {
-		if errors.Is(err, os.ErrNotExist) {
-			greenbootFailFile, err := os.Create(fileName) //#nosec
-			if err != nil {
-				return err
-			}
-			_, err = greenbootFailFile.Write([]byte(script))
-			if err != nil {
-				return err
-			}
-			err = greenbootFailFile.Chmod(0755)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
 	}
 
 	return nil
