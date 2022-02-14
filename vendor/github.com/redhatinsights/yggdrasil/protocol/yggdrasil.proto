@@ -11,14 +11,18 @@ service Dispatcher {
 
     // Send is called by a worker to send data to the dispatcher.
     rpc Send (Data) returns (Receipt) {}
+
+    // GetConfig can be called by a worker to get the current configuration
+    // state of the dispatcher service.
+    rpc GetConfig (Empty) returns (Config) {}
 }
 
 service Worker {
     // Send is called by the dispatcher to send data to a worker.
     rpc Send (Data) returns (Receipt) {}
 
-    // Disconnect is called by an operator to handle device deregistration gracefully
-    rpc Disconnect (Empty) returns (DisconnectResponse) {}
+    // NotifyEvent is called by the dispatcher to send event information to a worker.
+    rpc NotifyEvent (EventNotification) returns (EventReceipt) {}
 }
 
 // An Empty message.
@@ -71,5 +75,56 @@ message Data {
 // A Receipt message is sent as a successful response to a Send method.
 message Receipt {}
 
-// A DisconnectResponse message is sent as a successful response to a Disconnect method.
-message DisconnectResponse {}
+// An EventReceipt message is sent as a successful response to the NotifyEven method.
+message EventReceipt {}
+
+enum Event {
+    // UNKNOWN is an undeclared event; protobuf requires the presence of a zero value. It shouldn't be used.
+    UNKNOWN = 0;
+
+    // RECEIVED_DISCONNECT is sent by the dispatcher to workers when the service received the "disconnect" command.
+    RECEIVED_DISCONNECT = 1;
+
+    // UNEXPECTED_DISCONNECT is sent by the dispatcher when the service unexpectedly disconnects from the network.
+    UNEXPECTED_DISCONNECT = 2;
+
+    // CONNECTION_RESTORED is sent by the dispatcher when the service re-connects to the network.
+    CONNECTION_RESTORED = 3;
+}
+
+// An EventNotification message contains data and metadata describing event occurring in the dispatcher.
+message EventNotification {
+    // The name of an event.
+    Event name = 1;
+    // Details of the event.
+    string detail = 2;
+    // Optional key-value pairs.
+    map<string, string> metadata = 3;
+}
+
+// A Config message contains current configuration state for the dispatcher.
+message Config {
+  // The level value used for logging.
+  string log_level = 1;
+
+  // A unique identification value for the client over connection transports.
+  string client_id = 2;
+
+  // The socket address on which yggd is listening.
+  string socket_addr = 3;
+
+  // A URI to which yggd connects in order to send and receive data.
+  string server = 4;
+
+  // A path to a public certificate, optionally used along with key_file to
+  // authenticate connections.
+  string cert_file = 5;
+
+  // A path to a private certificate, optionally used along with cert_file to
+  // authenticate connections.
+  string key_file = 6;
+
+  // A path to full chain certificate file to optionally include in the TLS
+  // configration's CA root list.
+  string ca_root = 7;
+}

@@ -36,6 +36,26 @@ func (m *MockDispatcherClient) EXPECT() *MockDispatcherClientMockRecorder {
 	return m.recorder
 }
 
+// GetConfig mocks base method.
+func (m *MockDispatcherClient) GetConfig(arg0 context.Context, arg1 *protocol.Empty, arg2 ...grpc.CallOption) (*protocol.Config, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetConfig", varargs...)
+	ret0, _ := ret[0].(*protocol.Config)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetConfig indicates an expected call of GetConfig.
+func (mr *MockDispatcherClientMockRecorder) GetConfig(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfig", reflect.TypeOf((*MockDispatcherClient)(nil).GetConfig), varargs...)
+}
+
 // Register mocks base method.
 func (m *MockDispatcherClient) Register(arg0 context.Context, arg1 *protocol.RegistrationRequest, arg2 ...grpc.CallOption) (*protocol.RegistrationResponse, error) {
 	m.ctrl.T.Helper()

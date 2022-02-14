@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"sync"
 	"time"
+
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/google/uuid"
@@ -89,7 +90,7 @@ func (r *Registration) registerDeviceOnce() error {
 		return err
 	}
 	registrationInfo := models.RegistrationInfo{
-		Hardware:  hardwareInformation,
+		Hardware: hardwareInformation,
 	}
 	content, err := json.Marshal(registrationInfo)
 	if err != nil {

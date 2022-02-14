@@ -21,7 +21,7 @@ require (
 	github.com/project-flotta/flotta-operator v0.0.0-20220201143337-5be843eed1c8
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
-	github.com/redhatinsights/yggdrasil v0.0.0-20210630184700-1d2d42276b6a
+	github.com/redhatinsights/yggdrasil v0.0.0-20220210193750-d696ee7a54bb
 	github.com/seqsense/s3sync v1.8.0
 	google.golang.org/grpc v1.40.0
 	k8s.io/api v0.22.4
@@ -32,7 +32,6 @@ require (
 replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
-	github.com/redhatinsights/yggdrasil => github.com/jakub-dzon/yggdrasil v0.0.0-20211012071055-27d969343f4e
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820
 	sigs.k8s.io/cluster-api-provider-azure => github.com/openshift/cluster-api-provider-azure v0.1.0-alpha.3.0.20201016155852-4090a6970205

@@ -43,13 +43,15 @@ func (s *deviceServer) Send(ctx context.Context, d *pb.Data) (*pb.Receipt, error
 }
 
 // Disconnect implements the "Disconnect" method of the Worker gRPC service.
-func (s *deviceServer) Disconnect(ctx context.Context, in *pb.Empty) (*pb.DisconnectResponse, error) {
-	log.Infof("received worker disconnect request. DeviceID: %s;", s.configManager.GetDeviceID())
-	err := s.registrationManager.Deregister()
-	if err != nil {
-		log.Warnf("cannot disconnect. DeviceID: %s; err: %v", s.configManager.GetDeviceID(), err)
-	}
-	// Respond to the disconnect request that the work was accepted.
-	return &pb.DisconnectResponse{}, nil
+func (s *deviceServer) NotifyEvent(ctx context.Context, in *pb.EventNotification) (*pb.EventReceipt, error) {
+	log.Infof("received worker event. DeviceID: %s; Event: %s", s.configManager.GetDeviceID(), in.Name)
 
+	if in.Name == pb.Event_RECEIVED_DISCONNECT {
+		log.Infof("Starting unregisting DeviceID: %s", s.configManager.GetDeviceID())
+		err := s.registrationManager.Deregister()
+		if err != nil {
+			log.Warnf("cannot disconnect. DeviceID: %s; err: %v", s.configManager.GetDeviceID(), err)
+		}
+	}
+	return &pb.EventReceipt{}, nil
 }
