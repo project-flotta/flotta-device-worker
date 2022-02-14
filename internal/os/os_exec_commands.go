@@ -11,7 +11,7 @@ import (
 )
 
 
-//go:generate mockgen -package=os -destination=mock_os.go . OsExecCommands
+//go:generate mockgen -package=os -destination=mock_os.go . osExecCommands
 type OsExecCommands interface {
 	RpmOstreeStatus() ([]byte, error)
 	RpmOstreeUpdatePreview() ([]byte, error)
@@ -21,13 +21,13 @@ type OsExecCommands interface {
 	UpdateUrlInEdgeRemote(newURL string, remoteFileName string) error
 }
 
-type osExecCommandsStruct struct {}
+type osExecCommands struct {}
 
 func NewOsExecCommands() OsExecCommands{
-	return &osExecCommandsStruct{}
+	return &osExecCommands{}
 }
 
-func (o *osExecCommandsStruct) RpmOstreeStatus() ([]byte, error){
+func (o *osExecCommands) RpmOstreeStatus() ([]byte, error){
 	cmd := exec.Command("rpm-ostree", "status", "--json")
 	stdout, err := cmd.Output()
 
@@ -38,7 +38,7 @@ func (o *osExecCommandsStruct) RpmOstreeStatus() ([]byte, error){
 	return stdout, err
 }
 
-func (o *osExecCommandsStruct) RpmOstreeUpdatePreview() ([]byte, error){
+func (o *osExecCommands) RpmOstreeUpdatePreview() ([]byte, error){
 	cmd := exec.Command("rpm-ostree", "update", "--preview")
 	stdout, err := cmd.Output()
 
@@ -48,7 +48,7 @@ func (o *osExecCommandsStruct) RpmOstreeUpdatePreview() ([]byte, error){
 	return stdout, err
 }
 
-func (o *osExecCommandsStruct) RpmOstreeUpgrade() error{
+func (o *osExecCommands) RpmOstreeUpgrade() error{
 	cmd := exec.Command("rpm-ostree", "upgrade")
 	_, err := cmd.Output()
 
@@ -60,7 +60,7 @@ func (o *osExecCommandsStruct) RpmOstreeUpgrade() error{
 }
 
 
-func (o *osExecCommandsStruct) SystemReboot() error{
+func (o *osExecCommands) SystemReboot() error{
 	cmd := exec.Command("systemctl", "reboot")
 	_, err := cmd.Output()
 
@@ -70,7 +70,7 @@ func (o *osExecCommandsStruct) SystemReboot() error{
 	return err
 }
 
-func (o *osExecCommandsStruct) EnsureScriptExists(fileName string, script string) error{
+func (o *osExecCommands) EnsureScriptExists(fileName string, script string) error{
 	_, err := os.Stat(fileName)
 	if err == nil {
 		log.Infof("File %s already exists", fileName)
@@ -96,7 +96,7 @@ func (o *osExecCommandsStruct) EnsureScriptExists(fileName string, script string
 	return nil
 }
 
-func (o *osExecCommandsStruct) UpdateUrlInEdgeRemote(newURL string, remoteFileName string) error{
+func (o *osExecCommands) UpdateUrlInEdgeRemote(newURL string, remoteFileName string) error{
 	input, err := ioutil.ReadFile(filepath.Clean(remoteFileName))
 	if err != nil {
 		return err

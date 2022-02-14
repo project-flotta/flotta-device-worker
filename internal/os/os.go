@@ -38,7 +38,7 @@ type OS struct {
 	LastUpgradeTime                 string
 	GracefulRebootChannel           chan struct{}
 	GracefulRebootCompletionChannel chan struct{}
-	OsExecCommands                  OsExecCommands
+	osExecCommands                  OsExecCommands
 }
 
 func NewOS(gracefulRebootChannel chan struct{}, osExecCommands OsExecCommands) *OS {
@@ -50,24 +50,25 @@ func NewOS(gracefulRebootChannel chan struct{}, osExecCommands OsExecCommands) *
 		HostedObjectsURL:                "",
 		GracefulRebootChannel:           gracefulRebootChannel,
 		GracefulRebootCompletionChannel: gracefulRebootCompletionChannel,
-		OsExecCommands:                  osExecCommands,
+		osExecCommands:                  osExecCommands,
 	}
 }
 
 func (o *OS) updateOsStatus(){
-	stdout, err := o.OsExecCommands.RpmOstreeStatus()
+	stdout, err := o.osExecCommands.RpmOstreeStatus()
 	if err != nil {
+		log.Errorf("failed to run 'rpm-ostree status', err: %v", err)
 		return
 	}
 
 	resUnMarsh := StatusStruct{}
 	if err := json.Unmarshal([]byte(stdout), &resUnMarsh); err != nil{
-		log.Error("failed to unmarshal json")
+		log.Errorf("failed to unmarshal json, err: %v", err)
 		return
 	}
 
 	if len(resUnMarsh.Deployments) == 0 {
-		log.Error("failed to unmarshal json")
+		log.Errorf("no deployments in 'rpmostree status'")
 		return
 	}
 
@@ -104,8 +105,8 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 
 	if newOSInfo.HostedObjectsURL != o.HostedObjectsURL {
 		log.Infof("Hosted Images URL has been changed to %s", newOSInfo.HostedObjectsURL)
-		err := o.OsExecCommands.UpdateUrlInEdgeRemote(newOSInfo.HostedObjectsURL, EdgeConfFileName)
-		if err != nil{
+		err := o.osExecCommands.UpdateUrlInEdgeRemote(newOSInfo.HostedObjectsURL, EdgeConfFileName)
+		if err != nil {
 			log.Error("Failed updating file edge.conf")
 			return err
 		}
@@ -121,7 +122,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 			return nil
 		}
 
-		stdout, err := o.OsExecCommands.RpmOstreeUpdatePreview()
+		stdout, err := o.osExecCommands.RpmOstreeUpdatePreview()
 		if err != nil {
 			return err
 		}
@@ -137,14 +138,14 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 			return err
 		}
 
-		err = o.OsExecCommands.RpmOstreeUpgrade()
+		err = o.osExecCommands.RpmOstreeUpgrade()
 		if err != nil {
 			return err
 		}
 
 		o.gracefulRebootFlow()
 
-		err = o.OsExecCommands.SystemReboot()
+		err = o.osExecCommands.SystemReboot()
 		if err != nil {
 			return err
 		}
@@ -184,11 +185,11 @@ func (o *OS) GetUpgradeStatus() *models.UpgradeStatus {
 
 func (o *OS) updateGreenbootScripts() error{
 	log.Info("Update Greenboot scripts")
-	if err := o.OsExecCommands.EnsureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil{
+	if err := o.osExecCommands.EnsureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil{
 		return err
 	}
 
-	if err := o.OsExecCommands.EnsureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil{
+	if err := o.osExecCommands.EnsureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil{
 		return err
 	}
 

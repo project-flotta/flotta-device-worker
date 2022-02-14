@@ -128,8 +128,7 @@ func main() {
 	hw := hardware2.Hardware{}
 
 	gracefulRebootChannel = make(chan struct{})
-	osExecCommands := os2.NewOsExecCommands()
-	deviceOs := os2.NewOS(gracefulRebootChannel, osExecCommands)
+	deviceOs := os2.NewOS(gracefulRebootChannel, os2.NewOsExecCommands())
 	configManager.RegisterObserver(deviceOs)
 
 	dataMonitor := datatransfer.NewMonitor(wl, configManager)

@@ -21,7 +21,6 @@ func TestOs(t *testing.T) {
 
 const (
 	RequestedCommitId         = "123"
-	HostedUrl                 = "456"
 	NewHostedUrl              = "789"
 	UpgradeTime               = 1644322561
 	UnknownBootedCommitID     = "1"
@@ -66,7 +65,7 @@ var _ = Describe("Os", func() {
 			// given
 			deviceOS.RequestedOsCommit = RequestedCommitId
 
-			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeStatus(RequestedCommitId, UpgradeTime, OldCommitID)).AnyTimes()
+			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeStatus(RequestedCommitId, UpgradeTime, OldCommitID))
 
 			// when
 			upgradeStatus := deviceOS.GetUpgradeStatus()
@@ -160,29 +159,29 @@ var _ = Describe("Os", func() {
 		It("Changing the HostedURL", func() {
 			// given
 			cfg := createConfig(true, OldCommitID, NewHostedUrl)
-			osExecCommandsMock.EXPECT().UpdateUrlInEdgeRemote(NewHostedUrl, os2.EdgeConfFileName).Return(nil).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime)).AnyTimes()
+			osExecCommandsMock.EXPECT().UpdateUrlInEdgeRemote(NewHostedUrl, os2.EdgeConfFileName).Return(nil)
+			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime))
 
 			// when
 			err := deviceOS.Update(cfg)
 
 			//then
 			Expect(err).NotTo(HaveOccurred())
-			upgradeStatusBeforeAfterUpdate := deviceOS.GetUpgradeStatus()
-			Expect(upgradeStatusBeforeAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime),0).String()))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeStatus).To(Equal(StatusSucceeded))
+			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
+			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime),0).String()))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(StatusSucceeded))
 		})
 
 		It("Changing the CommitId", func() {
 			// given
 			cfg := createConfig(true, RequestedCommitId, "")
 
-			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(RequestedCommitId, UpgradeTime)).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(RequestedCommitId)).AnyTimes()
-			osExecCommandsMock.EXPECT().EnsureScriptExists(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeUpgrade().Return(nil).AnyTimes()
-			osExecCommandsMock.EXPECT().SystemReboot().Return(nil).AnyTimes()
+			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(RequestedCommitId, UpgradeTime))
+			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(RequestedCommitId))
+			osExecCommandsMock.EXPECT().EnsureScriptExists(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+			osExecCommandsMock.EXPECT().RpmOstreeUpgrade().Return(nil)
+			osExecCommandsMock.EXPECT().SystemReboot().Return(nil)
 			waitForGracefulRebootChannel(deviceOS)
 
 			// when
@@ -190,10 +189,10 @@ var _ = Describe("Os", func() {
 
 			//then
 			Expect(err).NotTo(HaveOccurred())
-			upgradeStatusBeforeAfterUpdate := deviceOS.GetUpgradeStatus()
-			Expect(upgradeStatusBeforeAfterUpdate.CurrentCommitID).To(Equal(RequestedCommitId))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime),0).String()))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeStatus).To(Equal(StatusSucceeded))
+			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
+			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(RequestedCommitId))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime),0).String()))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(StatusSucceeded))
 		})
 
 		It("Changing the CommitId but automaticallyUpgrade is false so the upgrade wouldn't be triggered", func() {
@@ -201,7 +200,7 @@ var _ = Describe("Os", func() {
 			deviceOS.AutomaticallyUpgrade = false
 			cfg := createConfig(false, RequestedCommitId, "")
 
-			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime)).AnyTimes()
+			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime))
 			waitForGracefulRebootChannel(deviceOS)
 
 			// when
@@ -209,18 +208,18 @@ var _ = Describe("Os", func() {
 
 			//then
 			Expect(err).NotTo(HaveOccurred())
-			upgradeStatusBeforeAfterUpdate := deviceOS.GetUpgradeStatus()
-			Expect(upgradeStatusBeforeAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
+			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
+			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
 		})
 
 		It("Changing the CommitId, but preview doesn't contain the requested comment so the upgrade wouldn't be triggered", func() {
 			// given
 			cfg := createConfig(true, RequestedCommitId, "")
 
-			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime)).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(AnotherCommitID)).AnyTimes()
+			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime))
+			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(AnotherCommitID))
 
 			// when
 			err := deviceOS.Update(cfg)
@@ -228,41 +227,41 @@ var _ = Describe("Os", func() {
 
 			//then
 			Expect(err).To(HaveOccurred())
-			upgradeStatusBeforeAfterUpdate := deviceOS.GetUpgradeStatus()
-			Expect(upgradeStatusBeforeAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
+			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
+			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
 		})
 
 		It("Changing the CommitId, but rpmostree upgrade was failed", func() {
 			// given
 			cfg := createConfig(true, RequestedCommitId, "")
 
-			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime)).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(RequestedCommitId)).AnyTimes()
-			osExecCommandsMock.EXPECT().EnsureScriptExists(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeUpgrade().Return(fmt.Errorf("Failed to upgrade")).AnyTimes()
+			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime))
+			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(RequestedCommitId))
+			osExecCommandsMock.EXPECT().EnsureScriptExists(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+			osExecCommandsMock.EXPECT().RpmOstreeUpgrade().Return(fmt.Errorf("Failed to upgrade"))
 
 			// when
 			err := deviceOS.Update(cfg)
 
 			//then
 			Expect(err).To(HaveOccurred())
-			upgradeStatusBeforeAfterUpdate := deviceOS.GetUpgradeStatus()
-			Expect(upgradeStatusBeforeAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
+			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
+			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
 		})
 
 		It("Changing the CommitId, but system reboot was failed", func() {
 			// given
 			cfg := createConfig(true, RequestedCommitId, "")
 
-			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime)).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(RequestedCommitId)).AnyTimes()
-			osExecCommandsMock.EXPECT().EnsureScriptExists(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			osExecCommandsMock.EXPECT().RpmOstreeUpgrade().Return(nil).AnyTimes()
-			osExecCommandsMock.EXPECT().SystemReboot().Return(fmt.Errorf("Failed to reboot")).AnyTimes()
+			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeBootedOnlyStatus(OldCommitID, UpgradeTime))
+			osExecCommandsMock.EXPECT().RpmOstreeUpdatePreview().Return(returnMockRpmUpdatePreview(RequestedCommitId))
+			osExecCommandsMock.EXPECT().EnsureScriptExists(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+			osExecCommandsMock.EXPECT().RpmOstreeUpgrade().Return(nil)
+			osExecCommandsMock.EXPECT().SystemReboot().Return(fmt.Errorf("Failed to reboot"))
 			waitForGracefulRebootChannel(deviceOS)
 
 			// when
@@ -270,10 +269,10 @@ var _ = Describe("Os", func() {
 
 			//then
 			Expect(err).To(HaveOccurred())
-			upgradeStatusBeforeAfterUpdate := deviceOS.GetUpgradeStatus()
-			Expect(upgradeStatusBeforeAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
-			Expect(upgradeStatusBeforeAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
+			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
+			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(OldUpgradeTime))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(OldUpgradeStatus))
 		})
 	})
 })
