@@ -47,7 +47,7 @@ repo (https://github.com/jakub-dzon/yggdrasil) directory :
 sudo go run ./cmd/yggd \
   --log-level info \
   --protocol http \
-  --path-prefix /api/flotta-management/v1 \
+  --path-prefix api/flotta-management/v1 \
   --client-id $(cat /etc/machine-id) \
   --cert-file /etc/pki/consumer/cert.pem \
   --key-file /etc/pki/consumer/key.pem \
