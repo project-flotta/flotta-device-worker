@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -52,17 +53,23 @@ type systemdManager struct {
 }
 
 func NewSystemdManager(configDir string) (SystemdManager, error) {
-	services := make(map[string]Service)
+	services := make(map[string]*systemd)
 
 	servicePath := path.Join(configDir, "services.json")
 	servicesJson, err := ioutil.ReadFile(servicePath) //#nosec
 	if err == nil {
 		err := json.Unmarshal(servicesJson, &services)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot unmarshal %v: %w", servicePath, err)
 		}
 	}
-	return &systemdManager{svcFilePath: servicePath, services: services, lock: sync.RWMutex{}}, nil
+
+	systemdSVC := make(map[string]Service)
+	for k, v := range services {
+		systemdSVC[k] = v
+	}
+
+	return &systemdManager{svcFilePath: servicePath, services: systemdSVC, lock: sync.RWMutex{}}, nil
 }
 
 func (mgr *systemdManager) RemoveServicesFile() error {
