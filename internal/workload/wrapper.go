@@ -65,20 +65,20 @@ func NewWorkload(p podman.Podman, n network.Netfilter, m mapping.MappingReposito
 func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, error) {
 	newPodman, err := podman.NewPodman()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("workload cannot initialize podman manager: %w", err)
 	}
 	netfilter, err := network.NewNetfilter()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("workload cannot initialize netfilter manager: %w", err)
 	}
 	mappingRepository, err := mapping.NewMappingRepository(configDir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("workload cannot initialize mapping repository: %w", err)
 	}
 
 	serviceManager, err := service.NewSystemdManager(configDir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("workload cannot initialize systemd manager: %w", err)
 	}
 
 	ww := &Workload{
