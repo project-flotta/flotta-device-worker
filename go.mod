@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
+	github.com/apenella/go-ansible v1.1.5-0.20220209064719-f30718618e12
 	github.com/aws/aws-sdk-go v1.42.16
 	github.com/containernetworking/plugins v1.0.1 // indirect
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
@@ -12,7 +13,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/opencontainers/runtime-tools v0.9.1-0.20211020193359-09d837bf40a7 // indirect

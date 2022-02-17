@@ -1,0 +1,9 @@
+---
+-  name: Very long task
+   hosts: 127.0.0.1
+   gather_facts: false
+
+   tasks:
+   - name: Pause for 5 minutes to build app cache
+     pause:
+       minutes: 5

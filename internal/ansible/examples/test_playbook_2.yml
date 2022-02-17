@@ -1,0 +1,50 @@
+---
+
+- hosts: all
+  gather_facts: false
+  vars:
+    array:
+      - Your are running
+      - an 
+      - example
+    map:
+      intro: Your are running
+      what: ansibleplaybook
+      outro: example
+
+  tasks:
+    - name: ansibleplaybook
+      debug:
+        msg: |
+          Your are running
+          an
+          example
+    - name: ansibleplaybook from array
+      debug:
+        msg: "{{ array }}"
+
+    - name: Skipped task
+      ansible.builtin.shell: echo "'{{ foo }}'"
+      when: foo is defined 
+
+    - name: Ignored task
+      ansible.builtin.command: /bin/false
+      ignore_errors: true
+      
+    - block:
+      - name: Failing intentionally
+        command: "ls -l /tmp/does-not-exist"
+
+      rescue:
+        - name: Rescue block (perform recovery)
+          debug:
+            msg: "Something went wrong, cleaning up.."
+
+    - name: Executes a failing command
+      ansible.builtin.command: /usr/bin/ls /tmp/foobaar.foo
+      register: command_result
+      failed_when: "'No such file or directory' in command_result.stderr"
+
+    - name: json-stdout-ansibleplaybook from map. Never executed
+      debug:
+        msg: "{{ map }}"

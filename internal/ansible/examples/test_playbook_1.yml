@@ -1,0 +1,16 @@
+---
+-  name: Hello World Ansible Playbook
+   hosts: 127.0.0.1
+   gather_facts: false
+   
+   tasks:
+   - name: Create a file called '/tmp/testfile.txt' with the content 'hello world'.
+     copy:
+       content: hello world
+       dest: /tmp/testfile.txt
+   - name: Another task
+     debug:
+       msg: Test message
+   - name: Last task
+     debug:
+       var: ansible_facts

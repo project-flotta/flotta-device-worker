@@ -46,6 +46,17 @@ github.com/VividCortex/ewma
 github.com/acarl005/stripansi
 # github.com/alecthomas/units v0.0.0-20210927113745-59d0afb8317a
 github.com/alecthomas/units
+# github.com/apenella/go-ansible v1.1.5-0.20220209064719-f30718618e12
+## explicit
+github.com/apenella/go-ansible/pkg/execute
+github.com/apenella/go-ansible/pkg/options
+github.com/apenella/go-ansible/pkg/playbook
+github.com/apenella/go-ansible/pkg/stdoutcallback
+github.com/apenella/go-ansible/pkg/stdoutcallback/results
+# github.com/apenella/go-common-utils/data v0.0.0-20210528133155-34ba915e28c8
+github.com/apenella/go-common-utils/data
+# github.com/apenella/go-common-utils/error v0.0.0-20210528133155-34ba915e28c8
+github.com/apenella/go-common-utils/error
 # github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef
 github.com/asaskevich/govalidator
 # github.com/aws/aws-sdk-go v1.42.16
@@ -515,8 +526,7 @@ github.com/manifoldco/promptui/list
 github.com/manifoldco/promptui/screenbuf
 # github.com/mattn/go-colorable v0.1.8
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.14
-## explicit
+# github.com/mattn/go-isatty v0.0.12
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.13
 github.com/mattn/go-runewidth
