@@ -3,6 +3,7 @@ package podman
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/project-flotta/flotta-device-worker/internal/service"
@@ -29,6 +30,11 @@ const (
 	podmanStop   = string(podmanEvents.Stop)
 )
 
+var (
+	logTailLines = "1"
+	boolTrue     = true
+)
+
 //go:generate mockgen -package=podman -destination=mock_podman.go . Podman
 type Podman interface {
 	List() ([]api2.WorkloadInfo, error)
@@ -42,6 +48,7 @@ type Podman interface {
 	UpdateSecret(name, data string) error
 	Exists(workloadId string) (bool, error)
 	GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error)
+	Logs(podID string, res io.Writer) (context.CancelFunc, error)
 }
 
 type PodmanEvent struct {
@@ -315,4 +322,57 @@ func (p *podman) GenerateSystemdService(podId string, monitoringInterval uint) (
 	}
 
 	return svc, nil
+}
+
+// Retrieve all pods logs and send that to the given io.Writer
+func (p *podman) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
+
+	podInfo, err := pods.Inspect(p.podmanConnection, podID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := containers.LogOptions{
+		Follow: &boolTrue,
+		Stderr: &boolTrue,
+		Stdout: &boolTrue,
+		Tail:   &logTailLines,
+	}
+
+	ctx, cancel := context.WithCancel(p.podmanConnection)
+	stdoutCh := make(chan string, 100)
+	stderrCh := make(chan string, 100)
+
+	for _, container := range podInfo.Containers {
+		go func(name string) {
+			err := containers.Logs(ctx, name, &opts, stdoutCh, stderrCh)
+			if err != nil {
+				log.Errorf("cannot get container '%v' logs: %v", name, err)
+			}
+		}(container.ID)
+	}
+
+	go func() {
+		for {
+			select {
+			case line := <-stdoutCh:
+				_, err = io.WriteString(res, line)
+				if err != nil {
+					log.Errorf("cannot write log line to io.Writer: %v", err)
+				}
+			case line := <-stderrCh:
+				_, err = io.WriteString(res, line)
+				if err != nil {
+					log.Errorf("cannot write log line to io.Writer: %v", err)
+				}
+			case <-ctx.Done():
+				log.Debugf("Stopping log retrieval for pod %v", podID)
+				close(stderrCh)
+				close(stdoutCh)
+				return
+			}
+		}
+	}()
+
+	return cancel, nil
 }
