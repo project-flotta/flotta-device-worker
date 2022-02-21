@@ -200,8 +200,8 @@ github.com/apache/arrow/go/arrow v0.0.0-20200601151325-b2287a20f230/go.mod h1:QN
 github.com/apache/arrow/go/arrow v0.0.0-20200923215132-ac86123a3f01/go.mod h1:QNYViu/X0HXDHw7m3KXzWSVXIbfUvJqBFe6Gj8/pYA0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/apenella/go-ansible v1.1.5-0.20220209064719-f30718618e12 h1:g/N3kZ+8n0D5f+Z/hFLjDv1i1BvWklX5gVyNfbabhcQ=
-github.com/apenella/go-ansible v1.1.5-0.20220209064719-f30718618e12/go.mod h1:RfpzSuv8Cbb2HvcdjPhzXtxUGlsE3cD+kTb+IeKXYfo=
+github.com/apenella/go-ansible v1.1.5 h1:kiAS3I9rgq1D6nBxuE4db/bhBNZO9Qy5bIsCHacOdJU=
+github.com/apenella/go-ansible v1.1.5/go.mod h1:RfpzSuv8Cbb2HvcdjPhzXtxUGlsE3cD+kTb+IeKXYfo=
 github.com/apenella/go-common-utils/data v0.0.0-20210528133155-34ba915e28c8 h1:bjcIpzMcDycgqE1C8rktB04QEOJD3+qKLE5vnBeJlZo=
 github.com/apenella/go-common-utils/data v0.0.0-20210528133155-34ba915e28c8/go.mod h1:pOb2o2/kk9IwfdAZ36n58dYAc5k8nzBJkwacgLDwpoM=
 github.com/apenella/go-common-utils/error v0.0.0-20210528133155-34ba915e28c8 h1:2u17yc+aQJwDHRqnmnJd3arxcGcatJ/0eCFJtq45suc=
