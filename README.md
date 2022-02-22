@@ -41,7 +41,17 @@ Generate client certificate (`cert.pem`) and key (`key.pem`) and put them in `/e
 ## Start yggdrasil
 
 To run yggdrasil configured to communicate with the flotta-operator HTTP API running on localhost:8888 execute in yggdrasil
-repo (https://github.com/jakub-dzon/yggdrasil) directory :
+repo (https://github.com/RedHatInsights/yggdrasil) directory :
+
+To install Yggdrasil from upstream repo:
+
+```
+git clone git@github.com:RedHatInsights/yggdrasil.git
+cd yggdrasil
+git checkout d696ee7a54bbf5775a88447bc40aae2259e8144c
+make
+```
+
 
 ```
 sudo go run ./cmd/yggd \
@@ -61,4 +71,19 @@ Also, the worker config need to be defined in the right location:
 exec = "/usr/local/libexec/yggdrasil/device-worker"
 protocol = "grpc"
 env = []
+```
+
+A common error is that worker cannot be started, with the following error
+message:
+
+```
+[yggd] 2022/02/21 16:55:00 ./cmd/yggd/main.go:189: starting yggd version 0.2.98
+cannot stop workers: cannot stop worker: cannot stop worker: cannot stop process: os: process already finished
+```
+
+To fix that error, you need to run the following, because device-worker was
+already stopped:
+
+```
+sudo rm /usr/local/var/run/yggdrasil/workers/device-worker.pid
 ```
