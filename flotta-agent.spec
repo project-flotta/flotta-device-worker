@@ -7,7 +7,7 @@ Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
 Group:      Flotta
 License:    GPL
-Source:    %{name}-%{version}.tar.gz
+Source0:    %{name}-%{version}.tar.gz
 
 BuildRequires:  golang
 
