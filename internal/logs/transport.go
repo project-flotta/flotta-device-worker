@@ -1,5 +1,9 @@
 package logs
 
+const (
+	SyslogTransport = "syslog"
+)
+
 type transport interface {
-	WriteLog(logline *LogEntry, workload string) error
+	WriteLog(logline *LogEntry) error
 }
