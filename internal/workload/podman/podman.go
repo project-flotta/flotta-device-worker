@@ -1,8 +1,11 @@
 package podman
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/project-flotta/flotta-device-worker/internal/service"
@@ -29,6 +32,11 @@ const (
 	podmanStop   = string(podmanEvents.Stop)
 )
 
+var (
+	logTailLines = "1"
+	boolTrue     = true
+)
+
 //go:generate mockgen -package=podman -destination=mock_podman.go . Podman
 type Podman interface {
 	List() ([]api2.WorkloadInfo, error)
@@ -42,6 +50,7 @@ type Podman interface {
 	UpdateSecret(name, data string) error
 	Exists(workloadId string) (bool, error)
 	GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error)
+	Logs(podID string, res io.Writer) (context.CancelFunc, error)
 }
 
 type PodmanEvent struct {
@@ -315,4 +324,97 @@ func (p *podman) GenerateSystemdService(podId string, monitoringInterval uint) (
 	}
 
 	return svc, nil
+}
+
+// Retrieve all pods logs and send that to the given io.Writer
+func (p *podman) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
+
+	podInfo, err := pods.Inspect(p.podmanConnection, podID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithCancel(p.podmanConnection)
+	readers := map[string]*bufio.Reader{}
+	for _, container := range podInfo.Containers {
+		res := &bytes.Buffer{}
+		err := p.containerLog(ctx, container.ID, res)
+
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		readers[container.ID] = bufio.NewReader(res)
+	}
+
+	go func() {
+		for {
+			for containerID, buffer := range readers {
+				resultLine := []byte{}
+				for {
+					line, isPrefix, _ := buffer.ReadLine()
+					if len(line) == 0 {
+						break
+					}
+
+					if !isPrefix {
+						resultLine = append(resultLine, line...)
+					}
+				}
+				if len(resultLine) > 0 {
+					_, err := res.Write([]byte(fmt.Sprintf("%s: %s\n", containerID, resultLine)))
+					if err != nil {
+						log.Errorf("Cannot write container log line: %v podID=%s containerID=%s", err, podID, containerID)
+					}
+				}
+			}
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				continue
+			}
+		}
+	}()
+	return cancel, nil
+}
+
+func (p *podman) containerLog(ctx context.Context, containerID string, res io.Writer) error {
+	opts := containers.LogOptions{
+		Follow: &boolTrue,
+		Stderr: &boolTrue,
+		Stdout: &boolTrue,
+		Tail:   &logTailLines,
+	}
+	stdoutCh := make(chan string, 100)
+	stderrCh := make(chan string, 100)
+
+	go func() {
+		err := containers.Logs(ctx, containerID, &opts, stdoutCh, stderrCh)
+		if err != nil {
+			log.Errorf("cannot get logs for container '%s': %v", containerID, err)
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case line := <-stdoutCh:
+				_, err := io.WriteString(res, line)
+				if err != nil {
+					log.Errorf("cannot write log line to io.Writer for container '%v': %v", containerID, err)
+				}
+			case line := <-stderrCh:
+				_, err := io.WriteString(res, line)
+				if err != nil {
+					log.Errorf("cannot write log line to io.Writer for container '%v': %v", containerID, err)
+				}
+			case <-ctx.Done():
+				close(stderrCh)
+				close(stdoutCh)
+				return
+			}
+		}
+	}()
+	return nil
 }

@@ -5,6 +5,8 @@
 package podman
 
 import (
+	context "context"
+	io "io"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -107,6 +109,21 @@ func (m *MockPodman) ListSecrets() (map[string]struct{}, error) {
 func (mr *MockPodmanMockRecorder) ListSecrets() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSecrets", reflect.TypeOf((*MockPodman)(nil).ListSecrets))
+}
+
+// Logs mocks base method.
+func (m *MockPodman) Logs(arg0 string, arg1 io.Writer) (context.CancelFunc, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Logs", arg0, arg1)
+	ret0, _ := ret[0].(context.CancelFunc)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Logs indicates an expected call of Logs.
+func (mr *MockPodmanMockRecorder) Logs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logs", reflect.TypeOf((*MockPodman)(nil).Logs), arg0, arg1)
 }
 
 // Remove mocks base method.
