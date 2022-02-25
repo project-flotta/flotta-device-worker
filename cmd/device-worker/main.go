@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/project-flotta/flotta-device-worker/internal/logs"
 	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
@@ -122,6 +123,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot start Workload Manager. DeviceID: %s; err: %v", deviceId, err)
 	}
+
+	logsWrapper := logs.NewWorkloadsLogsTarget(wl)
+	configManager.RegisterObserver(logsWrapper)
+	wl.RegisterObserver(logsWrapper)
 	configManager.RegisterObserver(wl)
 	wl.RegisterObserver(workloadMetricWatcher)
 
