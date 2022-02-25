@@ -1,7 +1,10 @@
 package workload
 
 import (
+	"context"
 	"fmt"
+
+	"io"
 	"sync"
 
 	"github.com/project-flotta/flotta-device-worker/internal/service"
@@ -29,6 +32,7 @@ type WorkloadWrapper interface {
 	Init() error
 	RegisterObserver(Observer)
 	List() ([]api.WorkloadInfo, error)
+	Logs(podID string, res io.Writer) (context.CancelFunc, error)
 	Remove(string) error
 	Stop(string) error
 	Run(*v1.Pod, string, string) error
@@ -141,6 +145,10 @@ func (ww *Workload) List() ([]api2.WorkloadInfo, error) {
 		}
 	}
 	return infos, err
+}
+
+func (ww *Workload) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
+	return ww.workloads.Logs(podID, res)
 }
 
 func (ww *Workload) Remove(workloadName string) error {

@@ -2,7 +2,9 @@ package workload
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -211,6 +213,10 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 	}
 
 	return errors
+}
+
+func (w *WorkloadManager) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
+	return w.workloads.Logs(podID, res)
 }
 
 func (w *WorkloadManager) ensureWorkloadDirExists(workloadName string) error {
