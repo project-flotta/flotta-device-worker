@@ -33,6 +33,7 @@ replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20210819154149-5ad6f50d6283
+	github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e => github.com/gciavarrini/flotta-operator v0.0.0-20220317111214-7a6ac749cf71
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	k8s.io/klog/v2 => k8s.io/klog/v2 v2.2.0
 	sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820
