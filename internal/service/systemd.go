@@ -77,7 +77,7 @@ func (mgr *systemdManager) RemoveServicesFile() error {
 	defer mgr.lock.Unlock()
 
 	log.Infof("deleting %s file", mgr.svcFilePath)
-	err := os.Remove(mgr.svcFilePath)
+	err := os.RemoveAll(mgr.svcFilePath)
 	if err != nil {
 		log.Errorf("failed to delete %s: %v", mgr.svcFilePath, err)
 		return err
