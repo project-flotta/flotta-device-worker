@@ -18,7 +18,6 @@ const (
 	EdgeConfFileName                 = "/etc/ostree/remotes.d/edge.conf"
 )
 
-
 type Deployments struct {
 	Checksum  string `json:"checksum"`
 	Timestamp int    `json:"timestamp"`
@@ -39,11 +38,17 @@ type OS struct {
 	GracefulRebootChannel           chan struct{}
 	GracefulRebootCompletionChannel chan struct{}
 	osExecCommands                  OsExecCommands
+	Enabled                         bool
 }
 
 func NewOS(gracefulRebootChannel chan struct{}, osExecCommands OsExecCommands) *OS {
 	gracefulRebootCompletionChannel := make(chan struct{})
+	osTreeAvailable := osExecCommands.IsRpmOstreeAvailable()
+	if !osTreeAvailable {
+		log.Warn("OS management is not available. OS configuration updates will have no effect.")
+	}
 	return &OS{
+		Enabled:                         osTreeAvailable,
 		AutomaticallyUpgrade:            true,
 		OsCommit:                        UnknownOsImageId,
 		RequestedOsCommit:               UnknownOsImageId,
@@ -54,7 +59,7 @@ func NewOS(gracefulRebootChannel chan struct{}, osExecCommands OsExecCommands) *
 	}
 }
 
-func (o *OS) updateOsStatus(){
+func (o *OS) updateOsStatus() {
 	stdout, err := o.osExecCommands.RpmOstreeStatus()
 	if err != nil {
 		log.Errorf("failed to run 'rpm-ostree status', err: %v", err)
@@ -62,7 +67,7 @@ func (o *OS) updateOsStatus(){
 	}
 
 	resUnMarsh := StatusStruct{}
-	if err := json.Unmarshal([]byte(stdout), &resUnMarsh); err != nil{
+	if err := json.Unmarshal([]byte(stdout), &resUnMarsh); err != nil {
 		log.Errorf("failed to unmarshal json, err: %v", err)
 		return
 	}
@@ -98,6 +103,10 @@ func (o *OS) Init(config models.DeviceConfigurationMessage) error {
 }
 
 func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
+	if !o.Enabled {
+		log.Debug("OS management is not available. Not updating OS configuration")
+		return nil
+	}
 	newOSInfo := configuration.Configuration.Os
 	if newOSInfo == nil {
 		return fmt.Errorf("cannot retrieve configuration info.")
@@ -154,7 +163,7 @@ func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
 	return nil
 }
 
-func (o *OS) gracefulRebootFlow(){
+func (o *OS) gracefulRebootFlow() {
 	log.Info("Starting graceful reboot")
 	// send signal for graceful rebooting
 	o.GracefulRebootChannel <- struct{}{}
@@ -175,7 +184,9 @@ func (o *OS) gracefulRebootFlow(){
 
 func (o *OS) GetUpgradeStatus() *models.UpgradeStatus {
 	var upgradeStatus models.UpgradeStatus
-	o.updateOsStatus()
+	if o.Enabled {
+		o.updateOsStatus()
+	}
 	upgradeStatus.CurrentCommitID = o.OsCommit
 	upgradeStatus.LastUpgradeTime = o.LastUpgradeTime
 	upgradeStatus.LastUpgradeStatus = o.LastUpgradeStatus
@@ -183,13 +194,13 @@ func (o *OS) GetUpgradeStatus() *models.UpgradeStatus {
 	return &upgradeStatus
 }
 
-func (o *OS) updateGreenbootScripts() error{
+func (o *OS) updateGreenbootScripts() error {
 	log.Info("Update Greenboot scripts")
-	if err := o.osExecCommands.EnsureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil{
+	if err := o.osExecCommands.EnsureScriptExists(GreenbootHealthCheckFileName, GreenbootHealthCheckScript); err != nil {
 		return err
 	}
 
-	if err := o.osExecCommands.EnsureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil{
+	if err := o.osExecCommands.EnsureScriptExists(GreenbooFailFileName, GreenbootFailScript); err != nil {
 		return err
 	}
 

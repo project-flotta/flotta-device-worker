@@ -13,7 +13,6 @@ import (
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 )
 
-
 func TestOs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Os Suite")
@@ -32,7 +31,6 @@ const (
 	OldUpgradeStatus          = StatusSucceeded
 	UnBootableUpgradeTime     = 0
 	AnotherCommitID           = "AnotherCommitID"
-
 )
 
 var _ = Describe("Os", func() {
@@ -48,6 +46,7 @@ var _ = Describe("Os", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		osExecCommandsMock = os2.NewMockOsExecCommands(mockCtrl)
 		gracefulRebootChannel = make(chan struct{})
+		osExecCommandsMock.EXPECT().IsRpmOstreeAvailable().Return(true)
 		deviceOS = os2.NewOS(gracefulRebootChannel, osExecCommandsMock)
 		deviceOS.OsCommit = OldCommitID
 		deviceOS.RequestedOsCommit = OldCommitID
@@ -72,7 +71,7 @@ var _ = Describe("Os", func() {
 
 			//then
 			Expect(upgradeStatus.CurrentCommitID).To(Equal(RequestedCommitId))
-			Expect(upgradeStatus.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime),0).String()))
+			Expect(upgradeStatus.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime), 0).String()))
 			Expect(upgradeStatus.LastUpgradeStatus).To(Equal(StatusSucceeded))
 		})
 
@@ -110,7 +109,7 @@ var _ = Describe("Os", func() {
 		It("Get upgrade status failed because there isn't any deployment", func() {
 			// given
 			deviceOS.RequestedOsCommit = RequestedCommitId
-			emptyDeployments,_ :=  json.Marshal(os2.StatusStruct{Deployments: []*os2.Deployments{}})
+			emptyDeployments, _ := json.Marshal(os2.StatusStruct{Deployments: []*os2.Deployments{}})
 			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(emptyDeployments, nil)
 
 			// when
@@ -125,12 +124,12 @@ var _ = Describe("Os", func() {
 		It("Get upgrade status failed because of unknown deployments", func() {
 			// given
 			deviceOS.RequestedOsCommit = RequestedCommitId
-		
+
 			osExecCommandsMock.EXPECT().RpmOstreeStatus().Return(returnMockRpmOstreeStatus(UnknownBootedCommitID, UpgradeTime, UnknownUnBootableCommitID))
-		
+
 			// when
 			upgradeStatus := deviceOS.GetUpgradeStatus()
-		
+
 			//then
 			Expect(upgradeStatus.CurrentCommitID).To(Equal(UnknownBootedCommitID))
 			Expect(upgradeStatus.LastUpgradeTime).To(Equal(OldUpgradeTime))
@@ -148,7 +147,7 @@ var _ = Describe("Os", func() {
 
 			//then
 			Expect(upgradeStatus.CurrentCommitID).To(Equal(OldCommitID))
-			Expect(upgradeStatus.LastUpgradeTime).To(Equal(time.Unix(int64(UnBootableUpgradeTime),0).String()))
+			Expect(upgradeStatus.LastUpgradeTime).To(Equal(time.Unix(int64(UnBootableUpgradeTime), 0).String()))
 			Expect(upgradeStatus.LastUpgradeStatus).To(Equal(StatusFailed))
 		})
 
@@ -169,7 +168,7 @@ var _ = Describe("Os", func() {
 			Expect(err).NotTo(HaveOccurred())
 			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
 			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(OldCommitID))
-			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime),0).String()))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime), 0).String()))
 			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(StatusSucceeded))
 		})
 
@@ -191,7 +190,7 @@ var _ = Describe("Os", func() {
 			Expect(err).NotTo(HaveOccurred())
 			upgradeStatusAfterUpdate := deviceOS.GetUpgradeStatus()
 			Expect(upgradeStatusAfterUpdate.CurrentCommitID).To(Equal(RequestedCommitId))
-			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime),0).String()))
+			Expect(upgradeStatusAfterUpdate.LastUpgradeTime).To(Equal(time.Unix(int64(UpgradeTime), 0).String()))
 			Expect(upgradeStatusAfterUpdate.LastUpgradeStatus).To(Equal(StatusSucceeded))
 		})
 
@@ -223,7 +222,6 @@ var _ = Describe("Os", func() {
 
 			// when
 			err := deviceOS.Update(cfg)
-
 
 			//then
 			Expect(err).To(HaveOccurred())
@@ -277,6 +275,53 @@ var _ = Describe("Os", func() {
 	})
 })
 
+var _ = Describe("OS management disabled", func() {
+
+	var (
+		mockCtrl              *gomock.Controller
+		gracefulRebootChannel chan struct{}
+		deviceOS              *os2.OS
+		osExecCommandsMock    *os2.MockOsExecCommands
+	)
+
+	BeforeEach(func() {
+		mockCtrl = gomock.NewController(GinkgoT())
+		osExecCommandsMock = os2.NewMockOsExecCommands(mockCtrl)
+		gracefulRebootChannel = make(chan struct{})
+		osExecCommandsMock.EXPECT().IsRpmOstreeAvailable().Return(false)
+		deviceOS = os2.NewOS(gracefulRebootChannel, osExecCommandsMock)
+	})
+
+	AfterEach(func() {
+		mockCtrl.Finish()
+	})
+
+	It("should not refresh Upgrade Status change configuration", func() {
+		// when
+		upgradeStatus := deviceOS.GetUpgradeStatus()
+
+		// then
+		Expect(upgradeStatus.CurrentCommitID).To(Equal(os2.UnknownOsImageId))
+		Expect(upgradeStatus.LastUpgradeTime).To(BeEmpty())
+		Expect(upgradeStatus.LastUpgradeStatus).To(BeEmpty())
+	})
+
+	It("should not Update configuration", func() {
+		// given
+		cfg := createConfig(false, RequestedCommitId, NewHostedUrl)
+
+		// when
+		err := deviceOS.Update(cfg)
+
+		// then
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(deviceOS.AutomaticallyUpgrade).To(BeTrue())
+		Expect(deviceOS.HostedObjectsURL).To(BeEmpty())
+		Expect(deviceOS.RequestedOsCommit).To(Equal(os2.UnknownOsImageId))
+	})
+})
+
 func createConfig(automaticallyUpgrade bool, commitID string, hostedUrl string) models.DeviceConfigurationMessage {
 	cfg := models.DeviceConfigurationMessage{
 		Configuration: &models.DeviceConfiguration{Os: &models.OsInformation{
@@ -284,15 +329,15 @@ func createConfig(automaticallyUpgrade bool, commitID string, hostedUrl string) 
 			CommitID:             commitID,
 			HostedObjectsURL:     hostedUrl,
 		}},
-		DeviceID:      "",
-		Version:       "",
-		Workloads:     []*models.Workload{},
+		DeviceID:  "",
+		Version:   "",
+		Workloads: []*models.Workload{},
 	}
 
 	return cfg
 }
 
-func returnMockRpmOstreeBootedOnlyStatus(checksum string, upgradeTime int) ([]byte, error){
+func returnMockRpmOstreeBootedOnlyStatus(checksum string, upgradeTime int) ([]byte, error) {
 	deployment := os2.Deployments{
 		Checksum:  checksum,
 		Timestamp: upgradeTime,
@@ -305,7 +350,7 @@ func returnMockRpmOstreeBootedOnlyStatus(checksum string, upgradeTime int) ([]by
 
 }
 
-func returnMockRpmOstreeStatus(bootedChecksum string, upgradeTime int, unBootableChecksum string) ([]byte, error){
+func returnMockRpmOstreeStatus(bootedChecksum string, upgradeTime int, unBootableChecksum string) ([]byte, error) {
 	deployments := []*os2.Deployments{
 		{
 			Checksum:  bootedChecksum,
@@ -324,11 +369,11 @@ func returnMockRpmOstreeStatus(bootedChecksum string, upgradeTime int, unBootabl
 
 }
 
-func returnMockRpmUpdatePreview(commitID string ) ([]byte, error){
+func returnMockRpmUpdatePreview(commitID string) ([]byte, error) {
 	return []byte(commitID), nil
 }
 
-func waitForGracefulRebootChannel(deviceOS *os2.OS){
+func waitForGracefulRebootChannel(deviceOS *os2.OS) {
 	go func() {
 		<-deviceOS.GracefulRebootChannel
 
