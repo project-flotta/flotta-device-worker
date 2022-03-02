@@ -18,7 +18,7 @@ require (
 	github.com/opencontainers/runtime-tools v0.9.1-0.20211020193359-09d837bf40a7 // indirect
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
 	github.com/pkg/errors v0.9.1
-	github.com/project-flotta/flotta-operator v0.0.0-20220201143337-5be843eed1c8
+	github.com/project-flotta/flotta-operator v0.0.1
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20220210193750-d696ee7a54bb
@@ -32,6 +32,7 @@ require (
 replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
+	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20210819154149-5ad6f50d6283
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820
 	sigs.k8s.io/cluster-api-provider-azure => github.com/openshift/cluster-api-provider-azure v0.1.0-alpha.3.0.20201016155852-4090a6970205
