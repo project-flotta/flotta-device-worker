@@ -12,8 +12,8 @@ import (
 	cfg "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	hw "github.com/project-flotta/flotta-device-worker/internal/hardware"
-	workld "github.com/project-flotta/flotta-device-worker/internal/workload"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
+	workld "github.com/project-flotta/flotta-device-worker/internal/workload"
 	"github.com/project-flotta/flotta-operator/models"
 
 	pb "github.com/redhatinsights/yggdrasil/protocol"
@@ -67,7 +67,6 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 
 	heartbeatInfo := models.Heartbeat{
 		Status:    models.HeartbeatStatusUp,
-		Time:      strfmt.DateTime(time.Now()),
 		Version:   s.configManager.GetConfigurationVersion(),
 		Workloads: workloadStatuses,
 		Hardware:  hardwareInfo,
