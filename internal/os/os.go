@@ -103,13 +103,14 @@ func (o *OS) Init(config models.DeviceConfigurationMessage) error {
 }
 
 func (o *OS) Update(configuration models.DeviceConfigurationMessage) error {
+	newOSInfo := configuration.Configuration.Os
+	if newOSInfo == nil {
+		log.Debug("No OS management configuration. Not updating.")
+		return nil
+	}
 	if !o.Enabled {
 		log.Debug("OS management is not available. Not updating OS configuration")
 		return nil
-	}
-	newOSInfo := configuration.Configuration.Os
-	if newOSInfo == nil {
-		return fmt.Errorf("cannot retrieve configuration info.")
 	}
 
 	if newOSInfo.HostedObjectsURL != o.HostedObjectsURL {
