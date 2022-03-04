@@ -2,6 +2,7 @@ package workload
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
@@ -50,6 +51,7 @@ type Workload struct {
 	observers          []Observer
 	serviceManager     service.SystemdManager
 	monitoringInterval uint
+	lock               sync.RWMutex
 }
 
 func NewWorkload(p podman.Podman, n network.Netfilter, m mapping.MappingRepository, s service.SystemdManager, monitoringInterval uint) *Workload {
@@ -97,11 +99,17 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 			msg := <-events
 			switch msg.Event {
 			case podman.StartedContainer:
-				for _, observer := range ww.observers {
+				ww.lock.Lock()
+				observers := ww.observers
+				ww.lock.Unlock()
+				for _, observer := range observers {
 					observer.WorkloadStarted(msg.WorkloadName, []*podman.PodReport{msg.Report})
 				}
 			case podman.StoppedContainer:
-				for _, observer := range ww.observers {
+				ww.lock.Lock()
+				observers := ww.observers
+				ww.lock.Unlock()
+				for _, observer := range observers {
 					observer.WorkloadRemoved(msg.WorkloadName)
 				}
 			}
@@ -111,14 +119,17 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 }
 
 func (ww *Workload) RegisterObserver(observer Observer) {
+	ww.lock.Lock()
+	defer ww.lock.Unlock()
 	ww.observers = append(ww.observers, observer)
+
 }
 
-func (ww Workload) Init() error {
+func (ww *Workload) Init() error {
 	return ww.netfilter.AddTable(nfTableName)
 }
 
-func (ww Workload) List() ([]api2.WorkloadInfo, error) {
+func (ww *Workload) List() ([]api2.WorkloadInfo, error) {
 	infos, err := ww.workloads.List()
 	if err != nil {
 		return nil, err
@@ -132,7 +143,7 @@ func (ww Workload) List() ([]api2.WorkloadInfo, error) {
 	return infos, err
 }
 
-func (ww Workload) Remove(workloadName string) error {
+func (ww *Workload) Remove(workloadName string) error {
 	id := ww.mappingRepository.GetId(workloadName)
 	if id == "" {
 		id = workloadName
@@ -155,7 +166,7 @@ func (ww Workload) Remove(workloadName string) error {
 	return nil
 }
 
-func (ww Workload) Stop(workloadName string) error {
+func (ww *Workload) Stop(workloadName string) error {
 	id := ww.mappingRepository.GetId(workloadName)
 	if id == "" {
 		id = workloadName
@@ -164,7 +175,7 @@ func (ww Workload) Stop(workloadName string) error {
 	return err
 }
 
-func (ww Workload) RemoveTable() error {
+func (ww *Workload) RemoveTable() error {
 	log.Infof("deleting table %s", nfTableName)
 	if err := ww.netfilter.DeleteTable(nfTableName); err != nil {
 		log.Errorf("failed to delete table %s: %v", nfTableName, err)
@@ -173,7 +184,7 @@ func (ww Workload) RemoveTable() error {
 	return nil
 }
 
-func (ww Workload) RemoveServicesFile() error {
+func (ww *Workload) RemoveServicesFile() error {
 	log.Infof("deleting services file")
 	if err := ww.serviceManager.RemoveServicesFile(); err != nil {
 		log.Errorf("failed to remove services file: %v", err)
@@ -182,7 +193,7 @@ func (ww Workload) RemoveServicesFile() error {
 	return nil
 }
 
-func (ww Workload) RemoveMappingFile() error {
+func (ww *Workload) RemoveMappingFile() error {
 	log.Infof("deleting mapping file")
 	if err := ww.mappingRepository.RemoveMappingFile(); err != nil {
 		log.Errorf("failed to remove mapping file: %v", err)
@@ -191,7 +202,7 @@ func (ww Workload) RemoveMappingFile() error {
 	return nil
 }
 
-func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath string) error {
+func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath string) error {
 	if err := ww.applyNetworkConfiguration(workload); err != nil {
 		return err
 	}
@@ -223,7 +234,7 @@ func (ww Workload) Run(workload *v1.Pod, manifestPath string, authFilePath strin
 	return nil
 }
 
-func (ww Workload) removeService(workloadName string) error {
+func (ww *Workload) removeService(workloadName string) error {
 	svc := ww.serviceManager.Get(ww.workloadId(workloadName))
 	if svc == nil {
 		return nil
@@ -245,7 +256,7 @@ func (ww Workload) removeService(workloadName string) error {
 	return nil
 }
 
-func (ww Workload) createService(svc service.Service) error {
+func (ww *Workload) createService(svc service.Service) error {
 	if err := svc.Add(); err != nil {
 		return err
 	}
@@ -259,11 +270,11 @@ func (ww Workload) createService(svc service.Service) error {
 	return nil
 }
 
-func (ww Workload) workloadId(workloadName string) string {
+func (ww *Workload) workloadId(workloadName string) string {
 	return ww.mappingRepository.GetId(workloadName)
 }
 
-func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {
+func (ww *Workload) applyNetworkConfiguration(workload *v1.Pod) error {
 	hostPorts, err := getHostPorts(workload)
 	if err != nil {
 		log.Error(err)
@@ -287,7 +298,7 @@ func (ww Workload) applyNetworkConfiguration(workload *v1.Pod) error {
 	return nil
 }
 
-func (ww Workload) Start(workload *v1.Pod) error {
+func (ww *Workload) Start(workload *v1.Pod) error {
 	_ = ww.netfilter.DeleteChain(nfTableName, workload.Name)
 	if err := ww.applyNetworkConfiguration(workload); err != nil {
 		return err
@@ -300,23 +311,23 @@ func (ww Workload) Start(workload *v1.Pod) error {
 	return nil
 }
 
-func (ww Workload) PersistConfiguration() error {
+func (ww *Workload) PersistConfiguration() error {
 	return ww.mappingRepository.Persist()
 }
 
-func (ww Workload) ListSecrets() (map[string]struct{}, error) {
+func (ww *Workload) ListSecrets() (map[string]struct{}, error) {
 	return ww.workloads.ListSecrets()
 }
 
-func (ww Workload) RemoveSecret(name string) error {
+func (ww *Workload) RemoveSecret(name string) error {
 	return ww.workloads.RemoveSecret(name)
 }
 
-func (ww Workload) CreateSecret(name, data string) error {
+func (ww *Workload) CreateSecret(name, data string) error {
 	return ww.workloads.CreateSecret(name, data)
 }
 
-func (ww Workload) UpdateSecret(name, data string) error {
+func (ww *Workload) UpdateSecret(name, data string) error {
 	return ww.workloads.UpdateSecret(name, data)
 }
 

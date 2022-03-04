@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -41,6 +42,7 @@ type Manager struct {
 	observers        []Observer
 	deviceConfigFile string
 	initialConfig    atomic.Value
+	lock             sync.RWMutex
 }
 
 func NewConfigurationManager(dataDir string) *Manager {
@@ -81,25 +83,36 @@ func (m *Manager) RegisterObserver(observer Observer) {
 }
 
 func (m *Manager) GetDeviceConfiguration() models.DeviceConfiguration {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return *m.deviceConfiguration.Configuration
 }
 
 func (m *Manager) GetDeviceID() string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return m.deviceConfiguration.DeviceID
 }
 
 func (m *Manager) GetWorkloads() models.WorkloadList {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return m.deviceConfiguration.Workloads
 }
 
 func (m *Manager) GetSecrets() models.SecretList {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return m.deviceConfiguration.Secrets
 }
 
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
+	m.lock.RLock()
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
 	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
 	secretsEqual := isEqualUnorderedSecretLists(message.Secrets, m.deviceConfiguration.Secrets)
+	m.lock.RUnlock()
+
 	log.Tracef("workloads equal: [%v]; configurationEqual: [%v]; secretsEqual: [%v]; DeviceID: [%s]", workloadsEqual, configurationEqual, secretsEqual, message.DeviceID)
 
 	shouldUpdate := !(configurationEqual && workloadsEqual && secretsEqual)
@@ -129,13 +142,15 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 		return errors
 	}
 
-	log.Tracef("writing config to %s: %v", m.deviceConfigFile, file)
+	log.Tracef("writing config to %s: %s", m.deviceConfigFile, file)
 	err = ioutil.WriteFile(m.deviceConfigFile, file, 0600)
 	if err != nil {
 		errors = multierror.Append(fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
 		return errors
 	}
 
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.deviceConfiguration = &message
 	m.initialConfig.Store(false)
 
