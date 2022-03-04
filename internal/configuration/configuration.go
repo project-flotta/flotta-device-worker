@@ -142,7 +142,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 		return errors
 	}
 
-	log.Tracef("writing config to %s: %v", m.deviceConfigFile, file)
+	log.Tracef("writing config to %s: %s", m.deviceConfigFile, file)
 	err = ioutil.WriteFile(m.deviceConfigFile, file, 0600)
 	if err != nil {
 		errors = multierror.Append(fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
