@@ -210,7 +210,7 @@ func (s *systemd) run(args []string) error {
 
 	log.Infof("Executing systemd command %v ", cmd)
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("command '%s' failed with the following error: %v", cmd.String(), err)
 	}
 
 	return nil
