@@ -155,6 +155,19 @@ var _ = Describe("Os", func() {
 
 	Context("Run Update OS test", func() {
 
+		It("No OS configuration", func() {
+			// given
+			cfg := models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{},
+			}
+
+			// when
+			err := deviceOS.Update(cfg)
+
+			//then
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 		It("Changing the HostedURL", func() {
 			// given
 			cfg := createConfig(true, OldCommitID, NewHostedUrl)
