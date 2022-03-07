@@ -7,7 +7,7 @@ RUN dnf copr enable project-flotta/flotta -y
 # Yum dependencies
 RUN dnf update -y \
   && dnf install -y openssl procps-ng dmidecode nc \
-  yggdrasil flotta-agent node_exporter
+  yggdrasil flotta-agent-race node_exporter
 
 # Modify podman configuration
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
