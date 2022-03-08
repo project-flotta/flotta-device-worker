@@ -74,6 +74,10 @@ func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper,
 	return &manager, nil
 }
 
+func (w *WorkloadManager) String() string {
+	return "workload manager"
+}
+
 // PopEvents return copy of all the events stored in eventQueue
 func (w *WorkloadManager) PopEvents() []*models.EventInfo {
 	w.managementLock.Lock()
