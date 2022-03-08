@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
 	"git.sr.ht/~spc/go-log"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
@@ -15,6 +16,7 @@ type deviceServer struct {
 	pb.UnimplementedWorkerServer
 	configManager       *configuration2.Manager
 	registrationManager *registration2.Registration
+	updateLock       sync.Mutex
 }
 
 func NewDeviceServer(configManager *configuration2.Manager, registrationManager *registration2.Registration) *deviceServer {
@@ -32,6 +34,9 @@ func (s *deviceServer) Send(ctx context.Context, d *pb.Data) (*pb.Receipt, error
 		if err != nil {
 			log.Warnf("cannot unmarshal message. DeviceID: %s; err: %v", s.configManager.GetDeviceID(), err)
 		}
+		// Don't allow for parallel configuration updates if one of them takes longer.
+		s.updateLock.Lock()
+		defer s.updateLock.Unlock()
 		err = s.configManager.Update(deviceConfigurationMessage)
 		if err != nil {
 			log.Warnf("failed to process message. DeviceID: %s; err: %v", s.configManager.GetDeviceID(), err)
