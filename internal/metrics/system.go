@@ -33,6 +33,10 @@ func NewSystemMetrics(daemon MetricsDaemon) (*SystemMetrics, error) {
 	return NewSystemMetricsWithNodeExporter(daemon, nodeExporter), nil
 }
 
+func (sm *SystemMetrics) String() string {
+	return "system metrics"
+}
+
 func NewSystemMetricsWithNodeExporter(daemon MetricsDaemon, nodeExporter service.Service) *SystemMetrics {
 	return &SystemMetrics{
 		daemon:       daemon,

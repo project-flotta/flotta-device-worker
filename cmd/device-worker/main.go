@@ -143,7 +143,15 @@ func main() {
 	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, deviceOs)
 	configManager.RegisterObserver(hbs)
 
-	reg := registration2.NewRegistration(&hw, deviceOs, dispatcherClient, configManager, hbs, wl, dataMonitor, metricsStore, systemMetricsWatcher)
+	reg := registration2.NewRegistration(deviceId, &hw, dispatcherClient, configManager, wl)
+	reg.DeregisterLater(
+		wl,
+		configManager,
+		hbs,
+		dataMonitor,
+		systemMetricsWatcher,
+		metricsStore,
+	)
 
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg))

@@ -74,6 +74,10 @@ func NewTSDB(dataDir string) (*TSDB, error) {
 	}, nil
 }
 
+func (t *TSDB) String() string {
+	return "metrics storage"
+}
+
 func (t *TSDB) Deregister() error {
 	metricsDir := t.db.Dir()
 	err := t.Close()

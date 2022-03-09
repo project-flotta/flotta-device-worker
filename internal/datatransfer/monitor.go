@@ -38,6 +38,10 @@ func NewMonitor(workloadsManager *workload.WorkloadManager, configManager *confi
 	return &monitor
 }
 
+func (m *Monitor) String() string {
+	return "data transfer"
+}
+
 func (m *Monitor) Start() {
 	go func() {
 		for range m.ticker.C {

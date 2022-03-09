@@ -72,6 +72,10 @@ func NewConfigurationManager(dataDir string) *Manager {
 	return &mgr
 }
 
+func (m *Manager) String() string {
+	return "configuration manager"
+}
+
 func (m *Manager) RegisterObserver(observer Observer) {
 	// Always trigger the Init phase when register an observer to retrieve the
 	// current config.

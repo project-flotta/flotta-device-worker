@@ -5,24 +5,20 @@ import (
 	"io/ioutil"
 	osUtil "os"
 
-	"github.com/project-flotta/flotta-device-worker/internal/metrics"
-
 	gomock "github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
-	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	"github.com/project-flotta/flotta-device-worker/internal/hardware"
-	"github.com/project-flotta/flotta-device-worker/internal/heartbeat"
-	"github.com/project-flotta/flotta-device-worker/internal/os"
 	"github.com/project-flotta/flotta-device-worker/internal/registration"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
 )
 
 const (
 	deviceConfigName = "device-config.json"
+	deviceID         = "device-id-123"
 )
 
 var _ = Describe("Registration", func() {
@@ -33,14 +29,8 @@ var _ = Describe("Registration", func() {
 		wkManager      *workload.WorkloadManager
 		wkwMock        *workload.MockWorkloadWrapper
 		dispatcherMock *registration.MockDispatcherClient
-		metricsMock    *metrics.MockAPI
-		daemonMock     *metrics.MockMetricsDaemon
-		systemMetrics  *metrics.SystemMetrics
 		configManager  *configuration.Manager
-		hb             *heartbeat.Heartbeat
 		hw             = &hardware.Hardware{}
-		monitor        = &datatransfer.Monitor{}
-		deviceOs       = &os.OS{}
 		err            error
 	)
 
@@ -54,27 +44,10 @@ var _ = Describe("Registration", func() {
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
 
 		dispatcherMock = registration.NewMockDispatcherClient(mockCtrl)
-		metricsMock = metrics.NewMockAPI(mockCtrl)
 
-		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, "device-id-123")
+		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, deviceID)
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 		configManager = configuration.NewConfigurationManager(datadir)
-		monitor = datatransfer.NewMonitor(wkManager, configManager)
-
-		daemonMock = metrics.NewMockMetricsDaemon(mockCtrl)
-		systemMetrics = metrics.NewSystemMetricsWithNodeExporter(daemonMock, nil)
-
-		gracefulRebootChannel := make(chan struct{})
-		osExecCommands := os.NewOsExecCommands()
-		deviceOs = os.NewOS(gracefulRebootChannel, osExecCommands)
-
-		hb = heartbeat.NewHeartbeatService(dispatcherMock,
-			configManager,
-			wkManager,
-			hw,
-			monitor,
-			deviceOs)
-
 	})
 
 	AfterEach(func() {
@@ -91,7 +64,7 @@ var _ = Describe("Registration", func() {
 		It("Work as expected", func() {
 
 			// given
-			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
 
 			// then
 			dispatcherMock.EXPECT().Send(gomock.Any(), RegistrationMatcher()).Times(1)
@@ -104,9 +77,8 @@ var _ = Describe("Registration", func() {
 		})
 
 		It("Try to re-register", func() {
-
 			// given
-			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
 			reg.RetryAfter = 1
 
 			// then
@@ -135,16 +107,17 @@ var _ = Describe("Registration", func() {
 		})
 
 		It("Works as expected", func() {
-
 			// given
-			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
 
-			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().RemoveTable().AnyTimes()
-			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
-			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
-			metricsMock.EXPECT().Deregister()
-			daemonMock.EXPECT().DeleteTarget("system")
+			deregistrable1 := registration.NewMockDeregistrable(mockCtrl)
+			deregistrable2 := registration.NewMockDeregistrable(mockCtrl)
+			deregistrable2.EXPECT().Deregister().After(
+				deregistrable1.EXPECT().Deregister(),
+			)
+			deregistrable1.EXPECT().String().AnyTimes()
+			deregistrable2.EXPECT().String().AnyTimes()
+			reg.DeregisterLater(deregistrable1, deregistrable2)
 
 			// when
 			err := reg.Deregister()
@@ -152,46 +125,19 @@ var _ = Describe("Registration", func() {
 			// then
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reg.IsRegistered()).To(BeFalse())
-
 		})
 
 		It("Return error if anything fails", func() {
-
 			// given
-			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
 
-			wkwMock.EXPECT().List().Return(nil, fmt.Errorf("failed"))
-			wkwMock.EXPECT().RemoveTable().AnyTimes()
-			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
-			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
-			metricsMock.EXPECT().Deregister()
-			daemonMock.EXPECT().DeleteTarget("system")
+			deregistrable := registration.NewMockDeregistrable(mockCtrl)
+			deregistrable.EXPECT().Deregister().Return(fmt.Errorf("boom"))
+			deregistrable.EXPECT().String().AnyTimes()
+			reg.DeregisterLater(deregistrable)
 
 			// when
 			err := reg.Deregister()
-
-			// then
-			Expect(err).To(HaveOccurred())
-			Expect(reg.IsRegistered()).To(BeFalse())
-		})
-
-		It("Return error if config file is not present", func() {
-
-			// given
-			err := osUtil.Remove(configFile)
-			Expect(err).NotTo(HaveOccurred())
-
-			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
-
-			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().RemoveTable().AnyTimes()
-			wkwMock.EXPECT().RemoveMappingFile().AnyTimes()
-			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
-			metricsMock.EXPECT().Deregister()
-			daemonMock.EXPECT().DeleteTarget("system")
-
-			// when
-			err = reg.Deregister()
 
 			// then
 			Expect(err).To(HaveOccurred())
@@ -199,21 +145,17 @@ var _ = Describe("Registration", func() {
 		})
 
 		It("Is able to register after deregister", func() {
-
 			// given
-			reg := registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
 
-			wkwMock.EXPECT().List()
-			wkwMock.EXPECT().RemoveTable()
-			wkwMock.EXPECT().RemoveMappingFile()
-			wkwMock.EXPECT().RemoveServicesFile().AnyTimes()
-			metricsMock.EXPECT().Deregister()
-			daemonMock.EXPECT().DeleteTarget("system")
+			deregistrable := registration.NewMockDeregistrable(mockCtrl)
+			deregistrable.EXPECT().Deregister()
+			reg.DeregisterLater(deregistrable)
 
 			err = reg.Deregister()
 			Expect(err).NotTo(HaveOccurred())
 
-			reg = registration.NewRegistration(hw, deviceOs, dispatcherMock, configManager, hb, wkManager, monitor, metricsMock, systemMetrics)
+			reg = registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
 
 			// then
 			dispatcherMock.EXPECT().Send(gomock.Any(), RegistrationMatcher()).Times(1)

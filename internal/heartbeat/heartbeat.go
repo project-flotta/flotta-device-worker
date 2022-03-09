@@ -97,6 +97,10 @@ func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cf
 	}
 }
 
+func (s *Heartbeat) String() string {
+	return "heartbeat"
+}
+
 func (s *Heartbeat) Start() {
 	s.initTicker(s.getInterval(s.data.configManager.GetDeviceConfiguration()))
 }
