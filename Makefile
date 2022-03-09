@@ -9,10 +9,10 @@ DOCKER ?= podman
 IMG ?= quay.io/project-flotta/edgedevice:latest
 
 ifeq ($(OS),fedora)
-	LIBEXECDIR ?= /usr/local/libexec
-	SYSCONFDIR ?= /usr/local/etc
+	LIBEXECDIR ?= /var/local/libexec
+	SYSCONFDIR ?= /var/local/etc
 else
-	LIBEXECDIR ?= /usr/libexec
+	LIBEXECDIR ?= /var/libexec
 	SYSCONFDIR ?= /etc
 endif
 
@@ -97,17 +97,22 @@ install-worker-config:
 	sed 's,#LIBEXEC#,$(LIBEXECDIR),g' config/device-worker.toml > $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/device-worker.toml
 
 install: ## Install device-worker with debug enabled
-install-debug: build-debug install-worker-config
+install-debug: build-debug
+	sudo $(MAKE) install-worker-config
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install: ## Install device-worker
-install: build install-worker-config
+install: build
+	sudo $(MAKE) install-worker-config
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install-arm64: ## Install device-worker on arm64.
-install-arm64: build-arm64 install-worker-config
+install-arm64: build-arm64
+	sudo $(MAKE) install-worker-config
 	sudo install -D -m 755 ./bin/device-worker-aarch64 $(LIBEXECDIR)/yggdrasil/device-worker
 
+uninstall: clean
+	sudo rm -rf $(SYSCONFDIR)/yggdrasil/device/*
 
 rpm-tarball:
 	 (git archive --prefix flotta-agent-$(VERSION)/ HEAD ) \
