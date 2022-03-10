@@ -29,8 +29,11 @@ make rpm
 To start the device-worker in clean (pairing) mode, make sure that following files are not present before starting
 yggdrasil:
 
-- `/var/local/yggdrasil/device/device-config.json`
+- `/var/local/etc/yggdrasil/device/device-config.json`
 - `/var/local/yggdrasil/device/manifests/*`
+
+Or run:
+`make uninstall`
 
 # Running
 
@@ -49,12 +52,13 @@ To install Yggdrasil from upstream repo:
 git clone git@github.com:RedHatInsights/yggdrasil.git
 cd yggdrasil
 git checkout d696ee7a54bbf5775a88447bc40aae2259e8144c
-make
+export PREFIX=/var/local
+make bin
 ```
 
-
+Start yggdrasil:
 ```
-sudo go run ./cmd/yggd \
+sudo ./yggd \
   --log-level info \
   --protocol http \
   --path-prefix api/flotta-management/v1 \
@@ -67,7 +71,7 @@ sudo go run ./cmd/yggd \
 Also, the worker config need to be defined in the right location:
 
 ```
---> cat /usr/local/etc/yggdrasil/workers/device-worker.toml
+$ cat /var/local/etc/yggdrasil/workers/device-worker.toml
 exec = "/usr/local/libexec/yggdrasil/device-worker"
 protocol = "grpc"
 env = []
