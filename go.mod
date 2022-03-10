@@ -21,7 +21,7 @@ require (
 	github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
-	github.com/redhatinsights/yggdrasil v0.0.0-20220210193750-d696ee7a54bb
+	github.com/redhatinsights/yggdrasil v0.0.0-20220309180936-d91759a7f332
 	github.com/seqsense/s3sync v1.8.0
 	google.golang.org/grpc v1.40.0
 	k8s.io/api v0.22.4

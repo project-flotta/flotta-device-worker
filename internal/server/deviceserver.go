@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+
 	"git.sr.ht/~spc/go-log"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
@@ -36,7 +37,7 @@ func NewDeviceServer(configManager *configuration2.Manager, registrationManager 
 }
 
 // Send implements the "Send" method of the Worker gRPC service.
-func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Receipt, error) {
+func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Response, error) {
 	go func() {
 		deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 		err := json.Unmarshal(d.Content, &deviceConfigurationMessage)
@@ -47,7 +48,7 @@ func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Receipt, error) 
 	}()
 
 	// Respond to the start request that the work was accepted.
-	return &pb.Receipt{}, nil
+	return &pb.Response{}, nil
 }
 
 // NotifyEvent implements the "NotifyEvent" method of the Worker gRPC service.

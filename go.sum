@@ -1666,8 +1666,8 @@ github.com/quasilyte/go-consistent v0.0.0-20190521200055-c6f3937de18c/go.mod h1:
 github.com/quasilyte/go-ruleguard v0.2.0/go.mod h1:2RT/tf0Ce0UDj5y243iWKosQogJd8+1G3Rs2fxmlYnw=
 github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95/go.mod h1:rlzQ04UMyJXu/aOvhd8qT+hvDrFpiwqp8MRXDY9szc0=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
-github.com/redhatinsights/yggdrasil v0.0.0-20220210193750-d696ee7a54bb h1:J+WMR8ee4Yrkg7nCqXOaE8oPyKbhdc7AbVSokEwnKMA=
-github.com/redhatinsights/yggdrasil v0.0.0-20220210193750-d696ee7a54bb/go.mod h1:pzYHLc9dg7BTax4FlcgVjdrN7SWHrmXCaQ2kUXWUGK8=
+github.com/redhatinsights/yggdrasil v0.0.0-20220309180936-d91759a7f332 h1:VPcx9axsKg7kifVVNcpF4qhfdc8BSQCrrFdfTdZJ0OE=
+github.com/redhatinsights/yggdrasil v0.0.0-20220309180936-d91759a7f332/go.mod h1:pzYHLc9dg7BTax4FlcgVjdrN7SWHrmXCaQ2kUXWUGK8=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
 github.com/retailnext/hllpp v1.0.1-0.20180308014038-101a6d2f8b52/go.mod h1:RDpi1RftBQPUCDRw6SmxeaREsAaRKnOclghuzp/WRzc=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=

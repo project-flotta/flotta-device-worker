@@ -675,7 +675,7 @@ github.com/prometheus/prometheus/tsdb/tombstones
 github.com/prometheus/prometheus/tsdb/tsdbutil
 github.com/prometheus/prometheus/tsdb/wal
 github.com/prometheus/prometheus/util/testutil
-# github.com/redhatinsights/yggdrasil v0.0.0-20220210193750-d696ee7a54bb
+# github.com/redhatinsights/yggdrasil v0.0.0-20220309180936-d91759a7f332
 ## explicit
 github.com/redhatinsights/yggdrasil/protocol
 # github.com/rivo/uniseg v0.2.0
