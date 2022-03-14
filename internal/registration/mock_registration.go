@@ -77,14 +77,14 @@ func (mr *MockDispatcherClientMockRecorder) Register(arg0, arg1 interface{}, arg
 }
 
 // Send mocks base method.
-func (m *MockDispatcherClient) Send(arg0 context.Context, arg1 *protocol.Data, arg2 ...grpc.CallOption) (*protocol.Receipt, error) {
+func (m *MockDispatcherClient) Send(arg0 context.Context, arg1 *protocol.Data, arg2 ...grpc.CallOption) (*protocol.Response, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Send", varargs...)
-	ret0, _ := ret[0].(*protocol.Receipt)
+	ret0, _ := ret[0].(*protocol.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

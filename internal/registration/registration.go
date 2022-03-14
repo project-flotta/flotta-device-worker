@@ -37,11 +37,12 @@ type Registration struct {
 	deviceID         string
 	lock             sync.RWMutex
 	deregistrables   []Deregistrable
+	clientCert       *ClientCert
 }
 
 func NewRegistration(deviceID string, hardware *hardware2.Hardware, dispatcherClient DispatcherClient,
-	config *configuration.Manager, workloadsManager *workload.WorkloadManager) *Registration {
-	return &Registration{
+	config *configuration.Manager, workloadsManager *workload.WorkloadManager) (*Registration, error) {
+	reg := &Registration{
 		deviceID:         deviceID,
 		hardware:         hardware,
 		dispatcherClient: dispatcherClient,
@@ -50,6 +51,44 @@ func NewRegistration(deviceID string, hardware *hardware2.Hardware, dispatcherCl
 		workloads:        workloadsManager,
 		lock:             sync.RWMutex{},
 	}
+	err := reg.CreateClientCerts()
+	if err != nil {
+		return nil, err
+	}
+	return reg, nil
+}
+
+func (r *Registration) CreateClientCerts() error {
+	data, err := r.dispatcherClient.GetConfig(context.Background(), &pb.Empty{})
+	if err != nil {
+		return err
+	}
+	r.clientCert, err = NewClientCert(data.CertFile, data.KeyFile)
+	return err
+}
+
+func (r *Registration) renewCertificate() ([]byte, []byte, error) {
+	isRegisterCert, err := r.clientCert.IsRegisterCert()
+	if err != nil {
+		return nil, nil, err
+	}
+	var key, cert []byte
+	if isRegisterCert {
+		cert, key, err = r.clientCert.CreateDeviceCerts(r.deviceID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot create device certs: %v", err)
+		}
+	} else {
+		bufferKey := r.clientCert.certGroup.GetKey()
+		if bufferKey == nil {
+			return nil, nil, fmt.Errorf("cannot retrieve current key")
+		}
+		cert, key, err = r.clientCert.Renew(r.deviceID, bufferKey)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return key, cert, nil
 }
 
 func (r *Registration) DeregisterLater(deregistrables ...Deregistrable) {
@@ -82,30 +121,76 @@ func (r *Registration) registerDeviceWithRetries(interval int64) {
 }
 
 func (r *Registration) registerDeviceOnce() error {
+
+	key, csr, err := r.renewCertificate()
+	if err != nil {
+		return err
+	}
+
 	hardwareInformation, err := r.hardware.GetHardwareInformation()
 	if err != nil {
 		return err
 	}
+
 	registrationInfo := models.RegistrationInfo{
-		Hardware: hardwareInformation,
+		Hardware:           hardwareInformation,
+		CertificateRequest: string(csr),
 	}
+
 	content, err := json.Marshal(registrationInfo)
 	if err != nil {
 		return err
 	}
+
 	data := &pb.Data{
 		MessageId: uuid.New().String(),
 		Content:   content,
 		Directive: "registration",
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	// Call "Send"
-	if _, err := r.dispatcherClient.Send(ctx, data); err != nil {
+	response, err := r.dispatcherClient.Send(ctx, data)
+	if err != nil {
 		return err
 	}
+	parsedResponse, err := NewYGGDResponse(response.Response)
+	if err != nil {
+		return err
+	}
+
+	if parsedResponse.StatusCode >= 300 {
+		return fmt.Errorf("cannot register to the operator")
+	}
+
+	var message models.MessageResponse
+	err = json.Unmarshal(parsedResponse.Body, &message)
+	if err != nil {
+		return err
+	}
+
+	parsedContent, ok := message.Content.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("cannot parse message content")
+	}
+
+	cert, ok := parsedContent["certificate"]
+	if !ok {
+		return fmt.Errorf("cannot retrieve certificate from parsedResponse")
+	}
+
+	parsedCert, ok := cert.(string)
+	if !ok {
+		return fmt.Errorf("cannot parse certificate from response.Content, content=%+v", message.Content)
+	}
+
+	err = r.clientCert.WriteCertificate([]byte(parsedCert), key)
+	if err != nil {
+		log.Errorf("failed to write certificate: %v,", err)
+		return err
+	}
+
 	r.lock.Lock()
 	r.registered = true
 	r.lock.Unlock()
@@ -130,4 +215,22 @@ func (r *Registration) Deregister() error {
 
 	r.registered = false
 	return errors
+}
+
+type YGGDResponse struct {
+	// StatusCode response
+	StatusCode int
+	// Response Body
+	Body json.RawMessage
+	// Metadata added by the transport, in case of http are the headers
+	Metadata map[string]string
+}
+
+func NewYGGDResponse(response []byte) (*YGGDResponse, error) {
+	var parsedResponse YGGDResponse
+	err := json.Unmarshal(response, &parsedResponse)
+	if err != nil {
+		return nil, err
+	}
+	return &parsedResponse, nil
 }

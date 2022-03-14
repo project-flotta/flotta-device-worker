@@ -5,34 +5,35 @@
 package registration
 
 import (
-	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
 )
 
-// MockDeregistrable is a mock of Deregistrable interface
+// MockDeregistrable is a mock of Deregistrable interface.
 type MockDeregistrable struct {
 	ctrl     *gomock.Controller
 	recorder *MockDeregistrableMockRecorder
 }
 
-// MockDeregistrableMockRecorder is the mock recorder for MockDeregistrable
+// MockDeregistrableMockRecorder is the mock recorder for MockDeregistrable.
 type MockDeregistrableMockRecorder struct {
 	mock *MockDeregistrable
 }
 
-// NewMockDeregistrable creates a new mock instance
+// NewMockDeregistrable creates a new mock instance.
 func NewMockDeregistrable(ctrl *gomock.Controller) *MockDeregistrable {
 	mock := &MockDeregistrable{ctrl: ctrl}
 	mock.recorder = &MockDeregistrableMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDeregistrable) EXPECT() *MockDeregistrableMockRecorder {
 	return m.recorder
 }
 
-// Deregister mocks base method
+// Deregister mocks base method.
 func (m *MockDeregistrable) Deregister() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Deregister")
@@ -40,13 +41,13 @@ func (m *MockDeregistrable) Deregister() error {
 	return ret0
 }
 
-// Deregister indicates an expected call of Deregister
+// Deregister indicates an expected call of Deregister.
 func (mr *MockDeregistrableMockRecorder) Deregister() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deregister", reflect.TypeOf((*MockDeregistrable)(nil).Deregister))
 }
 
-// String mocks base method
+// String mocks base method.
 func (m *MockDeregistrable) String() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "String")
@@ -54,7 +55,7 @@ func (m *MockDeregistrable) String() string {
 	return ret0
 }
 
-// String indicates an expected call of String
+// String indicates an expected call of String.
 func (mr *MockDeregistrableMockRecorder) String() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockDeregistrable)(nil).String))
