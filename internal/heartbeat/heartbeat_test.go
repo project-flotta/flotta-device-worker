@@ -185,7 +185,7 @@ type Dispatcher struct {
 	latestData *pb.Data
 }
 
-func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Receipt, error) {
+func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
 	d.latestData = in
 	return nil, nil
 }

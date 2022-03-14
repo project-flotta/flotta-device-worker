@@ -3,6 +3,9 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"sync"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -13,6 +16,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	hw "github.com/project-flotta/flotta-device-worker/internal/hardware"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
+	"github.com/project-flotta/flotta-device-worker/internal/registration"
 	workld "github.com/project-flotta/flotta-device-worker/internal/workload"
 	"github.com/project-flotta/flotta-operator/models"
 
@@ -80,6 +84,8 @@ type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
 	data             *HeartbeatData
+	regHandler       func()
+	lock             sync.Mutex
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
@@ -95,6 +101,41 @@ func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cf
 			osInfo:          osInfo,
 		},
 	}
+}
+
+func (s *Heartbeat) SetRegistrationHandler(cb func()) {
+	s.regHandler = cb
+}
+
+func (s *Heartbeat) send(data *pb.Data) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	response, err := s.dispatcherClient.Send(ctx, data)
+	if err != nil {
+		return err
+	}
+
+	parsedResponse, err := registration.NewYGGDResponse(response.Response)
+	if err != nil {
+		return err
+	}
+
+	// If it's already expired the cert need to be renewed
+	if parsedResponse.StatusCode != http.StatusUnauthorized {
+		return err
+	}
+
+	if s.regHandler == nil {
+		return fmt.Errorf("cannot run registration callback")
+	}
+
+	s.regHandler()
+	// Sending again the heartbeat info with the right info.
+	_, err = s.dispatcherClient.Send(ctx, data)
+	return err
 }
 
 func (s *Heartbeat) String() string {
@@ -139,9 +180,6 @@ func (s *Heartbeat) getInterval(config models.DeviceConfiguration) int64 {
 
 func (s *Heartbeat) pushInformation() error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
 	// Create a data message to send back to the dispatcher.
 	heartbeatInfo := s.data.RetrieveInfo()
 
@@ -155,9 +193,7 @@ func (s *Heartbeat) pushInformation() error {
 		Content:   content,
 		Directive: "heartbeat",
 	}
-
-	_, err = s.dispatcherClient.Send(ctx, data)
-	return err
+	return s.send(data)
 }
 
 func (s *Heartbeat) initTicker(periodSeconds int64) {
