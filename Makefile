@@ -71,6 +71,10 @@ vendor:
 	go mod tidy
 	go mod vendor
 
+bump-operator: ## Bump flotta operator version dependency to the latest main
+	$(eval OPARATOR_VERSION := $(shell curl -s https://api.github.com/repos/project-flotta/flotta-operator/commits/main | jq '.sha' -r))
+	go get -d github.com/project-flotta/flotta-operator@$(OPARATOR_VERSION)
+
 clean: ## Clean project
 	go mod tidy
 	rm -rf bin
