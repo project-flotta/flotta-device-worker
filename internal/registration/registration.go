@@ -27,6 +27,11 @@ type Deregistrable interface {
 	Deregister() error
 }
 
+//go:generate mockgen -package=registration -destination=mock_registration.go . RegistrationWrapper
+type RegistrationWrapper interface {
+	RegisterDevice()
+}
+
 type Registration struct {
 	hardware         *hardware2.Hardware
 	workloads        *workload.WorkloadManager

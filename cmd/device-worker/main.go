@@ -78,7 +78,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if !r.GetRegistered() {
-		log.Fatal("handler registration failed")
+		log.Fatal("yggdrasil registration failed")
 	}
 
 	// Listen on the provided socket address.
@@ -145,10 +145,14 @@ func main() {
 		log.Fatalf("cannot start metrics store. DeviceID: %s; err: %v", deviceId, err)
 	}
 
-	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, deviceOs)
+	reg, err := registration2.NewRegistration(deviceId, &hw, dispatcherClient, configManager, wl)
+	if err != nil {
+		log.Fatalf("cannot start registration process:  DeviceID: %s; err: %v", deviceId, err)
+	}
+
+	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, deviceOs, reg)
 	configManager.RegisterObserver(hbs)
 
-	reg := registration2.NewRegistration(deviceId, &hw, dispatcherClient, configManager, wl)
 	reg.DeregisterLater(
 		wl,
 		configManager,

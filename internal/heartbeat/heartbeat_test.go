@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
+	"github.com/project-flotta/flotta-device-worker/internal/registration"
 
 	"github.com/golang/mock/gomock"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
@@ -41,10 +42,10 @@ var _ = Describe("Heartbeat", func() {
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
-
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
 		wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 
+		regMock := registration.NewMockRegistrationWrapper(mockCtrl)
 		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, "device-id-123")
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
@@ -58,7 +59,8 @@ var _ = Describe("Heartbeat", func() {
 			wkManager,
 			hw,
 			monitor,
-			deviceOs)
+			deviceOs,
+			regMock)
 	})
 
 	AfterEach(func() {

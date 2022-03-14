@@ -7,7 +7,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-//go:generate mockgen -package=registration -destination=mock_registration.go . DispatcherClient
+//go:generate mockgen -package=registration -destination=mock_registration_dispatcher.go . DispatcherClient
 type DispatcherClient interface {
 	// Register is called by a worker to indicate it is ready and capable of
 	// handling the specified type of work.

@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -84,12 +83,14 @@ type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
 	data             *HeartbeatData
-	regHandler       func()
 	lock             sync.Mutex
+	reg              *registration.Registration
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, osInfo *os2.OS) *Heartbeat {
+	workloadManager *workld.WorkloadManager, hardware *hw.Hardware,
+	dataMonitor *datatransfer.Monitor, osInfo *os2.OS,
+	reg registration.RegistrationWrapper) *Heartbeat {
 	return &Heartbeat{
 		ticker:           nil,
 		dispatcherClient: dispatcherClient,
@@ -101,10 +102,6 @@ func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cf
 			osInfo:          osInfo,
 		},
 	}
-}
-
-func (s *Heartbeat) SetRegistrationHandler(cb func()) {
-	s.regHandler = cb
 }
 
 func (s *Heartbeat) send(data *pb.Data) error {
@@ -127,12 +124,7 @@ func (s *Heartbeat) send(data *pb.Data) error {
 	if parsedResponse.StatusCode != http.StatusUnauthorized {
 		return err
 	}
-
-	if s.regHandler == nil {
-		return fmt.Errorf("cannot run registration callback")
-	}
-
-	s.regHandler()
+	s.reg.RegisterDevice()
 	// Sending again the heartbeat info with the right info.
 	_, err = s.dispatcherClient.Send(ctx, data)
 	return err
