@@ -104,9 +104,11 @@ func getTimeout(metadata map[string]string) time.Duration {
 	if timeoutStr, found := metadata["ansible-playbook-timeout"]; found {
 		timeoutVal, err := strconv.Atoi(timeoutStr)
 		if err != nil {
+			log.Warnf("invalid timeout received %s. Use default of %s", timeoutStr, timeout)
 			return timeout
 		}
 		timeout = time.Duration(timeoutVal) * time.Second
+		log.Infof("set timeout to %s", timeout)
 	}
 	return timeout
 }
