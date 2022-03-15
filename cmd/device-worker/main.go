@@ -161,7 +161,11 @@ func main() {
 		metricsStore,
 	)
 
-	ansibleManager := ansible.NewAnsibleManager(dispatcherClient)
+	dataDirPlaybook := path.Join(baseDataDir, "devicePlaybooks")
+	ansibleManager, err := ansible.NewAnsibleManager(dispatcherClient, dataDirPlaybook)
+	if err != nil {
+		log.Fatalf("cannot start ansible manager, err: %v", err)
+	}
 
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg, ansibleManager))

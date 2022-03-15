@@ -16,10 +16,11 @@ import (
 	"github.com/apenella/go-ansible/pkg/execute"
 	"github.com/apenella/go-ansible/pkg/playbook"
 	ansibleResults "github.com/apenella/go-ansible/pkg/stdoutcallback/results"
+	"github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
+	"github.com/project-flotta/flotta-device-worker/internal/ansible/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/model/message"
 	"github.com/project-flotta/flotta-operator/models"
 
-	"github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
@@ -28,6 +29,7 @@ type AnsibleManager struct {
 	wg                *sync.WaitGroup
 	dispatcherClient  pb.DispatcherClient
 	ansibleDispatcher *dispatcher.AnsibleDispatcher
+	MappingRepository mapping.MappingRepository
 }
 
 type RequiredFields struct {
@@ -43,8 +45,7 @@ const (
 	// Failure types
 	NotInstalled = "ANSIBLE_NOT_INSTALLED"
 	UndefError   = "UNDEFINED_ERROR"
-
-	dataDir = "/tmp"
+	dataDir      = "/tmp"
 )
 
 var (
@@ -52,13 +53,18 @@ var (
 )
 
 func NewAnsibleManager(
-	dispatcherClient pb.DispatcherClient) *AnsibleManager {
+	dispatcherClient pb.DispatcherClient, configDir string) (*AnsibleManager, error) {
+	mappingRepository, err := mapping.NewMappingRepository(configDir)
+	if err != nil {
+		return nil, fmt.Errorf("ansible manager cannot initialize mapping repository: %w", err)
+	}
 
 	return &AnsibleManager{
 		wg:                &sync.WaitGroup{},
 		dispatcherClient:  dispatcherClient,
 		ansibleDispatcher: dispatcher.NewAnsibleDispatcher(deviceID),
-	}
+		MappingRepository: mappingRepository,
+	}, nil
 }
 
 func MissingAttributeError(attribute string, metadata map[string]string) error {
