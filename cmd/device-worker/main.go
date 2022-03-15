@@ -162,9 +162,17 @@ func main() {
 	)
 
 	dataDirPlaybook := path.Join(baseDataDir, "devicePlaybooks")
+	/* #nosec */
+	if err := os.MkdirAll(dataDirPlaybook, 0755); err != nil {
+		log.Fatalf("cannot create directory: %v", err)
+	}
 	ansibleManager, err := ansible.NewAnsibleManager(dispatcherClient, dataDirPlaybook)
 	if err != nil {
 		log.Fatalf("cannot start ansible manager, err: %v", err)
+	}
+	err = ansibleManager.ExecutePendingPlaybooks()
+	if err != nil {
+		log.Errorf("cannot run previous ansible playbooks, err: %v", err)
 	}
 
 	s := grpc.NewServer()

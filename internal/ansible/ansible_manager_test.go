@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path"
 	"time"
 
 	"github.com/apenella/go-ansible/pkg/options"
@@ -19,9 +20,11 @@ import (
 var _ = Describe("Ansible Runner", func() {
 	const (
 		returnUrl = "test_return_url"
+		configDir = "/tmp/testAnsible/"
 	)
 	var (
 		messageID      string
+		err            error
 		ansibleManager *ansible.AnsibleManager
 		client         Dispatcher
 		timeout        time.Duration
@@ -45,10 +48,18 @@ var _ = Describe("Ansible Runner", func() {
 			Options:           ansiblePlaybookOptions,
 			StdoutCallback:    "json",
 		}
-		ansibleManager = ansible.NewAnsibleManager(&client)
+		ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
+		Expect(err).ToNot(HaveOccurred())
 
 		timeout = 600 * time.Second
-
+		err = os.RemoveAll(configDir)
+		Expect(err).ToNot(HaveOccurred())
+		err = os.Mkdir(configDir, 0777)
+		Expect(err).ToNot(HaveOccurred())
+	})
+	AfterEach(func() {
+		err = ansibleManager.MappingRepository.RemoveMappingFile()
+		Expect(err).ToNot(HaveOccurred())
 	})
 	Context("Execute playbook", func() {
 		It("Empty playbook", func() {
@@ -62,7 +73,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err := ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
 
 			//then
 			Expect(err).To(HaveOccurred(), "missing playbook string in message")
@@ -77,7 +88,8 @@ var _ = Describe("Ansible Runner", func() {
 				Options:           ansiblePlaybookOptions,
 			}
 
-			ansibleManager = ansible.NewAnsibleManager(&client)
+			ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
+			Expect(err).ToNot(HaveOccurred())
 
 			playbookContent, err := os.ReadFile(playbookFilename)
 			if err != nil {
@@ -98,9 +110,9 @@ var _ = Describe("Ansible Runner", func() {
 
 			//when
 			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
-			Expect(err).Should(BeNil())
-
+			Expect(err).ToNot(HaveOccurred())
 			//then
+			Expect(client.latestData).ToNot(BeNil())
 			Expect(client.latestData.Directive).To(Equal(returnUrl))
 
 		})
@@ -114,7 +126,8 @@ var _ = Describe("Ansible Runner", func() {
 				Options:           ansiblePlaybookOptions,
 			}
 
-			ansibleManager = ansible.NewAnsibleManager(&client)
+			ansibleManager, err := ansible.NewAnsibleManager(&client, configDir)
+			Expect(err).ToNot(HaveOccurred())
 
 			playbookContent, err := os.ReadFile(playbookFilename)
 			if err != nil {
@@ -135,12 +148,12 @@ var _ = Describe("Ansible Runner", func() {
 
 			//when
 			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
-			Expect(err).Should(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(client.latestData.Directive).To(Equal(returnUrl))
 		})
 		It("Execute slow ansible playbook", func() {
 
-			timeout = 1 * time.Second
+			timeout = 1 * time.Millisecond
 			//given
 			playbookFilename := "examples/test_playbook_timeout.yml"
 			playbookCmd = &playbook.AnsiblePlaybookCmd{
@@ -149,7 +162,8 @@ var _ = Describe("Ansible Runner", func() {
 				Options:           ansiblePlaybookOptions,
 			}
 
-			ansibleManager = ansible.NewAnsibleManager(&client)
+			ansibleManager, err := ansible.NewAnsibleManager(&client, configDir)
+			Expect(err).ToNot(HaveOccurred())
 
 			playbookContent, err := os.ReadFile(playbookFilename)
 			if err != nil {
@@ -170,11 +184,61 @@ var _ = Describe("Ansible Runner", func() {
 
 			//when
 			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
-			Expect(err).ShouldNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(client.latestData).To(BeNil())
 		})
 	})
+	BeforeEach(func() {
+		client := Dispatcher{}
+		ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
+		Expect(err).ToNot(HaveOccurred())
 
+		err = os.RemoveAll(configDir)
+		Expect(err).ToNot(HaveOccurred())
+		err = os.Mkdir(configDir, 0777)
+		Expect(err).ToNot(HaveOccurred())
+	})
+	AfterEach(func() {
+		err := ansibleManager.MappingRepository.RemoveMappingFile()
+		Expect(err).ToNot(HaveOccurred())
+	})
+	Context("On restart", func() {
+		It("Execute playbook on restart", func() {
+			//given
+			p1, _ := os.ReadFile("examples/test_playbook_1.yml")
+			p2, _ := os.ReadFile("examples/test_playbook_3.yml")
+
+			modTime1 := time.Now().Add(-3 * time.Hour)
+			modTime2 := time.Now().Add(-2 * time.Hour)
+
+			p1Sha := ansibleManager.MappingRepository.GetSha256(string(p1))
+			p2Sha := ansibleManager.MappingRepository.GetSha256(string(p2))
+
+			p1Path := path.Join(configDir, p1Sha)
+			p2Path := path.Join(configDir, p2Sha)
+
+			Expect(ansibleManager.MappingRepository.GetAll()).To(BeEmpty())
+
+			err = ansibleManager.MappingRepository.Add(string(p1), modTime1)
+			Expect(err).ToNot(HaveOccurred())
+			err = ansibleManager.MappingRepository.Add(string(p2), modTime2)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(ansibleManager.MappingRepository.GetAll()).ToNot(BeEmpty())
+			Expect(len(ansibleManager.MappingRepository.GetAll())).To(Equal(2))
+
+			//when
+			err = ansibleManager.ExecutePendingPlaybooks()
+			Expect(err).ToNot(BeNil()) //This is a multierror
+
+			//then
+			Expect(ansibleManager.MappingRepository.GetModTime(p1Path)).To(Equal(modTime1.UnixNano()))
+			Expect(ansibleManager.MappingRepository.GetModTime(p2Path)).To(Equal(modTime2.UnixNano()))
+
+			Expect(ansibleManager.MappingRepository.GetFilePath(modTime1)).To(Equal(p1Path))
+			Expect(ansibleManager.MappingRepository.GetFilePath(modTime2)).To(Equal(p2Path))
+		})
+	})
 })
 
 // We keep the latest send data to make sure that we validate the data sent to
@@ -183,7 +247,7 @@ type Dispatcher struct {
 	latestData *pb.Data
 }
 
-func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Receipt, error) {
+func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
 	d.latestData = in
 	return nil, nil
 }

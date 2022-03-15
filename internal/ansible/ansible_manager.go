@@ -14,8 +14,10 @@ import (
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/apenella/go-ansible/pkg/execute"
+	"github.com/apenella/go-ansible/pkg/options"
 	"github.com/apenella/go-ansible/pkg/playbook"
 	ansibleResults "github.com/apenella/go-ansible/pkg/stdoutcallback/results"
+	"github.com/hashicorp/go-multierror"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/model/message"
@@ -72,15 +74,11 @@ func MissingAttributeError(attribute string, metadata map[string]string) error {
 }
 
 func missingAttributeMsg(attribute string, metadata map[string]string) string {
-	return fmt.Sprintf("missing attribute %s in message metadata %v", attribute, metadata)
+	return fmt.Sprintf("missing attribute %s in message metadata %+v", attribute, metadata)
 }
 
-func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
-	var err error
-
-	buffOut := new(bytes.Buffer)
-	buffErr := new(bytes.Buffer)
-
+// Set executor and stdoutcallback
+func setupPlaybookCmd(playbookCmd *playbook.AnsiblePlaybookCmd, buffOut, buffErr *bytes.Buffer) {
 	playbookExecutor := execute.NewDefaultExecute(
 		execute.WithWrite(io.Writer(buffOut)),
 		execute.WithWriteError(io.Writer(buffErr)),
@@ -88,6 +86,14 @@ func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd
 
 	playbookCmd.Exec = playbookExecutor
 	playbookCmd.StdoutCallback = "json"
+}
+
+func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
+	var err error
+	buffOut := new(bytes.Buffer)
+	buffErr := new(bytes.Buffer)
+
+	setupPlaybookCmd(playbookCmd, buffOut, buffErr)
 
 	deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 
@@ -117,7 +123,6 @@ func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd
 	if reqFields.returnURL, found = metadataMap[returnURLAttribute]; !found {
 		return fmt.Errorf(missingAttributeMsg(returnURLAttribute, metadataMap))
 	}
-
 	playbookYamlFile := path.Join(dataDir, "ansible_playbook_"+d.MessageId+".yml")
 	err = os.WriteFile(playbookYamlFile, []byte(payloadStr), 0600)
 	if err != nil {
@@ -141,10 +146,11 @@ func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+	fileInfo, err := os.Stat(playbookYamlFile)
 	// execute
 	a.wg.Add(1)
-	go execPlaybook(executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut)
-	var errRunPlaybook error = nil
+	go execPlaybook(executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.ModTime())
+	var errRunPlaybook error
 loop:
 	for {
 		select {
@@ -167,36 +173,68 @@ loop:
 			}
 		}
 	}
-
-	if errRunPlaybook != nil {
-		// last event should be the failure, find the reason
-		msgList := a.ansibleDispatcher.GetMsgList()
-		errorCode, errorDetails := parseFailure(msgList[len(msgList)-1])
 		if errorCode == NotInstalled {
 			log.Warn("The flotta-agent requires the ansible package to be installed.")
 		}
-		// required event for cloud connector
-		onFailed := a.ansibleDispatcher.ExecutorOnFailed(reqFields.crcDispatcherCorrelationID, "", errorCode, fmt.Sprintf("%v", errorDetails))
-		a.ansibleDispatcher.AddRunnerJobEvent(onFailed)
-	}
-	return nil
 }
 
 // sendEvents adds the events of AnsiblePlaybookJSONResults into eventList and sends them to the dispatcher.
 func (a *AnsibleManager) sendEvents(results *ansibleResults.AnsiblePlaybookJSONResults, returnURL string, responseTo string, playbookYamlFile string) error {
+	if results == nil || results.Plays == nil {
+		err := fmt.Errorf("cannot compose empty message for %s", responseTo)
+		log.Error(err)
+		return err
+	}
 	eventList := a.ansibleDispatcher.AddEvent(playbookYamlFile, results)
 	message, err := dispatcher.ComposeDispatcherMessage(eventList, returnURL, responseTo)
 	if err != nil {
-		log.Errorf("cannot compose message for events: %v. Error: %v", eventList, err)
+		log.Errorf("cannot compose message for events: %v. ResponseTo: %s, Error: %v", eventList, responseTo, err)
 		return err
 	}
 	log.Infof("Message to be sent as reply: %v", string(message.Content))
 	_, err = a.dispatcherClient.Send(context.Background(), message)
 	if err != nil {
-		log.Errorf("cannot send message %s to the dispatcher. Content: %s. Error: %v", message.MessageId, string(message.Content), err)
+		log.Errorf("cannot send message %s to the dispatcher. ResponseTo: %s, Content: %s, Error: %v", message.MessageId, responseTo, string(message.Content), err)
 		return err
 	}
 	return nil
+}
+
+func (a *AnsibleManager) ExecutePendingPlaybooks() error {
+	timeout := 300 * time.Second // Deafult timeout
+
+	// defined how to connect to hosts
+	ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
+		Connection: "local",
+	}
+	// defined which should be the ansible-playbook execution behavior and where to find execution configuration.
+	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
+		Inventory: "127.0.0.1,",
+	}
+
+	playbookCmd := &playbook.AnsiblePlaybookCmd{
+		ConnectionOptions: ansiblePlaybookConnectionOptions,
+		Options:           ansiblePlaybookOptions,
+	}
+
+	buffOut := new(bytes.Buffer)
+	buffErr := new(bytes.Buffer)
+
+	setupPlaybookCmd(playbookCmd, buffOut, buffErr)
+	allPlaybooks := a.MappingRepository.GetAll()
+	var errors error
+	for _, v := range allPlaybooks {
+		playbookCmd.Playbooks = []string{v}
+		res, err := a.execPlaybookSync(playbookCmd, timeout, buffOut, a.MappingRepository)
+		log.Error(err)
+		errors = multierror.Append(errors, err)
+		if res == nil && err != nil {
+			return err
+		}
+		buffOut.Reset()
+		buffErr.Reset()
+	}
+	return errors
 }
 
 func (a *AnsibleManager) StopPlaybooks() {
@@ -216,14 +254,16 @@ func parseFailure(event message.AnsibleRunnerJobEventYaml) (errorCode string, er
 
 // execPlaybook executes the ansible playbook.
 // It sends ansible playbook results when the playbook execution has been completed on playbookResults channel.
-// When the execution teminates, execPlaybook signals on executionCompleted channel if there was an error.
+// When the execution terminates, execPlaybook signals on executionCompleted channel if there was an error.
 func execPlaybook(
 	executionCompleted chan error,
 	playbookResults chan<- *ansibleResults.AnsiblePlaybookJSONResults,
 	playbook *playbook.AnsiblePlaybookCmd,
 	timeout time.Duration,
 	messageID string,
-	buffOut *bytes.Buffer) {
+	buffOut *bytes.Buffer,
+	mappingRepository mapping.MappingRepository,
+	modTime time.Time) {
 
 	defer close(executionCompleted)
 	defer close(playbookResults)
@@ -231,27 +271,73 @@ func execPlaybook(
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// Check if the playbook has been already executed on the device.
+	alreadyExecuted := mappingRepository.Exists(modTime)
+
+	if alreadyExecuted {
+		err := fmt.Errorf("playbook of messageID %s is already in execution", messageID)
+		executionCompleted <- err
+		return
+	}
+
+	fileContent, err := os.ReadFile(playbook.Playbooks[0])
+	if err != nil {
+		executionCompleted <- err
+		return
+	}
+
+	err = mappingRepository.Add(string(fileContent), modTime)
+	if err != nil {
+		executionCompleted <- err
+		return
+	}
 	errRun := playbook.Run(ctx)
 
 	if errRun != nil {
-		log.Errorf("cannot read ansible results %s. Error: %v", buffOut.String(), errRun)
-		// log.Errorf("cannot read ansible results. Error: %v", errRun)
+		log.Warnf("playbook executed with errors. Results: %s, messageID: %s, Error: %v", buffOut.String(), messageID, errRun)
 	}
-	// log.Debugf("ansible-playbook output: %s", buffOut.String())
 	results, err := ansibleResults.JSONParse(buffOut.Bytes())
 
 	if err != nil {
-		log.Errorf("error while parsing json string %s. Error: %v\n", buffOut.String(), err)
+		log.Errorf("error while parsing json string %s. MessageID: %s, Error: %v\n", buffOut.String(), messageID, err)
 		// Signal that the playbook execution completed with error
 		executionCompleted <- err
 		// No more work to be done, return
 		return
 	}
 
-	log.Debugf("ansible playbook results are: %v\n", results)
-
 	playbookResults <- results
 
 	// Signal that the playbook execution completed
 	executionCompleted <- errRun
+}
+
+// execPlaybookSync executes the ansible playbook synchronously.
+// if error is not nil, then an error occured during the playbook execution (e.g. host unreachable), but this does't mean
+// that there are no results available. In other words, a successful call returns *ansibleResults.AnsiblePlaybookJSONResults not nil.
+func (a *AnsibleManager) execPlaybookSync(
+	playbook *playbook.AnsiblePlaybookCmd,
+	timeout time.Duration,
+	buffOut *bytes.Buffer,
+	mappingRepository mapping.MappingRepository) (*ansibleResults.AnsiblePlaybookJSONResults, error) {
+
+	log.Debugf("Executing %v", playbook.Playbooks)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	errRun := playbook.Run(ctx)
+
+	if errRun != nil {
+		log.Warnf("playbook executed with errors. Results: %s, playbookFile: %v, Error: %v", buffOut.String(), playbook.Playbooks, errRun)
+	}
+	results, err := ansibleResults.JSONParse(buffOut.Bytes())
+
+	if err != nil {
+		log.Errorf("error while parsing json string %s. MessageID: %v, Error: %v\n", buffOut.String(), playbook.Playbooks, err)
+		// Signal that the playbook execution completed with error
+		return nil, err
+	}
+
+	return results, errRun
 }

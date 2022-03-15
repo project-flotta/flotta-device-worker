@@ -1,0 +1,13 @@
+---
+-  name: Test playbook 3
+   hosts: 127.0.0.1
+   gather_facts: false
+   
+   tasks:
+   - name: Create a file called '/tmp/testfile_play3.txt' with the content 'hello world'.
+     copy:
+       content: hello world
+       dest: /tmp/testfile_play3.txt
+   - name: Hello
+     debug:
+       msg: Hello from playbook 3
