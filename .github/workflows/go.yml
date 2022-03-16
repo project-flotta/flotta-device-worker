@@ -21,8 +21,8 @@ jobs:
     - name: Install package
       run: |
         sudo apt-get -y update
-        sudo apt-get -y install libbtrfs-dev libgpgme-dev libdevmapper-dev
-
+        sudo apt-get -y install libbtrfs-dev libgpgme-dev libdevmapper-dev ansible
+    
     - name: Test
       run: |
         make test
