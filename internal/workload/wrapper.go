@@ -126,10 +126,22 @@ func (ww *Workload) RegisterObserver(observer Observer) {
 	ww.lock.Lock()
 	defer ww.lock.Unlock()
 	ww.observers = append(ww.observers, observer)
-
 }
 
 func (ww *Workload) Init() error {
+	// Enable auto-update podman timer:
+	svc, err := service.NewSystemdWithSuffix("podman-auto-update", "", "", service.TimerSuffix, nil)
+	if err != nil {
+		return err
+	}
+	if err = svc.Enable(); err != nil {
+		return err
+	}
+	if err = svc.Start(); err != nil {
+		return err
+	}
+
+	// Init netfiliter table:
 	return ww.netfilter.AddTable(nfTableName)
 }
 

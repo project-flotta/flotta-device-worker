@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-device-worker/internal/volumes"
 
 	"git.sr.ht/~spc/go-log"
@@ -462,6 +463,7 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	}
 	pod.Kind = "Pod"
 	pod.Name = workload.Name
+	pod.Labels = workload.Labels
 	exportVolume := volumes.HostPathVolume(w.volumesDir, workload.Name)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, exportVolume)
 	var containers []v1.Container
@@ -475,6 +477,26 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 		containers = append(containers, container)
 	}
 	pod.Spec.Containers = containers
+
+	if pod.Labels == nil {
+		pod.Labels = map[string]string{}
+	}
+
+	// Set the authfile label to pod, if ImageRegistry authfile is set:
+	if workload.ImageRegistries != nil && workload.ImageRegistries.AuthFile != "" {
+		pod.Labels["io.containers.autoupdate.authfile"] = w.getAuthFilePath(workload.Name)
+	}
+
+	// We need to set the PODMAN_SYSTEMD_UNIT label manually here, because when pod is started via
+	// podman play kube command it doesn't have any CreateCommand, which is needed to re-run the pod
+	// when new systemd file is genereted, which is responsible for setting the label based on env
+	// variable.
+	for label := range pod.Labels {
+		if ok := strings.Contains(label, "io.containers.autoupdate"); ok {
+			pod.Labels["PODMAN_SYSTEMD_UNIT"] = service.DefaultServiceName(workload.Name)
+		}
+	}
+
 	return &pod, nil
 }
 

@@ -4,13 +4,13 @@ import (
 	"fmt"
 
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/network"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -64,7 +64,6 @@ var _ = Describe("Workload management", func() {
 			serviceManager.EXPECT().Add(svc).Return(nil)
 
 			mappingRepository.EXPECT().Add("pod1", "id1")
-			mappingRepository.EXPECT().GetId("pod1").Return("id1")
 
 			// when
 			err := wk.Run(pod, manifestPath, authFilePath)
@@ -79,7 +78,6 @@ var _ = Describe("Workload management", func() {
 			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
 
 			mappingRepository.EXPECT().Add("pod1", "id1")
-			mappingRepository.EXPECT().GetId("pod1").Return("id1")
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(gomock.Any(), gomock.Any()).Return(svc, nil)
@@ -99,7 +97,6 @@ var _ = Describe("Workload management", func() {
 			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
 
 			mappingRepository.EXPECT().Add("pod1", "id1")
-			mappingRepository.EXPECT().GetId("pod1").Return("id1")
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(gomock.Any(), gomock.Any()).Return(svc, nil)

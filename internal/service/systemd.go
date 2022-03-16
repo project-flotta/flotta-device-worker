@@ -17,7 +17,10 @@ import (
 const (
 	DefaultUnitsPath      = "/etc/systemd/system/"
 	DefaultRestartTimeout = 15
+	PodSuffix             = "_pod"
+	ServicePrefix         = "pod-"
 	ServiceSuffix         = ".service"
+	TimerSuffix           = ".timer"
 )
 
 //go:generate mockgen -package=service -destination=mock_systemd.go . Service
@@ -38,6 +41,8 @@ type systemd struct {
 	UnitsContent   map[string]string `json:"-"`
 	servicePrefix  string
 	dbusConnection *dbus.Conn `json:"-"`
+	suffix         string
+	podSuffix      string
 }
 
 //go:generate mockgen -package=service -destination=mock_systemd_manager.go . SystemdManager
@@ -55,9 +60,7 @@ type systemdManager struct {
 }
 
 func NewSystemdManager(configDir string) (SystemdManager, error) {
-
 	services := make(map[string]*systemd)
-
 	servicePath := path.Join(configDir, "services.json")
 	servicesJson, err := ioutil.ReadFile(servicePath) //#nosec
 	if err == nil {
@@ -127,6 +130,10 @@ func (mgr *systemdManager) write() error {
 }
 
 func NewSystemd(name string, serviceNamePrefix string, units map[string]string) (Service, error) {
+	return NewSystemdWithSuffix(name, serviceNamePrefix, PodSuffix, ServiceSuffix, units)
+}
+
+func NewSystemdWithSuffix(name string, serviceNamePrefix string, serviceNameSuffix string, serviceSuffix string, units map[string]string) (Service, error) {
 	conn, err := dbus.NewSystemdConnectionContext(context.TODO())
 	if err != nil {
 		return nil, err
@@ -144,12 +151,14 @@ func NewSystemd(name string, serviceNamePrefix string, units map[string]string) 
 		Units:          unitNames,
 		UnitsContent:   units,
 		servicePrefix:  serviceNamePrefix,
+		suffix:         serviceSuffix,
+		podSuffix:      serviceNameSuffix,
 	}, nil
 }
 
 func (s *systemd) Add() error {
 	for unit, content := range s.UnitsContent {
-		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+ServiceSuffix), []byte(content), 0644) //#nosec
+		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+s.suffix), []byte(content), 0644) //#nosec
 		if err != nil {
 			return err
 		}
@@ -159,7 +168,7 @@ func (s *systemd) Add() error {
 
 func (s *systemd) Remove() error {
 	for _, unit := range s.Units {
-		err := os.Remove(path.Join(DefaultUnitsPath, unit+ServiceSuffix))
+		err := os.Remove(path.Join(DefaultUnitsPath, unit+s.suffix))
 		if err != nil {
 			return err
 		}
@@ -217,5 +226,9 @@ func (s *systemd) Disable() error {
 }
 
 func (s *systemd) serviceName(serviceName string) string {
-	return s.servicePrefix + serviceName + "_pod" + ServiceSuffix
+	return s.servicePrefix + serviceName + s.podSuffix + s.suffix
+}
+
+func DefaultServiceName(serviceName string) string {
+	return ServicePrefix + serviceName + PodSuffix + ServiceSuffix
 }
