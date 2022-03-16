@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"sync"
@@ -59,6 +60,11 @@ func NewAnsibleManager(
 	mappingRepository, err := mapping.NewMappingRepository(configDir)
 	if err != nil {
 		return nil, fmt.Errorf("ansible manager cannot initialize mapping repository: %w", err)
+	}
+
+	_, err = exec.LookPath("ansible")
+	if err != nil {
+		return nil, fmt.Errorf("flotta agent requires the ansible package to be installed")
 	}
 
 	return &AnsibleManager{
@@ -173,9 +179,6 @@ loop:
 			}
 		}
 	}
-		if errorCode == NotInstalled {
-			log.Warn("The flotta-agent requires the ansible package to be installed.")
-		}
 }
 
 // sendEvents adds the events of AnsiblePlaybookJSONResults into eventList and sends them to the dispatcher.
