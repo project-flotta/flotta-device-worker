@@ -1,15 +1,17 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"sync"
 
 	"git.sr.ht/~spc/go-log"
+	"github.com/coreos/go-systemd/v22/dbus"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -30,12 +32,12 @@ type Service interface {
 }
 
 type systemd struct {
-	Name          string            `json:"name"`
-	RestartSec    int               `json:"restartSec"`
-	Path          string            `json:"path"`
-	Units         []string          `json:"units"`
-	UnitsContent  map[string]string `json:"-"`
-	servicePrefix string
+	Name           string            `json:"name"`
+	RestartSec     int               `json:"restartSec"`
+	Units          []string          `json:"units"`
+	UnitsContent   map[string]string `json:"-"`
+	servicePrefix  string
+	dbusConnection *dbus.Conn `json:"-"`
 }
 
 //go:generate mockgen -package=service -destination=mock_systemd_manager.go . SystemdManager
@@ -53,6 +55,7 @@ type systemdManager struct {
 }
 
 func NewSystemdManager(configDir string) (SystemdManager, error) {
+
 	services := make(map[string]*systemd)
 
 	servicePath := path.Join(configDir, "services.json")
@@ -124,7 +127,7 @@ func (mgr *systemdManager) write() error {
 }
 
 func NewSystemd(name string, serviceNamePrefix string, units map[string]string) (Service, error) {
-	path, err := exec.LookPath("systemctl")
+	conn, err := dbus.NewSystemdConnectionContext(context.TODO())
 	if err != nil {
 		return nil, err
 	}
@@ -135,12 +138,12 @@ func NewSystemd(name string, serviceNamePrefix string, units map[string]string) 
 	}
 
 	return &systemd{
-		Name:          name,
-		RestartSec:    DefaultRestartTimeout,
-		Path:          path,
-		Units:         unitNames,
-		UnitsContent:  units,
-		servicePrefix: serviceNamePrefix,
+		Name:           name,
+		RestartSec:     DefaultRestartTimeout,
+		dbusConnection: conn,
+		Units:          unitNames,
+		UnitsContent:   units,
+		servicePrefix:  serviceNamePrefix,
 	}, nil
 }
 
@@ -169,49 +172,50 @@ func (s *systemd) GetName() string {
 	return s.Name
 }
 
+func (s *systemd) reload() error {
+	return s.dbusConnection.ReloadContext(context.Background())
+}
+
 func (s *systemd) Start() error {
-	return s.run([]string{"start", s.serviceName(s.Name)})
+	startChan := make(chan string)
+	if _, err := s.dbusConnection.StartUnitContext(context.Background(), s.serviceName(s.Name), "replace", startChan); err != nil {
+		return err
+	}
+
+	result := <-startChan
+	switch result {
+	case "done":
+		return nil
+	default:
+		return errors.Errorf("Failed to start systemd service %s", s.serviceName(s.Name))
+	}
 }
 
 func (s *systemd) Stop() error {
-	return s.run([]string{"stop", s.serviceName(s.Name)})
+	stopChan := make(chan string)
+	if _, err := s.dbusConnection.StopUnitContext(context.Background(), s.serviceName(s.Name), "replace", stopChan); err != nil {
+		return err
+	}
+
+	result := <-stopChan
+	switch result {
+	case "done":
+		return nil
+	default:
+		return errors.Errorf("Failed to stop systemd service %s", s.serviceName(s.Name))
+	}
 }
 
 func (s *systemd) Enable() error {
-	return s.run([]string{"enable", s.serviceName(s.Name)})
+	_, _, err := s.dbusConnection.EnableUnitFilesContext(context.Background(), []string{s.serviceName(s.Name)}, false, true)
+	return err
 }
 
 func (s *systemd) Disable() error {
-	return s.run([]string{"disable", s.serviceName(s.Name)})
+	_, err := s.dbusConnection.DisableUnitFilesContext(context.Background(), []string{s.serviceName(s.Name)}, false)
+	return err
 }
 
 func (s *systemd) serviceName(serviceName string) string {
 	return s.servicePrefix + serviceName + ServiceSuffix
-}
-
-func (s *systemd) reload() error {
-	if err := s.run([]string{"daemon-reload"}); err != nil {
-		return err
-	}
-
-	if err := s.run([]string{"reset-failed"}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *systemd) run(args []string) error {
-	args = append([]string{s.Path}, args...)
-	cmd := exec.Cmd{
-		Path: s.Path,
-		Args: args,
-	}
-
-	log.Infof("Executing systemd command %v ", cmd)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("command '%s' failed with the following error: %v", cmd.String(), err)
-	}
-
-	return nil
 }
