@@ -22,7 +22,7 @@ RUN mkdir /etc/pki/consumer && \
 RUN echo "" > /etc/yggdrasil/config.toml && \
     echo 'key-file = "/etc/pki/consumer/key.pem"' >> /etc/yggdrasil/config.toml && \
     echo 'cert-file = "/etc/pki/consumer/cert.pem"' >> /etc/yggdrasil/config.toml && \
-    echo 'server = "172.17.0.1:8888"' >> /etc/yggdrasil/config.toml && \
+    echo 'server = "project-flotta.io:8043"' >> /etc/yggdrasil/config.toml && \
     echo 'protocol = "http"' >> /etc/yggdrasil/config.toml && \
     echo 'path-prefix="api/flotta-management/v1"' >> /etc/yggdrasil/config.toml && \
     echo 'log-level="trace"' >> /etc/yggdrasil/config.toml
