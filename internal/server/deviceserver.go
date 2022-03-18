@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"git.sr.ht/~spc/go-log"
-	"github.com/apenella/go-ansible/pkg/options"
-	"github.com/apenella/go-ansible/pkg/playbook"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
@@ -29,7 +27,7 @@ func NewDeviceServer(configManager *configuration2.Manager, registrationManager 
 		deviceID:             configManager.GetDeviceID(),
 		registrationManager:  registrationManager,
 		configurationUpdates: make(chan models.DeviceConfigurationMessage),
-		ansibleManager:      ansibleManager,
+		ansibleManager:       ansibleManager,
 	}
 
 	go func() {
@@ -51,22 +49,10 @@ func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Response, error)
 		if x, found := d.GetMetadata()["ansible-playbook"]; found && x == "true" {
 			log.Debugf("Received message %s with 'ansible-playbook' metadata", d.MessageId)
 
-			// defined how to connect to hosts
-			ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
-				Connection: "local",
-			}
-			// defined which should be the ansible-playbook execution behavior and where to find execution configuration.
-			ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
-				Inventory: "127.0.0.1,",
-			}
-
-			playbookCmd := &playbook.AnsiblePlaybookCmd{
-				ConnectionOptions: ansiblePlaybookConnectionOptions,
-				Options:           ansiblePlaybookOptions,
-			}
+			playbookCmd := s.ansibleManager.GetPlaybookCommand()
 
 			timeout := getTimeout(d.GetMetadata())
-			err := s.ansibleManager.HandlePlaybook(playbookCmd, d, timeout)
+			err := s.ansibleManager.HandlePlaybook(&playbookCmd, d, timeout)
 
 			if err != nil {
 				log.Warnf("cannot handle ansible playbook. Error: %v", err)

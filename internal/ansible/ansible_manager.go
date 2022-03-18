@@ -17,6 +17,7 @@ import (
 	"github.com/apenella/go-ansible/pkg/execute"
 	"github.com/apenella/go-ansible/pkg/options"
 	"github.com/apenella/go-ansible/pkg/playbook"
+	"github.com/apenella/go-ansible/pkg/stdoutcallback"
 	ansibleResults "github.com/apenella/go-ansible/pkg/stdoutcallback/results"
 	"github.com/hashicorp/go-multierror"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
@@ -212,29 +213,16 @@ func (a *AnsibleManager) sendEvents(results *ansibleResults.AnsiblePlaybookJSONR
 func (a *AnsibleManager) ExecutePendingPlaybooks() error {
 	timeout := 300 * time.Second // Deafult timeout
 
-	// defined how to connect to hosts
-	ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
-		Connection: "local",
-	}
-	// defined which should be the ansible-playbook execution behavior and where to find execution configuration.
-	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
-		Inventory: "127.0.0.1,",
-	}
-
-	playbookCmd := &playbook.AnsiblePlaybookCmd{
-		ConnectionOptions: ansiblePlaybookConnectionOptions,
-		Options:           ansiblePlaybookOptions,
-	}
-
+	playbookCmd := a.GetPlaybookCommand()
 	buffOut := new(bytes.Buffer)
 	buffErr := new(bytes.Buffer)
 
-	setupPlaybookCmd(playbookCmd, buffOut, buffErr)
+	setupPlaybookCmd(&playbookCmd, buffOut, buffErr)
 	allPlaybooks := a.MappingRepository.GetAll()
 	var errors error
 	for _, v := range allPlaybooks {
 		playbookCmd.Playbooks = []string{v}
-		res, err := a.execPlaybookSync(playbookCmd, timeout, buffOut, a.MappingRepository)
+		res, err := a.execPlaybookSync(&playbookCmd, timeout, buffOut, a.MappingRepository)
 		log.Error(err)
 		errors = multierror.Append(errors, err)
 		if res == nil && err != nil {
@@ -248,6 +236,24 @@ func (a *AnsibleManager) ExecutePendingPlaybooks() error {
 
 func (a *AnsibleManager) WaitPlaybookCompletion() {
 	a.wg.Wait()
+}
+
+func (a *AnsibleManager) GetPlaybookCommand() playbook.AnsiblePlaybookCmd {
+	// defined how to connect to hosts
+	ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
+		Connection: "local",
+	}
+	// defined which should be the ansible-playbook execution behavior and where to find execution configuration.
+	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
+		Inventory: "127.0.0.1,",
+	}
+
+	return playbook.AnsiblePlaybookCmd{
+		ConnectionOptions: ansiblePlaybookConnectionOptions,
+		Options:           ansiblePlaybookOptions,
+		StdoutCallback:    stdoutcallback.JSONStdoutCallback,
+	}
+
 }
 
 // parseFailure generates the error code and details from the failure event

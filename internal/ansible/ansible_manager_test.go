@@ -7,7 +7,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/apenella/go-ansible/pkg/options"
 	"github.com/apenella/go-ansible/pkg/playbook"
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
@@ -28,27 +27,16 @@ var _ = Describe("Ansible Runner", func() {
 		ansibleManager *ansible.AnsibleManager
 		client         Dispatcher
 		timeout        time.Duration
-		// defined how to connect to hosts
-		ansiblePlaybookConnectionOptions = &options.AnsibleConnectionOptions{
-			Connection: "local",
-		}
-		// defined which should be the ansible-playbook execution behavior and where to find execution configuration.
-		ansiblePlaybookOptions = &playbook.AnsiblePlaybookOptions{
-			Inventory: "127.0.0.1,",
-		}
-		playbookCmd *playbook.AnsiblePlaybookCmd
+
+		playbookCmd playbook.AnsiblePlaybookCmd
 	)
 
 	BeforeEach(func() {
 		client = Dispatcher{}
 		messageID = "msg_" + uuid.New().String()
 
-		playbookCmd = &playbook.AnsiblePlaybookCmd{
-			ConnectionOptions: ansiblePlaybookConnectionOptions,
-			Options:           ansiblePlaybookOptions,
-			StdoutCallback:    "json",
-		}
 		ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
+		playbookCmd = ansibleManager.GetPlaybookCommand()
 		Expect(err).ToNot(HaveOccurred())
 
 		timeout = 600 * time.Second
@@ -73,7 +61,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
 
 			//then
 			Expect(err).To(HaveOccurred(), "missing playbook string in message")
@@ -82,11 +70,7 @@ var _ = Describe("Ansible Runner", func() {
 
 			//given
 			playbookFilename := "examples/test_playbook_1.yml"
-			playbookCmd = &playbook.AnsiblePlaybookCmd{
-				Playbooks:         []string{playbookFilename},
-				ConnectionOptions: ansiblePlaybookConnectionOptions,
-				Options:           ansiblePlaybookOptions,
-			}
+			playbookCmd.Playbooks = []string{playbookFilename}
 
 			ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
 			Expect(err).ToNot(HaveOccurred())
@@ -109,7 +93,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
 			Expect(err).ToNot(HaveOccurred())
 			//then
 			Expect(client.latestData).ToNot(BeNil())
@@ -120,11 +104,7 @@ var _ = Describe("Ansible Runner", func() {
 
 			//given
 			playbookFilename := "examples/test_playbook_2.yml"
-			playbookCmd = &playbook.AnsiblePlaybookCmd{
-				Playbooks:         []string{playbookFilename},
-				ConnectionOptions: ansiblePlaybookConnectionOptions,
-				Options:           ansiblePlaybookOptions,
-			}
+			playbookCmd.Playbooks = []string{playbookFilename}
 
 			ansibleManager, err := ansible.NewAnsibleManager(&client, configDir)
 			Expect(err).ToNot(HaveOccurred())
@@ -147,7 +127,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.latestData.Directive).To(Equal(returnUrl))
 		})
@@ -156,11 +136,7 @@ var _ = Describe("Ansible Runner", func() {
 			timeout = 1 * time.Millisecond
 			//given
 			playbookFilename := "examples/test_playbook_timeout.yml"
-			playbookCmd = &playbook.AnsiblePlaybookCmd{
-				Playbooks:         []string{playbookFilename},
-				ConnectionOptions: ansiblePlaybookConnectionOptions,
-				Options:           ansiblePlaybookOptions,
-			}
+			playbookCmd.Playbooks = []string{playbookFilename}
 
 			ansibleManager, err := ansible.NewAnsibleManager(&client, configDir)
 			Expect(err).ToNot(HaveOccurred())
@@ -183,7 +159,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
 			Expect(err).To(HaveOccurred())
 			Expect(client.latestData).To(BeNil())
 		})
