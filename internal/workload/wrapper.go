@@ -225,7 +225,7 @@ func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath stri
 	}
 
 	// Create the system service to manage the pod:
-	svc, err := ww.workloads.GenerateSystemdService(ww.workloadId(workload.GetName()), ww.monitoringInterval)
+	svc, err := ww.workloads.GenerateSystemdService(workload.Name, ww.monitoringInterval)
 	if err != nil {
 		return fmt.Errorf("Error while generating systemd service: %v", err)
 	}
@@ -243,7 +243,7 @@ func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath stri
 }
 
 func (ww *Workload) removeService(workloadName string) error {
-	svc := ww.serviceManager.Get(ww.workloadId(workloadName))
+	svc := ww.serviceManager.Get(workloadName)
 	if svc == nil {
 		return nil
 	}
@@ -276,10 +276,6 @@ func (ww *Workload) createService(svc service.Service) error {
 	}
 
 	return nil
-}
-
-func (ww *Workload) workloadId(workloadName string) string {
-	return ww.mappingRepository.GetId(workloadName)
 }
 
 func (ww *Workload) applyNetworkConfiguration(workload *v1.Pod) error {

@@ -217,5 +217,5 @@ func (s *systemd) Disable() error {
 }
 
 func (s *systemd) serviceName(serviceName string) string {
-	return s.servicePrefix + serviceName + ServiceSuffix
+	return s.servicePrefix + serviceName + "_pod" + ServiceSuffix
 }
