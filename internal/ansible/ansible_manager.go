@@ -103,7 +103,7 @@ func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd
 
 	deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 
-	if string(d.Content) == "" {
+	if len(d.Content) == 0 {
 		return fmt.Errorf("empty message. messageID: %s", d.MessageId)
 	}
 	err = json.Unmarshal(d.Content, &deviceConfigurationMessage)
