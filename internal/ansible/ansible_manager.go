@@ -29,7 +29,7 @@ import (
 
 // AnsibleManager handle ansible playbook execution
 type AnsibleManager struct {
-	wg                *sync.WaitGroup
+	wg                sync.WaitGroup
 	dispatcherClient  pb.DispatcherClient
 	ansibleDispatcher *dispatcher.AnsibleDispatcher
 	MappingRepository mapping.MappingRepository
@@ -68,7 +68,7 @@ func NewAnsibleManager(
 	}
 
 	return &AnsibleManager{
-		wg:                &sync.WaitGroup{},
+		wg:                sync.WaitGroup{},
 		dispatcherClient:  dispatcherClient,
 		ansibleDispatcher: dispatcher.NewAnsibleDispatcher(deviceID),
 		MappingRepository: mappingRepository,
