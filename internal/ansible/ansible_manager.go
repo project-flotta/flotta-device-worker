@@ -157,7 +157,6 @@ func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd
 	a.wg.Add(1)
 	go execPlaybook(executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.ModTime())
 	var errRunPlaybook error
-loop:
 	for {
 		select {
 		case <-ctx.Done():
@@ -169,8 +168,15 @@ loop:
 				return fmt.Errorf("ansible playbook execution completed with error. [MessageID: %s, Error: %v]", d.MessageId, err)
 			}
 			log.Infof("ansible playbook execution completed of messageID %s", d.MessageId)
-			break loop
-
+			if errRunPlaybook != nil {
+				// last event should be the failure, find the reason
+				msgList := a.ansibleDispatcher.GetMsgList()
+				errorCode, errorDetails := parseFailure(msgList[len(msgList)-1])
+				// required event for cloud connector
+				onFailed := a.ansibleDispatcher.ExecutorOnFailed(reqFields.crcDispatcherCorrelationID, "", errorCode, fmt.Sprintf("%v", errorDetails))
+				a.ansibleDispatcher.AddRunnerJobEvent(onFailed)
+			}
+			return nil
 		case results := <-playbookResults:
 			log.Debugf("posting events for messageID %s", d.MessageId)
 			err := a.sendEvents(results, reqFields.returnURL, responseTo, playbookYamlFile)
