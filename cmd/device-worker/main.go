@@ -221,7 +221,7 @@ func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor
 			log.Fatalf("cannot graceful reboot the heartbeat service: %v", err)
 		}
 
-		ansibleManager.StopPlaybooks()
+		ansibleManager.WaitPlaybookCompletion()
 
 		deviceOs.GracefulRebootCompletionChannel <- struct{}{}
 	}
@@ -242,5 +242,5 @@ func closeComponents(metricsStore *metrics.TSDB, ansibleManager *ansible.Ansible
 	if err := metricsStore.Close(); err != nil {
 		log.Error(err)
 	}
-	ansibleManager.StopPlaybooks()
+	ansibleManager.WaitPlaybookCompletion()
 }

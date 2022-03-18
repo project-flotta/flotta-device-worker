@@ -246,7 +246,7 @@ func (a *AnsibleManager) ExecutePendingPlaybooks() error {
 	return errors
 }
 
-func (a *AnsibleManager) StopPlaybooks() {
+func (a *AnsibleManager) WaitPlaybookCompletion() {
 	a.wg.Wait()
 }
 
