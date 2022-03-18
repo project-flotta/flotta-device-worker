@@ -188,20 +188,6 @@ var _ = Describe("Ansible Runner", func() {
 			Expect(client.latestData).To(BeNil())
 		})
 	})
-	BeforeEach(func() {
-		client := Dispatcher{}
-		ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
-		Expect(err).ToNot(HaveOccurred())
-
-		err = os.RemoveAll(configDir)
-		Expect(err).ToNot(HaveOccurred())
-		err = os.Mkdir(configDir, 0777)
-		Expect(err).ToNot(HaveOccurred())
-	})
-	AfterEach(func() {
-		err := ansibleManager.MappingRepository.RemoveMappingFile()
-		Expect(err).ToNot(HaveOccurred())
-	})
 	Context("On restart", func() {
 		It("Execute playbook on restart", func() {
 			//given
