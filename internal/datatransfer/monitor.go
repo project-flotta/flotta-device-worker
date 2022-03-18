@@ -46,7 +46,9 @@ func (m *Monitor) Start() {
 	go func() {
 		for range m.ticker.C {
 			err := m.syncPaths()
-			log.Error("Cannot sync paths: ", err)
+			if err != nil {
+				log.Error("Cannot sync paths: ", err)
+			}
 		}
 		log.Infof("the monitor was stopped. DeviceID: %s;", m.workloads.GetDeviceID())
 	}()
