@@ -10,6 +10,7 @@ require (
 	github.com/containers/storage v1.37.1-0.20211014130921-5c5bf639ed01 // indirect
 	github.com/go-openapi/strfmt v0.21.1
 	github.com/golang/mock v1.6.0
+	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-isatty v0.0.14 // indirect

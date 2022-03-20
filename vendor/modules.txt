@@ -419,6 +419,7 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.4
+## explicit
 github.com/golang/snappy
 # github.com/google/go-cmp v0.5.6
 github.com/google/go-cmp/cmp
@@ -620,6 +621,12 @@ github.com/openshift/assisted-installer-agent/src/inventory
 github.com/openshift/assisted-installer-agent/src/util
 # github.com/openshift/assisted-service v1.0.10-0.20210929010224-72700cdbd088
 github.com/openshift/assisted-service/models
+# github.com/opentracing-contrib/go-stdlib v1.0.0
+github.com/opentracing-contrib/go-stdlib/nethttp
+# github.com/opentracing/opentracing-go v1.2.0
+github.com/opentracing/opentracing-go
+github.com/opentracing/opentracing-go/ext
+github.com/opentracing/opentracing-go/log
 # github.com/ostreedev/ostree-go v0.0.0-20190702140239-759a8c1ac913
 github.com/ostreedev/ostree-go/pkg/glibobject
 github.com/ostreedev/ostree-go/pkg/otbuiltin
@@ -635,6 +642,7 @@ github.com/project-flotta/flotta-operator/pkg/mtls
 # github.com/prometheus/client_golang v1.11.0
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
+github.com/prometheus/client_golang/prometheus/promauto
 github.com/prometheus/client_golang/prometheus/promhttp
 github.com/prometheus/client_golang/prometheus/testutil
 github.com/prometheus/client_golang/prometheus/testutil/promlint
@@ -646,6 +654,7 @@ github.com/prometheus/common/config
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
+github.com/prometheus/common/version
 # github.com/prometheus/common/sigv4 v0.1.0
 github.com/prometheus/common/sigv4
 # github.com/prometheus/procfs v0.6.0
@@ -660,8 +669,13 @@ github.com/prometheus/prometheus/discovery/targetgroup
 github.com/prometheus/prometheus/model/exemplar
 github.com/prometheus/prometheus/model/labels
 github.com/prometheus/prometheus/model/relabel
+github.com/prometheus/prometheus/model/textparse
 github.com/prometheus/prometheus/model/timestamp
+github.com/prometheus/prometheus/model/value
+github.com/prometheus/prometheus/prompb
+github.com/prometheus/prometheus/scrape
 github.com/prometheus/prometheus/storage
+github.com/prometheus/prometheus/storage/remote
 github.com/prometheus/prometheus/tsdb
 github.com/prometheus/prometheus/tsdb/chunkenc
 github.com/prometheus/prometheus/tsdb/chunks
@@ -674,6 +688,10 @@ github.com/prometheus/prometheus/tsdb/record
 github.com/prometheus/prometheus/tsdb/tombstones
 github.com/prometheus/prometheus/tsdb/tsdbutil
 github.com/prometheus/prometheus/tsdb/wal
+github.com/prometheus/prometheus/util/gate
+github.com/prometheus/prometheus/util/logging
+github.com/prometheus/prometheus/util/osutil
+github.com/prometheus/prometheus/util/pool
 github.com/prometheus/prometheus/util/testutil
 # github.com/redhatinsights/yggdrasil v0.0.0-20220309180936-d91759a7f332
 ## explicit

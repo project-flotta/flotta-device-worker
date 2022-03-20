@@ -130,6 +130,9 @@ func main() {
 	configManager.RegisterObserver(wl)
 	wl.RegisterObserver(workloadMetricWatcher)
 
+	remoteWrite := metrics.NewRemoteWrite(dataDir, deviceId, metricsStore)
+	configManager.RegisterObserver(remoteWrite)
+
 	hw := hardware2.Hardware{}
 
 	gracefulRebootChannel = make(chan struct{})
