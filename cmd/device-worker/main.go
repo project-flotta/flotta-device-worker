@@ -89,8 +89,7 @@ func main() {
 	// Register as a Worker service with gRPC and start accepting connections.
 	dataDir := path.Join(baseDataDir, "device")
 	log.Infof("Data directory: %s", dataDir)
-	/* #nosec */
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0750); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
 	deviceId, ok := os.LookupEnv("YGG_CLIENT_ID")
@@ -162,8 +161,7 @@ func main() {
 	)
 
 	dataDirPlaybook := path.Join(baseDataDir, "devicePlaybooks")
-	/* #nosec */
-	if err := os.MkdirAll(dataDirPlaybook, 0755); err != nil {
+	if err := os.MkdirAll(dataDirPlaybook, 0750); err != nil {
 		log.Fatalf("cannot create directory: %v", err)
 	}
 	ansibleManager, err := ansible.NewAnsibleManager(dispatcherClient, dataDirPlaybook)
