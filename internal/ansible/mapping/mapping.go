@@ -96,7 +96,7 @@ func (m *mappingRepository) Add(fileContent []byte, modTime time.Time) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	filePath := path.Join(m.configDir, m.GetSha256(fileContent))
-	err := os.WriteFile(filePath, []byte(fileContent), 0640) //#nosec
+	err := os.WriteFile(filePath, []byte(fileContent), 0600)
 
 	if err != nil {
 		return err
