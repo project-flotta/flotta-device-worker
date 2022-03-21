@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 	"github.com/project-flotta/flotta-device-worker/internal/registration"
 
@@ -26,17 +27,19 @@ import (
 var _ = Describe("Heartbeat", func() {
 
 	var (
-		datadir       = "/tmp"
-		mockCtrl      *gomock.Controller
-		wkManager     *workload.WorkloadManager
-		configManager *configuration.Manager
-		wkwMock       *workload.MockWorkloadWrapper
-		hw            = &hardware.Hardware{}
-		monitor       = &datatransfer.Monitor{}
-		hb            = &heartbeat.Heartbeat{}
-		err           error
-		client        Dispatcher
-		deviceOs      *os2.OS
+		datadir        = "/tmp"
+		ansibleDir     = "/tmp/ansible_test"
+		mockCtrl       *gomock.Controller
+		wkManager      *workload.WorkloadManager
+		configManager  *configuration.Manager
+		ansibleManager *ansible.AnsibleManager
+		wkwMock        *workload.MockWorkloadWrapper
+		hw             = &hardware.Hardware{}
+		monitor        = &datatransfer.Monitor{}
+		hb             = &heartbeat.Heartbeat{}
+		err            error
+		client         Dispatcher
+		deviceOs       *os2.OS
 	)
 
 	BeforeEach(func() {
@@ -50,10 +53,15 @@ var _ = Describe("Heartbeat", func() {
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Workload Manager")
 
 		configManager = configuration.NewConfigurationManager(datadir)
+
 		client = Dispatcher{}
 		gracefulRebootChannel := make(chan struct{})
 		osExecCommands := os2.NewOsExecCommands()
 		deviceOs = os2.NewOS(gracefulRebootChannel, osExecCommands)
+
+		ansibleManager, err = ansible.NewAnsibleManager(&client, ansibleDir)
+		Expect(err).NotTo(HaveOccurred(), "Cannot start the Ansible Manager")
+
 		hb = heartbeat.NewHeartbeatService(&client,
 			configManager,
 			wkManager,
@@ -71,7 +79,7 @@ var _ = Describe("Heartbeat", func() {
 		It("Report empty workloads an up status", func() {
 			//given
 			wkwMock.EXPECT().List().Times(1)
-			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor, deviceOs)
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hw, monitor, deviceOs)
 
 			//when
 			heartbeatInfo := hbData.RetrieveInfo()
@@ -83,7 +91,7 @@ var _ = Describe("Heartbeat", func() {
 
 		It("Report workload correctly", func() {
 			//given
-			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor, deviceOs)
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hw, monitor, deviceOs)
 
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{{
 				Id:     "test",
@@ -103,9 +111,37 @@ var _ = Describe("Heartbeat", func() {
 			Expect(heartbeatInfo.Workloads[0].Status).To(Equal("Running"))
 		})
 
+		It("Report ansible events correctly", func() {
+			//given
+			ansibleErrorMsg := "test playbook error string"
+			ansibleEventReason := "Failed"
+			ansibleManager.AddToEventQueue(&models.EventInfo{
+				Message: ansibleErrorMsg,
+				Reason:  ansibleEventReason,
+				Type:    models.EventInfoTypeWarn,
+			})
+			//given
+			wkwMock.EXPECT().List().Times(1)
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hw, monitor, deviceOs)
+
+			//when
+			heartbeatInfo := hbData.RetrieveInfo()
+
+			//then
+
+			// Workload checks
+			Expect(heartbeatInfo.Status).To(Equal("up"))
+			Expect(heartbeatInfo.Workloads).To(BeEmpty())
+
+			// Ansible checks
+			Expect(heartbeatInfo.Events).To(HaveLen(1))
+			Expect(heartbeatInfo.Events[0].Message).To(Equal(ansibleErrorMsg))
+			Expect(heartbeatInfo.Events[0].Reason).To(Equal(ansibleEventReason))
+		})
+
 		It("Cannot retrieve the list of workloads", func() {
 			//given
-			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, hw, monitor, deviceOs)
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hw, monitor, deviceOs)
 
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{}, fmt.Errorf("invalid list")).AnyTimes()
 
@@ -156,7 +192,6 @@ var _ = Describe("Heartbeat", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(hb.HasStarted()).To(BeTrue())
 		})
-
 		It("Ticker not created on invalid config", func() {
 
 			// given

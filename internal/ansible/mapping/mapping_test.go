@@ -24,7 +24,7 @@ var _ = Describe("Mapping", func() {
 		repo, err = mapping.NewMappingRepository(dir)
 		Expect(err).ToNot(HaveOccurred())
 
-		sha256Test = repo.GetSha256("test")
+		sha256Test = repo.GetSha256([]byte("test"))
 		filePathTest = path.Join(configDir, sha256Test)
 	})
 	AfterEach(func() {
@@ -32,8 +32,8 @@ var _ = Describe("Mapping", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 	It("sha256 Generation", func() {
-		s1 := repo.GetSha256("AAA")
-		s2 := repo.GetSha256("AAA")
+		s1 := repo.GetSha256([]byte("AAA"))
+		s2 := repo.GetSha256([]byte("AAA"))
 		Expect(s1).To(Equal(s2))
 	})
 	It("Should be created empty", func() {
@@ -61,7 +61,7 @@ var _ = Describe("Mapping", func() {
 	It("Should store and return values", func() {
 		// when
 		modTime := time.Now()
-		err := repo.Add("test", modTime)
+		err := repo.Add([]byte("test"), modTime)
 
 		// then
 		Expect(err).ToNot(HaveOccurred())
@@ -73,30 +73,30 @@ var _ = Describe("Mapping", func() {
 	It("Should remove mapping", func() {
 		// given
 		modTime := time.Now()
-		err := repo.Add("test", modTime)
+		err := repo.Add([]byte("test"), modTime)
 		Expect(err).ToNot(HaveOccurred())
-		// Expect(fileName).ToNot(BeEmpty())
+
 		// when
-		err = repo.Remove(filePathTest)
+		err = repo.Remove([]byte("test"))
 
 		// then
 		Expect(err).ToNot(HaveOccurred())
-		Expect(repo.GetModTime(filePathTest)).To(BeZero())
+		Expect(repo.GetModTime(filePathTest)).To(Equal(int64(0)))
 		Expect(repo.GetFilePath(modTime)).To(BeEmpty())
 	})
 
 	It("Should persist mappings", func() {
 		// given
-		filePath1 := path.Join(configDir, repo.GetSha256("test-one"))
-		filePath2 := path.Join(configDir, repo.GetSha256("test-two"))
+		filePath1 := path.Join(configDir, repo.GetSha256([]byte("test-one")))
+		filePath2 := path.Join(configDir, repo.GetSha256([]byte("test-two")))
 		modTime1 := time.Now()
 		modTime2 := modTime1.Add(1 * time.Minute)
 
-		err := repo.Add("test-one", modTime1)
+		err := repo.Add([]byte("test-one"), modTime1)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(repo.GetModTime(filePath1)).To(Equal(modTime1.UnixNano()))
 		Expect(repo.GetFilePath(modTime1)).To(Equal(filePath1))
-		err = repo.Add("test-two", modTime2)
+		err = repo.Add([]byte("test-two"), modTime2)
 		Expect(err).ToNot(HaveOccurred())
 		// when
 		repo2, err := mapping.NewMappingRepository(configDir)

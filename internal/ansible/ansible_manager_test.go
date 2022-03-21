@@ -173,17 +173,17 @@ var _ = Describe("Ansible Runner", func() {
 			modTime1 := time.Now().Add(-3 * time.Hour)
 			modTime2 := time.Now().Add(-2 * time.Hour)
 
-			p1Sha := ansibleManager.MappingRepository.GetSha256(string(p1))
-			p2Sha := ansibleManager.MappingRepository.GetSha256(string(p2))
+			p1Sha := ansibleManager.MappingRepository.GetSha256(p1)
+			p2Sha := ansibleManager.MappingRepository.GetSha256(p2)
 
 			p1Path := path.Join(configDir, p1Sha)
 			p2Path := path.Join(configDir, p2Sha)
 
 			Expect(ansibleManager.MappingRepository.GetAll()).To(BeEmpty())
 
-			err = ansibleManager.MappingRepository.Add(string(p1), modTime1)
+			err = ansibleManager.MappingRepository.Add(p1, modTime1)
 			Expect(err).ToNot(HaveOccurred())
-			err = ansibleManager.MappingRepository.Add(string(p2), modTime2)
+			err = ansibleManager.MappingRepository.Add(p2, modTime2)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(ansibleManager.MappingRepository.GetAll()).ToNot(BeEmpty())

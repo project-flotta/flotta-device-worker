@@ -31,9 +31,11 @@ import (
 // AnsibleManager handle ansible playbook execution
 type AnsibleManager struct {
 	wg                sync.WaitGroup
+	managementLock    sync.Locker
 	dispatcherClient  pb.DispatcherClient
 	ansibleDispatcher *dispatcher.AnsibleDispatcher
 	MappingRepository mapping.MappingRepository
+	eventsQueue       []*models.EventInfo
 }
 
 type RequiredFields struct {
@@ -70,6 +72,7 @@ func NewAnsibleManager(
 
 	return &AnsibleManager{
 		wg:                sync.WaitGroup{},
+		managementLock:    &sync.Mutex{},
 		dispatcherClient:  dispatcherClient,
 		ansibleDispatcher: dispatcher.NewAnsibleDispatcher(deviceID),
 		MappingRepository: mappingRepository,
@@ -231,7 +234,18 @@ func (a *AnsibleManager) ExecutePendingPlaybooks() error {
 		buffOut.Reset()
 		buffErr.Reset()
 	}
+
+	a.AddToEventQueue(&models.EventInfo{
+		Message: errors.Error(),
+		Reason:  "Failed",
+		Type:    models.EventInfoTypeWarn,
+	})
+
 	return errors
+}
+
+func (a *AnsibleManager) AddToEventQueue(event *models.EventInfo) {
+	a.eventsQueue = append(a.eventsQueue, event)
 }
 
 func (a *AnsibleManager) WaitPlaybookCompletion() {
@@ -301,7 +315,7 @@ func execPlaybook(
 		return
 	}
 
-	err = mappingRepository.Add(string(fileContent), modTime)
+	err = mappingRepository.Add(fileContent, modTime)
 	if err != nil {
 		executionCompleted <- err
 		return
@@ -322,6 +336,11 @@ func execPlaybook(
 	}
 
 	playbookResults <- results
+
+	err = mappingRepository.Remove(fileContent)
+	if err != nil {
+		log.Errorf("cannot remove pending playbook %s. MessageID: %s, Error: %v\n", string(fileContent), messageID, err)
+	}
 
 	// Signal that the playbook execution completed
 	executionCompleted <- errRun
@@ -355,4 +374,20 @@ func (a *AnsibleManager) execPlaybookSync(
 	}
 
 	return results, errRun
+}
+
+// PopEvents return copy of all the events stored in eventQueue
+func (a *AnsibleManager) PopEvents() []*models.EventInfo {
+	a.managementLock.Lock()
+	defer a.managementLock.Unlock()
+
+	// Copy the events:
+	events := []*models.EventInfo{}
+	for _, event := range a.eventsQueue {
+		e := *event
+		events = append(events, &e)
+	}
+	// Empty the events:
+	a.eventsQueue = []*models.EventInfo{}
+	return events
 }

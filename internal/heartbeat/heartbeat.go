@@ -11,6 +11,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
 
+	ansible "github.com/project-flotta/flotta-device-worker/internal/ansible"
 	cfg "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	hw "github.com/project-flotta/flotta-device-worker/internal/hardware"
@@ -25,17 +26,19 @@ import (
 type HeartbeatData struct {
 	configManager   *cfg.Manager
 	workloadManager *workld.WorkloadManager
+	ansibleManager  *ansible.AnsibleManager
 	dataMonitor     *datatransfer.Monitor
 	hardware        *hw.Hardware
 	osInfo          *os2.OS
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
+	workloadManager *workld.WorkloadManager, ansibleManager *ansible.AnsibleManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
 
 	return &HeartbeatData{
 		configManager:   configManager,
 		workloadManager: workloadManager,
+		ansibleManager:  ansibleManager,
 		hardware:        hardware,
 		dataMonitor:     dataMonitor,
 		osInfo:          deviceOs,
@@ -73,7 +76,7 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 		Version:   s.configManager.GetConfigurationVersion(),
 		Workloads: workloadStatuses,
 		Hardware:  hardwareInfo,
-		Events:    s.workloadManager.PopEvents(),
+		Events:    append(s.workloadManager.PopEvents(), s.ansibleManager.PopEvents()...),
 		Upgrade:   s.osInfo.GetUpgradeStatus(),
 	}
 	return heartbeatInfo
