@@ -26,14 +26,14 @@ import (
 type HeartbeatData struct {
 	configManager   *cfg.Manager
 	workloadManager *workld.WorkloadManager
-	ansibleManager  *ansible.AnsibleManager
+	ansibleManager  *ansible.Manager
 	dataMonitor     *datatransfer.Monitor
 	hardware        *hw.Hardware
 	osInfo          *os2.OS
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, ansibleManager *ansible.AnsibleManager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
+	workloadManager *workld.WorkloadManager, ansibleManager *ansible.Manager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
 
 	return &HeartbeatData{
 		configManager:   configManager,

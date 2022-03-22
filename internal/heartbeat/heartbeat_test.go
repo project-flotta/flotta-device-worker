@@ -32,7 +32,7 @@ var _ = Describe("Heartbeat", func() {
 		mockCtrl       *gomock.Controller
 		wkManager      *workload.WorkloadManager
 		configManager  *configuration.Manager
-		ansibleManager *ansible.AnsibleManager
+		ansibleManager *ansible.Manager
 		wkwMock        *workload.MockWorkloadWrapper
 		hw             = &hardware.Hardware{}
 		monitor        = &datatransfer.Monitor{}

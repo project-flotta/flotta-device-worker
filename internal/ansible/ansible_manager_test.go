@@ -24,7 +24,7 @@ var _ = Describe("Ansible Runner", func() {
 	var (
 		messageID      string
 		err            error
-		ansibleManager *ansible.AnsibleManager
+		ansibleManager *ansible.Manager
 		client         Dispatcher
 		timeout        time.Duration
 

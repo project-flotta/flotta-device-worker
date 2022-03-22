@@ -19,10 +19,10 @@ type deviceServer struct {
 	deviceID             string
 	registrationManager  *registration2.Registration
 	configurationUpdates chan models.DeviceConfigurationMessage
-	ansibleManager       *ansible.AnsibleManager
+	ansibleManager       *ansible.Manager
 }
 
-func NewDeviceServer(configManager *configuration2.Manager, registrationManager *registration2.Registration, ansibleManager *ansible.AnsibleManager) *deviceServer {
+func NewDeviceServer(configManager *configuration2.Manager, registrationManager *registration2.Registration, ansibleManager *ansible.Manager) *deviceServer {
 	server := &deviceServer{
 		deviceID:             configManager.GetDeviceID(),
 		registrationManager:  registrationManager,

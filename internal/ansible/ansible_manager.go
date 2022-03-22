@@ -28,8 +28,8 @@ import (
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
-// AnsibleManager handle ansible playbook execution
-type AnsibleManager struct {
+// Manager handle ansible playbook execution
+type Manager struct {
 	wg                sync.WaitGroup
 	managementLock    sync.Locker
 	dispatcherClient  pb.DispatcherClient
@@ -59,7 +59,7 @@ var (
 )
 
 func NewAnsibleManager(
-	dispatcherClient pb.DispatcherClient, configDir string) (*AnsibleManager, error) {
+	dispatcherClient pb.DispatcherClient, configDir string) (*Manager, error) {
 	mappingRepository, err := mapping.NewMappingRepository(configDir)
 	if err != nil {
 		return nil, fmt.Errorf("ansible manager cannot initialize mapping repository: %w", err)
@@ -70,7 +70,7 @@ func NewAnsibleManager(
 		return nil, fmt.Errorf("flotta agent requires the ansible package to be installed")
 	}
 
-	return &AnsibleManager{
+	return &Manager{
 		wg:                sync.WaitGroup{},
 		managementLock:    &sync.Mutex{},
 		dispatcherClient:  dispatcherClient,
@@ -98,7 +98,7 @@ func setupPlaybookCmd(playbookCmd *playbook.AnsiblePlaybookCmd, buffOut, buffErr
 	playbookCmd.StdoutCallback = "json"
 }
 
-func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
+func (a *Manager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
 	var err error
 	buffOut := new(bytes.Buffer)
 	buffErr := new(bytes.Buffer)
@@ -192,7 +192,7 @@ func (a *AnsibleManager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd
 }
 
 // sendEvents adds the events of AnsiblePlaybookJSONResults into eventList and sends them to the dispatcher.
-func (a *AnsibleManager) sendEvents(results *ansibleResults.AnsiblePlaybookJSONResults, returnURL string, responseTo string, playbookYamlFile string) error {
+func (a *Manager) sendEvents(results *ansibleResults.AnsiblePlaybookJSONResults, returnURL string, responseTo string, playbookYamlFile string) error {
 	if results == nil || results.Plays == nil {
 		err := fmt.Errorf("cannot compose empty message for %s", responseTo)
 		log.Error(err)
@@ -213,7 +213,7 @@ func (a *AnsibleManager) sendEvents(results *ansibleResults.AnsiblePlaybookJSONR
 	return nil
 }
 
-func (a *AnsibleManager) ExecutePendingPlaybooks() error {
+func (a *Manager) ExecutePendingPlaybooks() error {
 	timeout := 300 * time.Second // Deafult timeout
 
 	playbookCmd := a.GetPlaybookCommand()
@@ -244,15 +244,15 @@ func (a *AnsibleManager) ExecutePendingPlaybooks() error {
 	return errors
 }
 
-func (a *AnsibleManager) AddToEventQueue(event *models.EventInfo) {
+func (a *Manager) AddToEventQueue(event *models.EventInfo) {
 	a.eventsQueue = append(a.eventsQueue, event)
 }
 
-func (a *AnsibleManager) WaitPlaybookCompletion() {
+func (a *Manager) WaitPlaybookCompletion() {
 	a.wg.Wait()
 }
 
-func (a *AnsibleManager) GetPlaybookCommand() playbook.AnsiblePlaybookCmd {
+func (a *Manager) GetPlaybookCommand() playbook.AnsiblePlaybookCmd {
 	// defined how to connect to hosts
 	ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
 		Connection: "local",
@@ -349,7 +349,7 @@ func execPlaybook(
 // execPlaybookSync executes the ansible playbook synchronously.
 // if error is not nil, then an error occured during the playbook execution (e.g. host unreachable), but this does't mean
 // that there are no results available. In other words, a successful call returns *ansibleResults.AnsiblePlaybookJSONResults not nil.
-func (a *AnsibleManager) execPlaybookSync(
+func (a *Manager) execPlaybookSync(
 	playbook *playbook.AnsiblePlaybookCmd,
 	timeout time.Duration,
 	buffOut *bytes.Buffer,
@@ -377,7 +377,7 @@ func (a *AnsibleManager) execPlaybookSync(
 }
 
 // PopEvents return copy of all the events stored in eventQueue
-func (a *AnsibleManager) PopEvents() []*models.EventInfo {
+func (a *Manager) PopEvents() []*models.EventInfo {
 	a.managementLock.Lock()
 	defer a.managementLock.Unlock()
 

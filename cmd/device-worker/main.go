@@ -194,7 +194,7 @@ func main() {
 
 func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor *datatransfer.Monitor,
 	systemMetricsWatcher *metrics.SystemMetrics, metricsStore *metrics.TSDB, hbs *heartbeat2.Heartbeat,
-	ansibleManager *ansible.AnsibleManager, gracefulRebootChannel chan struct{}, deviceOs *os2.OS) {
+	ansibleManager *ansible.Manager, gracefulRebootChannel chan struct{}, deviceOs *os2.OS) {
 	// listen to the channel for getting StartGracefulReboot signal
 	for {
 		<-gracefulRebootChannel
@@ -225,7 +225,7 @@ func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor
 	}
 }
 
-func setupSignalHandler(metricsStore *metrics.TSDB, ansibleManager *ansible.AnsibleManager) {
+func setupSignalHandler(metricsStore *metrics.TSDB, ansibleManager *ansible.Manager) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -236,7 +236,7 @@ func setupSignalHandler(metricsStore *metrics.TSDB, ansibleManager *ansible.Ansi
 	}()
 }
 
-func closeComponents(metricsStore *metrics.TSDB, ansibleManager *ansible.AnsibleManager) {
+func closeComponents(metricsStore *metrics.TSDB, ansibleManager *ansible.Manager) {
 	if err := metricsStore.Close(); err != nil {
 		log.Error(err)
 	}
