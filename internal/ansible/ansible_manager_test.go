@@ -61,7 +61,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
 
 			//then
 			Expect(err).To(HaveOccurred(), "missing playbook string in message")
@@ -72,9 +72,6 @@ var _ = Describe("Ansible Runner", func() {
 			playbookFilename := "examples/test_playbook_1.yml"
 			playbookCmd.Playbooks = []string{playbookFilename}
 
-			ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
-			Expect(err).ToNot(HaveOccurred())
-
 			playbookContent, err := os.ReadFile(playbookFilename)
 			if err != nil {
 				Fail("cannot read playbook test file: " + playbookFilename)
@@ -93,12 +90,11 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
 			Expect(err).ToNot(HaveOccurred())
 			//then
 			Expect(client.latestData).ToNot(BeNil())
 			Expect(client.latestData.Directive).To(Equal(returnUrl))
-
 		})
 		It("Test ansible playbook ", func() {
 
@@ -106,9 +102,6 @@ var _ = Describe("Ansible Runner", func() {
 			playbookFilename := "examples/test_playbook_2.yml"
 			playbookCmd.Playbooks = []string{playbookFilename}
 
-			ansibleManager, err := ansible.NewAnsibleManager(&client, configDir)
-			Expect(err).ToNot(HaveOccurred())
-
 			playbookContent, err := os.ReadFile(playbookFilename)
 			if err != nil {
 				Fail("cannot read playbook test file: " + playbookFilename)
@@ -127,8 +120,9 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(client.latestData).ToNot(BeNil())
 			Expect(client.latestData.Directive).To(Equal(returnUrl))
 		})
 		It("Execute slow ansible playbook", func() {
@@ -138,9 +132,6 @@ var _ = Describe("Ansible Runner", func() {
 			playbookFilename := "examples/test_playbook_timeout.yml"
 			playbookCmd.Playbooks = []string{playbookFilename}
 
-			ansibleManager, err := ansible.NewAnsibleManager(&client, configDir)
-			Expect(err).ToNot(HaveOccurred())
-
 			playbookContent, err := os.ReadFile(playbookFilename)
 			if err != nil {
 				Fail("cannot read playbook test file: " + playbookFilename)
@@ -159,7 +150,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(&playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
 			Expect(err).To(HaveOccurred())
 			Expect(client.latestData).To(BeNil())
 		})

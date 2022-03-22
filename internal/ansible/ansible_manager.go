@@ -88,22 +88,22 @@ func missingAttributeMsg(attribute string, metadata map[string]string) string {
 }
 
 // Set executor and stdoutcallback
-func setupPlaybookCmd(playbookCmd *playbook.AnsiblePlaybookCmd, buffOut, buffErr *bytes.Buffer) {
+func setupPlaybookCmd(playbookCmd playbook.AnsiblePlaybookCmd, buffOut, buffErr *bytes.Buffer) playbook.AnsiblePlaybookCmd {
 	playbookExecutor := execute.NewDefaultExecute(
 		execute.WithWrite(io.Writer(buffOut)),
 		execute.WithWriteError(io.Writer(buffErr)),
 	)
 
 	playbookCmd.Exec = playbookExecutor
-	playbookCmd.StdoutCallback = "json"
+	return playbookCmd
 }
 
-func (a *Manager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
+func (a *Manager) HandlePlaybook(playbookCmd playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
 	var err error
 	buffOut := new(bytes.Buffer)
 	buffErr := new(bytes.Buffer)
 
-	setupPlaybookCmd(playbookCmd, buffOut, buffErr)
+	playbookCmd = setupPlaybookCmd(playbookCmd, buffOut, buffErr)
 
 	deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 
@@ -168,11 +168,9 @@ func (a *Manager) HandlePlaybook(playbookCmd *playbook.AnsiblePlaybookCmd, d *pb
 			return fmt.Errorf("execution timeout reached for playbook in messageID %s. Error: %v", d.MessageId, ctx.Err())
 		case errRunPlaybook = <-executionCompleted:
 			a.wg.Done()
-			if err != nil {
-				return fmt.Errorf("ansible playbook execution completed with error. [MessageID: %s, Error: %v]", d.MessageId, err)
-			}
 			log.Infof("ansible playbook execution completed of messageID %s", d.MessageId)
 			if errRunPlaybook != nil {
+				log.Errorf("ansible playbook execution completed with error. [MessageID: %s, Error: %v]", d.MessageId, err)
 				// last event should be the failure, find the reason
 				msgList := a.ansibleDispatcher.GetMsgList()
 				errorCode, errorDetails := parseFailure(msgList[len(msgList)-1])
@@ -220,7 +218,7 @@ func (a *Manager) ExecutePendingPlaybooks() error {
 	buffOut := new(bytes.Buffer)
 	buffErr := new(bytes.Buffer)
 
-	setupPlaybookCmd(&playbookCmd, buffOut, buffErr)
+	playbookCmd = setupPlaybookCmd(playbookCmd, buffOut, buffErr)
 	allPlaybooks := a.MappingRepository.GetAll()
 	var errors error
 	for _, v := range allPlaybooks {
@@ -287,7 +285,7 @@ func parseFailure(event message.AnsibleRunnerJobEventYaml) (errorCode string, er
 func execPlaybook(
 	executionCompleted chan error,
 	playbookResults chan<- *ansibleResults.AnsiblePlaybookJSONResults,
-	playbook *playbook.AnsiblePlaybookCmd,
+	playbookCmd playbook.AnsiblePlaybookCmd,
 	timeout time.Duration,
 	messageID string,
 	buffOut *bytes.Buffer,
@@ -309,7 +307,7 @@ func execPlaybook(
 		return
 	}
 
-	fileContent, err := os.ReadFile(playbook.Playbooks[0])
+	fileContent, err := os.ReadFile(playbookCmd.Playbooks[0])
 	if err != nil {
 		executionCompleted <- err
 		return
@@ -320,13 +318,12 @@ func execPlaybook(
 		executionCompleted <- err
 		return
 	}
-	errRun := playbook.Run(ctx)
+	errRun := playbookCmd.Run(ctx)
 
 	if errRun != nil {
 		log.Warnf("playbook executed with errors. Results: %s, messageID: %s, Error: %v", buffOut.String(), messageID, errRun)
 	}
 	results, err := ansibleResults.JSONParse(buffOut.Bytes())
-
 	if err != nil {
 		log.Errorf("error while parsing json string %s. MessageID: %s, Error: %v\n", buffOut.String(), messageID, err)
 		// Signal that the playbook execution completed with error

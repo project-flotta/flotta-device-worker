@@ -52,7 +52,7 @@ func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Response, error)
 			playbookCmd := s.ansibleManager.GetPlaybookCommand()
 
 			timeout := getTimeout(d.GetMetadata())
-			err := s.ansibleManager.HandlePlaybook(&playbookCmd, d, timeout)
+			err := s.ansibleManager.HandlePlaybook(playbookCmd, d, timeout)
 
 			if err != nil {
 				log.Warnf("cannot handle ansible playbook. Error: %v", err)
