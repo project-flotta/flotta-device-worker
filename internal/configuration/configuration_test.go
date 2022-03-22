@@ -69,7 +69,12 @@ var _ = Describe("Configuration", func() {
 
 	AfterEach(func() {
 		mockCtrl.Finish()
-		_ = os.Remove(datadir)
+
+		err = os.Chmod(datadir, 0750)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = os.RemoveAll(datadir)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	Context("NewConfigurationManager", func() {
