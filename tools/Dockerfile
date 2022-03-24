@@ -6,12 +6,14 @@ RUN dnf copr enable project-flotta/flotta -y
 
 # Yum dependencies
 RUN dnf update -y \
-  && dnf install -y openssl procps-ng dmidecode nc \
+  && dnf install -y openssl procps-ng dmidecode nc iproute \
   yggdrasil flotta-agent-race node_exporter
 
 # Modify podman configuration
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
     sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf
+
+RUN podman pull quay.io/bitnami/nginx:1.21.6
 
 # Certificate reqs:
 RUN mkdir /etc/pki/consumer && \
