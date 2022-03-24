@@ -70,13 +70,16 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 			log.Errorf("cannot get hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 		}
 	}
-
+	ansibleEvents := []*models.EventInfo{}
+	if s.ansibleManager != nil {
+		ansibleEvents = s.ansibleManager.PopEvents()
+	}
 	heartbeatInfo := models.Heartbeat{
 		Status:    models.HeartbeatStatusUp,
 		Version:   s.configManager.GetConfigurationVersion(),
 		Workloads: workloadStatuses,
 		Hardware:  hardwareInfo,
-		Events:    append(s.workloadManager.PopEvents(), s.ansibleManager.PopEvents()...),
+		Events:    append(s.workloadManager.PopEvents(), ansibleEvents...),
 		Upgrade:   s.osInfo.GetUpgradeStatus(),
 	}
 	return heartbeatInfo

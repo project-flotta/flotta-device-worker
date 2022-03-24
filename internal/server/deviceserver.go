@@ -45,17 +45,18 @@ func NewDeviceServer(configManager *configuration2.Manager, registrationManager 
 func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Response, error) {
 	go func() {
 		//check if it is an ansible playbook message
+		if s.ansibleManager != nil {
+			if x, found := d.GetMetadata()["ansible-playbook"]; found && x == "true" {
+				log.Debugf("Received message %s with 'ansible-playbook' metadata", d.MessageId)
 
-		if x, found := d.GetMetadata()["ansible-playbook"]; found && x == "true" {
-			log.Debugf("Received message %s with 'ansible-playbook' metadata", d.MessageId)
+				playbookCmd := s.ansibleManager.GetPlaybookCommand()
 
-			playbookCmd := s.ansibleManager.GetPlaybookCommand()
+				timeout := getTimeout(d.GetMetadata())
+				err := s.ansibleManager.HandlePlaybook(playbookCmd, d, timeout)
 
-			timeout := getTimeout(d.GetMetadata())
-			err := s.ansibleManager.HandlePlaybook(playbookCmd, d, timeout)
-
-			if err != nil {
-				log.Warnf("cannot handle ansible playbook. Error: %v", err)
+				if err != nil {
+					log.Warnf("cannot handle ansible playbook. Error: %v", err)
+				}
 			}
 		}
 

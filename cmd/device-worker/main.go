@@ -166,11 +166,12 @@ func main() {
 	}
 	ansibleManager, err := ansible.NewAnsibleManager(dispatcherClient, dataDirPlaybook)
 	if err != nil {
-		log.Fatalf("cannot start ansible manager, err: %v", err)
-	}
-	err = ansibleManager.ExecutePendingPlaybooks()
-	if err != nil {
-		log.Errorf("cannot run previous ansible playbooks, err: %v", err)
+		log.Errorf("cannot start ansible manager, err: %v", err)
+	} else {
+		err = ansibleManager.ExecutePendingPlaybooks()
+		if err != nil {
+			log.Errorf("cannot run previous ansible playbooks, err: %v", err)
+		}
 	}
 
 	s := grpc.NewServer()
@@ -218,8 +219,9 @@ func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor
 		if err := hbs.Deregister(); err != nil {
 			log.Fatalf("cannot graceful reboot the heartbeat service: %v", err)
 		}
-
-		ansibleManager.WaitPlaybookCompletion()
+		if ansibleManager != nil {
+			ansibleManager.WaitPlaybookCompletion()
+		}
 
 		deviceOs.GracefulRebootCompletionChannel <- struct{}{}
 	}
@@ -240,5 +242,7 @@ func closeComponents(metricsStore *metrics.TSDB, ansibleManager *ansible.Manager
 	if err := metricsStore.Close(); err != nil {
 		log.Error(err)
 	}
-	ansibleManager.WaitPlaybookCompletion()
+	if ansibleManager != nil {
+		ansibleManager.WaitPlaybookCompletion()
+	}
 }
