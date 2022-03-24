@@ -224,21 +224,24 @@ func (a *Manager) ExecutePendingPlaybooks() error {
 	for _, v := range allPlaybooks {
 		playbookCmd.Playbooks = []string{v}
 		res, err := a.execPlaybookSync(&playbookCmd, timeout, buffOut, a.MappingRepository)
-		log.Error(err)
-		errors = multierror.Append(errors, err)
+		if err != nil {
+			log.Error(err)
+			errors = multierror.Append(errors, err)
+		}
+
 		if res == nil && err != nil {
 			return err
 		}
 		buffOut.Reset()
 		buffErr.Reset()
 	}
-
-	a.AddToEventQueue(&models.EventInfo{
-		Message: errors.Error(),
-		Reason:  "Failed",
-		Type:    models.EventInfoTypeWarn,
-	})
-
+	if errors != nil {
+		a.AddToEventQueue(&models.EventInfo{
+			Message: errors.Error(),
+			Reason:  "Failed",
+			Type:    models.EventInfoTypeWarn,
+		})
+	}
 	return errors
 }
 
@@ -352,6 +355,12 @@ func (a *Manager) execPlaybookSync(
 	buffOut *bytes.Buffer,
 	mappingRepository mapping.MappingRepository) (*ansibleResults.AnsiblePlaybookJSONResults, error) {
 
+	fileContent, err := os.ReadFile(playbook.Playbooks[0])
+	if err != nil {
+		log.Errorf("cannot read pending playbook file %s", playbook.Playbooks[0])
+		return nil, err
+	}
+
 	log.Debugf("Executing %v", playbook.Playbooks)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -360,7 +369,7 @@ func (a *Manager) execPlaybookSync(
 	errRun := playbook.Run(ctx)
 
 	if errRun != nil {
-		log.Warnf("playbook executed with errors. Results: %s, playbookFile: %v, Error: %v", buffOut.String(), playbook.Playbooks, errRun)
+		log.Warnf("pending playbook executed with errors. Results: %s, playbookFile: %v, Error: %v", buffOut.String(), playbook.Playbooks, errRun)
 	}
 	results, err := ansibleResults.JSONParse(buffOut.Bytes())
 
@@ -368,6 +377,11 @@ func (a *Manager) execPlaybookSync(
 		log.Errorf("error while parsing json string %s. MessageID: %v, Error: %v\n", buffOut.String(), playbook.Playbooks, err)
 		// Signal that the playbook execution completed with error
 		return nil, err
+	}
+
+	err = mappingRepository.Remove(fileContent)
+	if err != nil {
+		log.Errorf("cannot remove pending playbook %s. Error: %v\n", string(fileContent), err)
 	}
 
 	return results, errRun

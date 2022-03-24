@@ -180,16 +180,21 @@ var _ = Describe("Ansible Runner", func() {
 			Expect(ansibleManager.MappingRepository.GetAll()).ToNot(BeEmpty())
 			Expect(len(ansibleManager.MappingRepository.GetAll())).To(Equal(2))
 
-			//when
-			err = ansibleManager.ExecutePendingPlaybooks()
-			Expect(err).ToNot(BeNil()) //This is a multierror
-
-			//then
 			Expect(ansibleManager.MappingRepository.GetModTime(p1Path)).To(Equal(modTime1.UnixNano()))
 			Expect(ansibleManager.MappingRepository.GetModTime(p2Path)).To(Equal(modTime2.UnixNano()))
 
 			Expect(ansibleManager.MappingRepository.GetFilePath(modTime1)).To(Equal(p1Path))
 			Expect(ansibleManager.MappingRepository.GetFilePath(modTime2)).To(Equal(p2Path))
+			//when
+			err = ansibleManager.ExecutePendingPlaybooks()
+			Expect(err).ToNot(HaveOccurred())
+
+			//then
+			Expect(ansibleManager.MappingRepository.GetModTime(p1Path)).To(Equal(int64(0)))
+			Expect(ansibleManager.MappingRepository.GetModTime(p2Path)).To(Equal(int64(0)))
+
+			Expect(ansibleManager.MappingRepository.GetFilePath(modTime1)).To(HaveLen(0))
+			Expect(ansibleManager.MappingRepository.GetFilePath(modTime2)).To(HaveLen(0))
 		})
 	})
 })
