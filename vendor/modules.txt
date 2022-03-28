@@ -59,6 +59,8 @@ github.com/apenella/go-common-utils/data
 github.com/apenella/go-common-utils/error
 # github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef
 github.com/asaskevich/govalidator
+# github.com/atombender/go-jsonschema v0.9.0
+## explicit
 # github.com/aws/aws-sdk-go v1.42.16
 ## explicit
 github.com/aws/aws-sdk-go/aws
