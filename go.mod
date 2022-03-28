@@ -5,6 +5,7 @@ go 1.16
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
 	github.com/apenella/go-ansible v1.1.5
+	github.com/atombender/go-jsonschema v0.9.0 // indirect
 	github.com/aws/aws-sdk-go v1.42.16
 	github.com/containernetworking/plugins v1.0.1 // indirect
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
