@@ -166,13 +166,13 @@ func (r *Registration) registerDeviceOnce() error {
 	}
 
 	if parsedResponse.StatusCode >= 300 {
-		return fmt.Errorf("cannot register to the operator")
+		return fmt.Errorf("cannot register to the operator, status_code=%d, body=%s", parsedResponse.StatusCode, parsedResponse.Body)
 	}
 
 	var message models.MessageResponse
 	err = json.Unmarshal(parsedResponse.Body, &message)
 	if err != nil {
-		return err
+    return fmt.Errorf("Cannot unmarshal registration response content: %v", err)
 	}
 
 	parsedContent, ok := message.Content.(map[string]interface{})
