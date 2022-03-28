@@ -57,7 +57,7 @@ var _ = Describe("Metrics", func() {
 		err = tsdb.AddMetric(seriesTwoValue2, seriesTwo)
 		Expect(err).ToNot(HaveOccurred())
 
-		metricSet, err := tsdb.GetMetricsForTimeRange(before, time.Now())
+		metricSet, err := tsdb.GetMetricsForTimeRange(before, time.Now(), false)
 		Expect(err).ToNot(HaveOccurred())
 
 		// then

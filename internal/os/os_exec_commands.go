@@ -2,12 +2,13 @@ package os
 
 import (
 	"errors"
-	"git.sr.ht/~spc/go-log"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"git.sr.ht/~spc/go-log"
 )
 
 //go:generate mockgen -package=os -destination=mock_os.go . OsExecCommands

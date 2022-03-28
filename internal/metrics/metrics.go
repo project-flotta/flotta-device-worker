@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"sync"
@@ -40,9 +41,11 @@ type Series struct {
 type API interface {
 	io.Closer
 	Deregister() error
-	GetMetricsForTimeRange(tMin time.Time, tMax time.Time) ([]Series, error)
+	GetMetricsForTimeRange(tMin time.Time, tMax time.Time, sort bool) ([]Series, error)
 	AddMetric(value float64, labelsMap map[string]string) error
 	AddVector(data model.Vector, labelsMap map[string]string) error
+	MinTime() (time.Time, error)
+	MaxTime() time.Time
 }
 
 type TSDB struct {
@@ -106,7 +109,7 @@ func (t *TSDB) Close() error {
 	return nil
 }
 
-func (t *TSDB) GetMetricsForTimeRange(tMin time.Time, tMax time.Time) ([]Series, error) {
+func (t *TSDB) GetMetricsForTimeRange(tMin time.Time, tMax time.Time, sort bool) ([]Series, error) {
 	log.Tracef("Getting metrics for %v - %v", tMin, tMax)
 
 	t.dbLock.RLock()
@@ -129,7 +132,7 @@ func (t *TSDB) GetMetricsForTimeRange(tMin time.Time, tMax time.Time) ([]Series,
 		log.Error(err)
 		return nil, err
 	}
-	seriesSet := q.Select(false, nil, matchers...)
+	seriesSet := q.Select(sort, nil, matchers...)
 	if seriesSet.Err() != nil {
 		log.Error(seriesSet.Err())
 		return nil, seriesSet.Err()
@@ -233,6 +236,18 @@ func (t *TSDB) Update(config models.DeviceConfigurationMessage) error {
 	return nil
 }
 
+func (t *TSDB) MinTime() (time.Time, error) {
+	startTime, err := t.db.StartTime()
+	if err != nil {
+		return time.Time{}, err
+	}
+	return fromDbTime(startTime), nil
+}
+
+func (t *TSDB) MaxTime() time.Time {
+	return fromDbTime(t.db.Head().MaxTime())
+}
+
 func getAllLabelsMatchers(q storage.Querier) ([]*labels.Matcher, error) {
 	lbls, _, err := q.LabelNames()
 	if err != nil {
@@ -247,6 +262,15 @@ func getAllLabelsMatchers(q storage.Querier) ([]*labels.Matcher, error) {
 
 func toDbTime(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
+}
+
+func fromDbTime(t int64) time.Time {
+	switch t {
+	case 0, math.MinInt64, math.MaxInt64:
+		return time.Time{}
+	default:
+		return time.Unix(t/1000, t%1000*int64(time.Millisecond))
+	}
 }
 
 func mergeLabelsFromVector(data model.Metric, labels map[string]string) map[string]string {

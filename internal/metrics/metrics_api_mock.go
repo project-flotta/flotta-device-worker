@@ -92,16 +92,45 @@ func (mr *MockAPIMockRecorder) Deregister() *gomock.Call {
 }
 
 // GetMetricsForTimeRange mocks base method.
-func (m *MockAPI) GetMetricsForTimeRange(arg0, arg1 time.Time) ([]Series, error) {
+func (m *MockAPI) GetMetricsForTimeRange(arg0, arg1 time.Time, arg2 bool) ([]Series, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMetricsForTimeRange", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetMetricsForTimeRange", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]Series)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetMetricsForTimeRange indicates an expected call of GetMetricsForTimeRange.
-func (mr *MockAPIMockRecorder) GetMetricsForTimeRange(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockAPIMockRecorder) GetMetricsForTimeRange(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetricsForTimeRange", reflect.TypeOf((*MockAPI)(nil).GetMetricsForTimeRange), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetricsForTimeRange", reflect.TypeOf((*MockAPI)(nil).GetMetricsForTimeRange), arg0, arg1, arg2)
+}
+
+// MaxTime mocks base method.
+func (m *MockAPI) MaxTime() time.Time {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MaxTime")
+	ret0, _ := ret[0].(time.Time)
+	return ret0
+}
+
+// MaxTime indicates an expected call of MaxTime.
+func (mr *MockAPIMockRecorder) MaxTime() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MaxTime", reflect.TypeOf((*MockAPI)(nil).MaxTime))
+}
+
+// MinTime mocks base method.
+func (m *MockAPI) MinTime() (time.Time, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MinTime")
+	ret0, _ := ret[0].(time.Time)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MinTime indicates an expected call of MinTime.
+func (mr *MockAPIMockRecorder) MinTime() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MinTime", reflect.TypeOf((*MockAPI)(nil).MinTime))
 }
