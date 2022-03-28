@@ -6,13 +6,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/project-flotta/flotta-device-worker/internal/logs"
-	"github.com/project-flotta/flotta-device-worker/internal/metrics"
-
+	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	hardware2 "github.com/project-flotta/flotta-device-worker/internal/hardware"
 	heartbeat2 "github.com/project-flotta/flotta-device-worker/internal/heartbeat"
+	"github.com/project-flotta/flotta-device-worker/internal/logs"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
 	"github.com/project-flotta/flotta-device-worker/internal/server"
@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"git.sr.ht/~spc/go-log"
-
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	"google.golang.org/grpc"
 )
@@ -90,8 +89,7 @@ func main() {
 	// Register as a Worker service with gRPC and start accepting connections.
 	dataDir := path.Join(baseDataDir, "device")
 	log.Infof("Data directory: %s", dataDir)
-	/* #nosec */
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0750); err != nil {
 		log.Fatal(fmt.Errorf("cannot create directory: %w", err))
 	}
 	deviceId, ok := os.LookupEnv("YGG_CLIENT_ID")
@@ -162,17 +160,31 @@ func main() {
 		metricsStore,
 	)
 
+	dataDirPlaybook := path.Join(baseDataDir, "devicePlaybooks")
+	if err := os.MkdirAll(dataDirPlaybook, 0750); err != nil {
+		log.Fatalf("cannot create directory: %v", err)
+	}
+	ansibleManager, err := ansible.NewAnsibleManager(dispatcherClient, dataDirPlaybook)
+	if err != nil {
+		log.Errorf("cannot start ansible manager, err: %v", err)
+	} else {
+		err = ansibleManager.ExecutePendingPlaybooks()
+		if err != nil {
+			log.Errorf("cannot run previous ansible playbooks, err: %v", err)
+		}
+	}
+
 	s := grpc.NewServer()
-	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg))
+	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg, ansibleManager))
 	if !configManager.IsInitialConfig() {
 		hbs.Start()
 	} else {
 		reg.RegisterDevice()
 	}
 
-	setupSignalHandler(metricsStore)
+	setupSignalHandler(metricsStore, ansibleManager)
 
-	go listenStartGracefulRebootChannel(wl, dataMonitor, systemMetricsWatcher, metricsStore, hbs,
+	go listenStartGracefulRebootChannel(wl, dataMonitor, systemMetricsWatcher, metricsStore, hbs, ansibleManager,
 		gracefulRebootChannel, deviceOs)
 
 	if err := s.Serve(l); err != nil {
@@ -183,7 +195,7 @@ func main() {
 
 func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor *datatransfer.Monitor,
 	systemMetricsWatcher *metrics.SystemMetrics, metricsStore *metrics.TSDB, hbs *heartbeat2.Heartbeat,
-	gracefulRebootChannel chan struct{}, deviceOs *os2.OS) {
+	ansibleManager *ansible.Manager, gracefulRebootChannel chan struct{}, deviceOs *os2.OS) {
 	// listen to the channel for getting StartGracefulReboot signal
 	for {
 		<-gracefulRebootChannel
@@ -207,24 +219,30 @@ func listenStartGracefulRebootChannel(wl *workload2.WorkloadManager, dataMonitor
 		if err := hbs.Deregister(); err != nil {
 			log.Fatalf("cannot graceful reboot the heartbeat service: %v", err)
 		}
+		if ansibleManager != nil {
+			ansibleManager.WaitPlaybookCompletion()
+		}
 
 		deviceOs.GracefulRebootCompletionChannel <- struct{}{}
 	}
 }
 
-func setupSignalHandler(metricsStore *metrics.TSDB) {
+func setupSignalHandler(metricsStore *metrics.TSDB, ansibleManager *ansible.Manager) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		sig := <-c
 		log.Infof("Got %s signal. Aborting...\n", sig)
-		closeComponents(metricsStore)
+		closeComponents(metricsStore, ansibleManager)
 		os.Exit(0)
 	}()
 }
 
-func closeComponents(metricsStore *metrics.TSDB) {
+func closeComponents(metricsStore *metrics.TSDB, ansibleManager *ansible.Manager) {
 	if err := metricsStore.Close(); err != nil {
 		log.Error(err)
+	}
+	if ansibleManager != nil {
+		ansibleManager.WaitPlaybookCompletion()
 	}
 }

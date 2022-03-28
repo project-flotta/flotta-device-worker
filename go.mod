@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
+	github.com/apenella/go-ansible v1.1.5
 	github.com/aws/aws-sdk-go v1.42.16
 	github.com/containernetworking/plugins v1.0.1 // indirect
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
@@ -12,7 +13,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/opencontainers/runtime-tools v0.9.1-0.20211020193359-09d837bf40a7 // indirect
@@ -33,6 +33,7 @@ replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20210819154149-5ad6f50d6283
+	github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e => github.com/gciavarrini/flotta-operator v0.0.0-20220317111214-7a6ac749cf71
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	k8s.io/klog/v2 => k8s.io/klog/v2 v2.2.0
 	sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820

@@ -1,0 +1,115 @@
+# This schema captures the shape of events produced by ansible runner
+# https://ansible-runner.readthedocs.io/en/stable/intro.html#runner-artifact-job-events-host-and-playbook-events
+# This schema does not aim to be complete - it only captures used by playbook-dispatcher
+---
+$id: ansibleRunnerJobEvent
+$schema: http://json-schema.org/draft-07/schema#
+type: object
+properties:
+  event:
+    type: string
+    minLength: 3
+    maxLength: 50
+  created:
+    type: string
+    maxLength: 26
+  runner_ident: 
+    type: string
+  uuid:
+    type: string
+    format: uuid
+  counter:
+    type: integer
+  stdout:
+    type:
+      - string
+      - "null"
+  stderr:
+    type:
+      - string
+      - "null"
+  start_line:
+    type: integer
+    minimum: 0
+  end_line:
+    type: integer
+    minimum: 0
+  event_data:
+    type: object
+    properties:
+      playbook:
+        type: string
+        minLength: 1
+      playbook_uuid:
+        type: string
+        format: uuid
+      play:
+        type: string
+      play_uuid:
+        type: string
+        format: uuid
+      host:
+        type: string
+      task:
+        type: string
+      task_uuid:
+        type: string
+        format: uuid
+      task_action:
+        type: string
+      task_args:
+        type: string
+      task_path:
+        type: string
+      name:
+        type: string
+      is_conditional:
+        type: boolean
+      uuid:
+        type: string
+        format: uuid
+      res:
+        type: object
+        properties:
+          _ansible_no_log:
+            type: boolean
+          changed: 
+            type: boolean     
+      crc_dispatcher_correlation_id:
+        type: string
+        format: uuid
+      crc_dispatcher_error_code:
+        type: string
+      crc_dispatcher_error_details:
+        type: string
+      ok:
+        type: object
+        name:
+          oneOf:
+            - type: string
+      changed:
+        type: object
+        name:
+          oneOf:
+            - type: string
+      ignored:
+        type: object
+        name:
+          oneOf:
+            - type: string
+      failures:
+        type: object
+        name:
+          oneOf:
+            - type: string
+      skipped:
+        type: object
+        name:
+          oneOf:
+            - type: string
+required:
+  - event
+  - uuid
+  - counter
+  - start_line
+  - end_line

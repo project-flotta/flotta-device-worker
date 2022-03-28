@@ -46,6 +46,17 @@ github.com/VividCortex/ewma
 github.com/acarl005/stripansi
 # github.com/alecthomas/units v0.0.0-20210927113745-59d0afb8317a
 github.com/alecthomas/units
+# github.com/apenella/go-ansible v1.1.5
+## explicit
+github.com/apenella/go-ansible/pkg/execute
+github.com/apenella/go-ansible/pkg/options
+github.com/apenella/go-ansible/pkg/playbook
+github.com/apenella/go-ansible/pkg/stdoutcallback
+github.com/apenella/go-ansible/pkg/stdoutcallback/results
+# github.com/apenella/go-common-utils/data v0.0.0-20210528133155-34ba915e28c8
+github.com/apenella/go-common-utils/data
+# github.com/apenella/go-common-utils/error v0.0.0-20210528133155-34ba915e28c8
+github.com/apenella/go-common-utils/error
 # github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef
 github.com/asaskevich/govalidator
 # github.com/aws/aws-sdk-go v1.42.16
@@ -515,8 +526,7 @@ github.com/manifoldco/promptui/list
 github.com/manifoldco/promptui/screenbuf
 # github.com/mattn/go-colorable v0.1.8
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.14
-## explicit
+# github.com/mattn/go-isatty v0.0.12
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.13
 github.com/mattn/go-runewidth
@@ -532,7 +542,7 @@ github.com/mistifyio/go-zfs
 github.com/mitchellh/go-homedir
 # github.com/mitchellh/mapstructure v1.4.1
 github.com/mitchellh/mapstructure
-# github.com/moby/sys/mountinfo v0.4.1
+# github.com/moby/sys/mountinfo v0.6.0
 github.com/moby/sys/mountinfo
 # github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
 github.com/moby/term
@@ -628,7 +638,7 @@ github.com/ostreedev/ostree-go/pkg/otbuiltin
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e
+# github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e => github.com/gciavarrini/flotta-operator v0.0.0-20220317111214-7a6ac749cf71
 ## explicit
 github.com/project-flotta/flotta-operator/models
 github.com/project-flotta/flotta-operator/pkg/mtls
