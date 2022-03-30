@@ -59,8 +59,6 @@ github.com/apenella/go-common-utils/data
 github.com/apenella/go-common-utils/error
 # github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef
 github.com/asaskevich/govalidator
-# github.com/atombender/go-jsonschema v0.9.0
-## explicit
 # github.com/aws/aws-sdk-go v1.42.16
 ## explicit
 github.com/aws/aws-sdk-go/aws
@@ -647,7 +645,7 @@ github.com/ostreedev/ostree-go/pkg/otbuiltin
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e => github.com/gciavarrini/flotta-operator v0.0.0-20220317111214-7a6ac749cf71
+# github.com/project-flotta/flotta-operator v0.0.2-0.20220329090634-43205a5e4cbf
 ## explicit
 github.com/project-flotta/flotta-operator/models
 github.com/project-flotta/flotta-operator/pkg/mtls
