@@ -5,7 +5,6 @@ go 1.16
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
 	github.com/apenella/go-ansible v1.1.5
-	github.com/atombender/go-jsonschema v0.9.0 // indirect
 	github.com/aws/aws-sdk-go v1.42.16
 	github.com/containernetworking/plugins v1.0.1 // indirect
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
@@ -20,7 +19,7 @@ require (
 	github.com/opencontainers/runtime-tools v0.9.1-0.20211020193359-09d837bf40a7 // indirect
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
 	github.com/pkg/errors v0.9.1
-	github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e
+	github.com/project-flotta/flotta-operator v0.0.2-0.20220329090634-43205a5e4cbf
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20220309180936-d91759a7f332
@@ -35,7 +34,6 @@ replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20210819154149-5ad6f50d6283
-	github.com/project-flotta/flotta-operator v0.0.2-0.20220314112640-9186994c5b6e => github.com/gciavarrini/flotta-operator v0.0.0-20220317111214-7a6ac749cf71
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	k8s.io/klog/v2 => k8s.io/klog/v2 v2.2.0
 	sigs.k8s.io/cluster-api-provider-aws => github.com/openshift/cluster-api-provider-aws v0.2.1-0.20201022175424-d30c7a274820
