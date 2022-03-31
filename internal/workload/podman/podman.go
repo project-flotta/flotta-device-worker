@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"text/template"
 
@@ -108,14 +109,24 @@ type podman struct {
 }
 
 func NewPodman() (*podman, error) {
-	podmanConnection, err := bindings.NewConnection(context.Background(), "unix://run/podman/podman.sock")
+	podmanConnection, err := podmanConnection()
 	if err != nil {
 		return nil, err
 	}
+
 	return &podman{
 		podmanConnection:   podmanConnection,
 		timeoutForStopping: DefaultTimeoutForStoppingInSeconds,
 	}, nil
+}
+
+func podmanConnection() (context.Context, error) {
+	podmanConnection, err := bindings.NewConnection(context.Background(), fmt.Sprintf("unix:%s/podman/podman.sock", os.Getenv("XDG_RUNTIME_DIR")))
+	if err != nil {
+		return nil, err
+	}
+
+	return podmanConnection, err
 }
 
 func (p *podman) List() ([]api2.WorkloadInfo, error) {
@@ -389,7 +400,6 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 
 // Retrieve all pods logs and send that to the given io.Writer
 func (p *podman) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
-
 	podInfo, err := pods.Inspect(p.podmanConnection, podID, nil)
 	if err != nil {
 		return nil, err

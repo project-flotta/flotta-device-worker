@@ -9,6 +9,7 @@ require (
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
 	github.com/coreos/go-systemd/v22 v22.3.2
 	github.com/go-openapi/strfmt v0.21.1
+	github.com/godbus/dbus/v5 v5.0.6
 	github.com/golang/mock v1.6.0
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.3.0
