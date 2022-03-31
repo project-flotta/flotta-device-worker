@@ -1,5 +1,7 @@
 %define _build_id_links none
 
+%global flotta_user flotta
+
 Name:       flotta-agent
 Version:    0.1.0
 Release:    1%{?dist}
@@ -17,6 +19,8 @@ Requires:       node_exporter
 Requires:       podman
 Requires:       yggdrasil
 
+Requires(pre): shadow-utils
+
 Provides:       %{name} = %{version}-%{release}
 Provides:       golang(%{go_import_path}) = %{version}-%{release}
 
@@ -30,9 +34,19 @@ to detect race-conditions in the e2e test
 %description
 The Flotta agent communicates with the Flotta control plane. It reports the status of the appliance and of the running PODs/containers. Agent is responsible for starting and stopping PODs that are based on commands from the control plane.
 
+%pre race
+getent group %{flotta_user} >/dev/null || groupadd %{flotta_user}; \
+getent passwd %{flotta_user} >/dev/null || useradd -g %{flotta_user} -s /sbin/nologin -d /home/%{flotta_user} %{flotta_user}
+
+%pre
+getent group %{flotta_user} >/dev/null || groupadd %{flotta_user}; \
+getent passwd %{flotta_user} >/dev/null || useradd -g %{flotta_user} -s /sbin/nologin -d /home/%{flotta_user} %{flotta_user}
+
 %post
-systemctl enable --now podman.socket
 systemctl enable --now nftables.service
+loginctl enable-linger %{flotta_user}
+systemctl start user@$(getent passwd %{flotta_user} | cut -d: -f3).service
+systemctl --machine %{flotta_user}@.host --user start podman.socket
 
 %prep
 tar fx %{SOURCE0}
@@ -49,17 +63,23 @@ cd flotta-agent-%{VERSION}
 mkdir -p %{buildroot}%{_libexecdir}/yggdrasil/
 install ./bin/device-worker %{buildroot}%{_libexecdir}/yggdrasil/device-worker
 install ./bin/device-worker-race %{buildroot}%{_libexecdir}/yggdrasil/device-worker-race
-make install-worker-config LIBEXECDIR=%{_libexecdir} BUILDROOT=%{buildroot} SYSCONFDIR=%{_sysconfdir}
+make install-worker-config HOME=/home/%{flotta_user} LIBEXECDIR=%{_libexecdir} BUILDROOT=%{buildroot} SYSCONFDIR=%{_sysconfdir}
 
 %files
 %{_libexecdir}/yggdrasil/device-worker
 %{_sysconfdir}/yggdrasil/
+%dir %attr(0755, %{flotta_user}, %{flotta_user}) %{_sysconfdir}/yggdrasil/device/volumes
 
 %files race
 %{_libexecdir}/yggdrasil/device-worker-race
 %{_sysconfdir}/yggdrasil/
+%dir %attr(0755, %{flotta_user}, %{flotta_user}) %{_sysconfdir}/yggdrasil/device/volumes
 
 %post race
+loginctl enable-linger %{flotta_user}
+systemctl start user@$(getent passwd %{flotta_user} | cut -d: -f3).service
+systemctl --machine %{flotta_user}@.host --user start podman.socket
+systemctl enable --now nftables.service
 ln -sf %{_libexecdir}/yggdrasil/device-worker-race %{_libexecdir}/yggdrasil/device-worker
 
 %changelog

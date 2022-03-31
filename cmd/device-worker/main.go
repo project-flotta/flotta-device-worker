@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/signal"
+	"os/user"
 	"syscall"
 
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
@@ -57,6 +58,13 @@ func main() {
 	if !ok {
 		log.Warnf("missing BASE_DATA_DIR environment variable. Using default: %s", defaultDataDir)
 		baseDataDir = defaultDataDir
+	}
+
+	// For RPM installation we stick with using flotta user:
+	if flotta, err := user.Lookup("flotta"); err == nil && os.Getenv("FLOTTA_XDG_RUNTIME_DIR") == "" {
+		if err = os.Setenv("FLOTTA_XDG_RUNTIME_DIR", fmt.Sprintf("/run/user/%s", flotta.Uid)); err != nil {
+			log.Warnf("Failed to set XDG_RUNTIME_DIR env var for flotta user. Podman/systemd may misbehave.")
+		}
 	}
 
 	// Dial the dispatcher on its well-known address.

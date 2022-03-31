@@ -14,8 +14,6 @@ RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf 
     sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf && \
     sed -i s/ipcns=\"host\"/ipcns=\"private\"/g /etc/containers/containers.conf
 
-RUN podman pull quay.io/project-flotta/nginx:1.21.6
-
 # Certificate reqs:
 RUN mkdir /etc/pki/consumer && \
     openssl req -new -newkey rsa:4096 -x509 -sha256 -days 365 -nodes -out cert.pem -keyout key.pem -subj "/C=EU/ST=No/L=State/O=D/CN=www.example.com" && \

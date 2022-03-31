@@ -7,20 +7,25 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/coreos/go-systemd/v22/dbus"
+	godbus "github.com/godbus/dbus/v5"
 	"github.com/pkg/errors"
 )
 
 const (
-	DefaultUnitsPath      = "/etc/systemd/system/"
 	DefaultRestartTimeout = 15
 	PodSuffix             = "_pod"
 	ServicePrefix         = "pod-"
 	ServiceSuffix         = ".service"
 	TimerSuffix           = ".timer"
+)
+
+var (
+	DefaultUnitsPath = path.Join(os.Getenv("HOME"), ".config/systemd/user/")
 )
 
 //go:generate mockgen -package=service -destination=mock_systemd.go . Service
@@ -130,11 +135,41 @@ func (mgr *systemdManager) write() error {
 }
 
 func NewSystemd(name string, serviceNamePrefix string, units map[string]string) (Service, error) {
-	return NewSystemdWithSuffix(name, serviceNamePrefix, PodSuffix, ServiceSuffix, units)
+	return NewSystemdWithSuffix(name, serviceNamePrefix, PodSuffix, ServiceSuffix, units, true)
 }
 
-func NewSystemdWithSuffix(name string, serviceNamePrefix string, serviceNameSuffix string, serviceSuffix string, units map[string]string) (Service, error) {
-	conn, err := dbus.NewSystemdConnectionContext(context.TODO())
+func newDbusConnection() (*dbus.Conn, error) {
+	return dbus.NewConnection(func() (*godbus.Conn, error) {
+		uid := path.Base(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"))
+		path := filepath.Join(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"), "systemd/private")
+		conn, err := godbus.Dial(fmt.Sprintf("unix:path=%s", path))
+		if err != nil {
+			return nil, err
+		}
+
+		methods := []godbus.Auth{godbus.AuthExternal(uid)}
+
+		err = conn.Auth(methods)
+		if err != nil {
+			if err = conn.Close(); err != nil {
+				return nil, err
+			}
+			return nil, err
+		}
+
+		return conn, nil
+	})
+}
+
+func NewSystemdWithSuffix(name string, serviceNamePrefix string, serviceNameSuffix string, serviceSuffix string, units map[string]string, rootless bool) (Service, error) {
+	var err error
+	var conn *dbus.Conn
+
+	if rootless {
+		conn, err = newDbusConnection()
+	} else {
+		conn, err = dbus.NewSystemdConnectionContext(context.TODO())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +231,7 @@ func (s *systemd) Start() error {
 	case "done":
 		return nil
 	default:
-		return errors.Errorf("Failed to start systemd service %s", s.serviceName(s.Name))
+		return errors.Errorf("Failed[%s] to start systemd service %s", result, s.serviceName(s.Name))
 	}
 }
 
@@ -211,7 +246,7 @@ func (s *systemd) Stop() error {
 	case "done":
 		return nil
 	default:
-		return errors.Errorf("Failed to stop systemd service %s", s.serviceName(s.Name))
+		return errors.Errorf("Failed[%s] to stop systemd service %s", result, s.serviceName(s.Name))
 	}
 }
 

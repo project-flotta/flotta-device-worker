@@ -130,7 +130,7 @@ func (ww *Workload) RegisterObserver(observer Observer) {
 
 func (ww *Workload) Init() error {
 	// Enable auto-update podman timer:
-	svc, err := service.NewSystemdWithSuffix("podman-auto-update", "", "", service.TimerSuffix, nil)
+	svc, err := service.NewSystemdWithSuffix("podman-auto-update", "", "", service.TimerSuffix, nil, false)
 	if err != nil {
 		return err
 	}
@@ -283,9 +283,8 @@ func (ww *Workload) createService(svc service.Service) error {
 	if err := svc.Enable(); err != nil {
 		return err
 	}
-	if err := svc.Start(); err != nil {
-		return err
-	}
+
+	_ = svc.Start()
 
 	return nil
 }
