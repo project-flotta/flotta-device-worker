@@ -15,11 +15,11 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.16.0
+	github.com/onsi/gomega v1.18.1
 	github.com/opencontainers/runtime-tools v0.9.1-0.20211020193359-09d837bf40a7 // indirect
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
 	github.com/pkg/errors v0.9.1
-	github.com/project-flotta/flotta-operator v0.0.2-0.20220329090634-43205a5e4cbf
+	github.com/project-flotta/flotta-operator v0.0.2-0.20220404113302-b5aed0516daa
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20220309180936-d91759a7f332
