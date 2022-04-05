@@ -30,6 +30,7 @@ const (
 	defaultRequestRetryInterval = 10 * time.Second
 	LastWriteFileName           = "metrics-lastwrite"
 	DeviceLabel                 = "edgedeviceid"
+	ServerCAFileNamePattern     = "remote-write-ca-*.pem"
 )
 
 type RemoteWrite struct {
@@ -44,6 +45,8 @@ type RemoteWrite struct {
 	RequestRetryInterval time.Duration
 	client               WriteClient
 	isRunning            bool
+	dataDir              string
+	currentServerCaFile  string
 }
 
 func NewRemoteWrite(dataDir, deviceID string, tsdbInstance API) *RemoteWrite {
@@ -54,6 +57,7 @@ func NewRemoteWrite(dataDir, deviceID string, tsdbInstance API) *RemoteWrite {
 		RangeDuration:        defaultRequestDuration,
 		RequestRetryInterval: defaultRequestRetryInterval,
 		lastWriteFile:        path.Join(dataDir, LastWriteFileName),
+		dataDir:              dataDir,
 	}
 
 	lastWriteBytes, err := ioutil.ReadFile(newRemoteWrite.lastWriteFile)
@@ -138,33 +142,12 @@ func (r *RemoteWrite) Update(config models.DeviceConfigurationMessage) error {
 
 	if featureDisabled {
 		r.client = nil
+		r.currentServerCaFile = ""
+		r.removeServerCaFiles()
 	} else {
-		serverURL, err := url.Parse(newConfig.URL)
+		err := r.applyConfig(newConfig)
 		if err != nil {
-			log.Errorf("metrics remote write configuration is invalid. Can not parse URL %s. Error: %s", newConfig.URL, err.Error())
 			return err
-		}
-
-		if newConfig.TimeoutSeconds == 0 {
-			return fmt.Errorf("metrics remote write configuration is invalid. TimeoutSeconds has to greater than 0")
-		}
-
-		if newConfig.RequestNumSamples == 0 {
-			return fmt.Errorf("metrics remote write configuration is invalid. RequestNumSamples has to greater than 0")
-		}
-
-		client, err := remote.NewWriteClient(r.deviceID, &remote.ClientConfig{
-			Timeout: model.Duration(newConfig.TimeoutSeconds * int64(time.Second)),
-			URL: &config_util.URL{
-				URL: serverURL,
-			},
-		})
-		if err != nil {
-			log.Error("failed creating metrics remote write client", err)
-			return err
-		}
-		r.client = &writeClient{
-			client: client,
 		}
 	}
 
@@ -181,7 +164,83 @@ func (r *RemoteWrite) Update(config models.DeviceConfigurationMessage) error {
 }
 
 func (r *RemoteWrite) Init(config models.DeviceConfigurationMessage) error {
+	r.removeServerCaFiles()
 	return r.Update(config)
+}
+
+func (r *RemoteWrite) applyConfig(newConfig *models.MetricsReceiverConfiguration) error {
+	// parse and validate new config
+	serverURL, err := url.Parse(newConfig.URL)
+	if err != nil {
+		log.Errorf("metrics remote write configuration is invalid. Can not parse URL %s. Error: %s", newConfig.URL, err.Error())
+		return err
+	}
+
+	if newConfig.TimeoutSeconds == 0 {
+		return fmt.Errorf("metrics remote write configuration is invalid. TimeoutSeconds has to greater than 0")
+	}
+
+	if newConfig.RequestNumSamples == 0 {
+		return fmt.Errorf("metrics remote write configuration is invalid. RequestNumSamples has to greater than 0")
+	}
+
+	// create TLS client config
+	clientConfig := config_util.HTTPClientConfig{}
+
+	if newConfig.CaCert != "" {
+		// create new file for CA. can't use same file cause client watches for changes in the file we pass to it.
+		caFile, err := ioutil.TempFile(r.dataDir, ServerCAFileNamePattern)
+		if err != nil {
+			log.Errorf("cannot create temp file for metrics remote write server CA at %s", r.dataDir)
+			return err
+		}
+
+		caFilePath := caFile.Name()
+
+		_, err = caFile.WriteString(newConfig.CaCert)
+		if err == nil {
+			err = caFile.Sync()
+			if err == nil {
+				err = caFile.Close()
+			}
+		}
+		if err != nil {
+			_ = caFile.Close()
+			log.Errorf("cannot write to metics remote write server CA file %s", caFilePath)
+			return err
+		}
+
+		clientConfig.TLSConfig = config_util.TLSConfig{
+			CAFile: caFilePath,
+		}
+	}
+
+	// create client
+	client, err := remote.NewWriteClient(r.deviceID, &remote.ClientConfig{
+		Timeout: model.Duration(newConfig.TimeoutSeconds * int64(time.Second)),
+		URL: &config_util.URL{
+			URL: serverURL,
+		},
+		HTTPClientConfig: clientConfig,
+	})
+	if err != nil {
+		_ = os.Remove(clientConfig.TLSConfig.CAFile)
+		log.Error("failed creating metrics remote write client", err)
+		return err
+	}
+
+	err = os.Remove(r.currentServerCaFile)
+	if err != nil {
+		log.Errorf("failed removing file %s with error %s", r.currentServerCaFile, err.Error())
+	}
+
+	// update RemoteWrite
+	r.client = &writeClient{
+		client: client,
+	}
+	r.currentServerCaFile = clientConfig.TLSConfig.CAFile
+
+	return nil
 }
 
 // writeRoutine
@@ -382,6 +441,21 @@ func (r *RemoteWrite) writeRequest(series []Series, client WriteClient) bool {
 	}
 
 	return true
+}
+
+func (r *RemoteWrite) removeServerCaFiles() {
+	fileInfo, err := ioutil.ReadDir(r.dataDir)
+	if err != nil {
+		log.Errorf("cannot read %s", r.dataDir)
+		return
+	}
+
+	for _, file := range fileInfo {
+		match, _ := path.Match(ServerCAFileNamePattern, file.Name())
+		if match {
+			_ = os.Remove(path.Join(r.dataDir, file.Name()))
+		}
+	}
 }
 
 // toTimeSeries
