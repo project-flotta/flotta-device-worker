@@ -9,6 +9,7 @@ require (
 	github.com/containernetworking/plugins v1.0.1 // indirect
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
 	github.com/containers/storage v1.37.1-0.20211014130921-5c5bf639ed01 // indirect
+	github.com/coreos/go-systemd/v22 v22.3.2
 	github.com/go-openapi/strfmt v0.21.1
 	github.com/golang/mock v1.6.0
 	github.com/golang/snappy v0.0.4

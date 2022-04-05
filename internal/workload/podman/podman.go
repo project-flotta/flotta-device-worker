@@ -312,13 +312,14 @@ func (p *podman) UpdateSecret(name, data string) error {
 	return p.CreateSecret(name, data)
 }
 
-func (p *podman) GenerateSystemdService(podId string, monitoringInterval uint) (service.Service, error) {
-	report, err := generate.Systemd(p.podmanConnection, podId, &generate.SystemdOptions{RestartSec: &monitoringInterval})
+func (p *podman) GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error) {
+	useName := true
+	report, err := generate.Systemd(p.podmanConnection, podName+service.PodSuffix, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
 	if err != nil {
 		return nil, err
 	}
 
-	svc, err := service.NewSystemd(podId, "pod-", report.Units)
+	svc, err := service.NewSystemd(podName, service.ServicePrefix, report.Units)
 	if err != nil {
 		return nil, err
 	}
