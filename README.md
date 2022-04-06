@@ -51,7 +51,7 @@ To install Yggdrasil from upstream repo:
 ```
 git clone git@github.com:RedHatInsights/yggdrasil.git
 cd yggdrasil
-git checkout d696ee7a54bbf5775a88447bc40aae2259e8144c
+git checkout cdde836c519ac72302714b5f7ae90e45de7c79a7
 export PREFIX=/var/local
 make bin
 ```
