@@ -13,12 +13,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"os"
 	osUtil "os"
+	"path/filepath"
 	"time"
 
 	gomock "github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/redhatinsights/yggdrasil"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	grpc "google.golang.org/grpc"
 
@@ -54,11 +57,15 @@ var _ = Describe("Registration", func() {
 		registerCert  *certificate
 		regCertPath   = "/tmp/reg.pem"
 		regKeyPath    = "/tmp/reg.key"
+		sysconfigPath = filepath.Join(yggdrasil.SysconfDir, yggdrasil.LongName)
 	)
 
 	BeforeEach(func() {
 		datadir, err = ioutil.TempDir("", "registrationTest")
 		Expect(err).ToNot(HaveOccurred())
+
+		err = os.MkdirAll(sysconfigPath, os.ModePerm)
+		Expect(err).NotTo(HaveOccurred())
 
 		mockCtrl = gomock.NewController(GinkgoT())
 
@@ -91,8 +98,10 @@ var _ = Describe("Registration", func() {
 	AfterEach(func() {
 		mockCtrl.Finish()
 		_ = osUtil.Remove(datadir)
+		_ = osUtil.Remove(sysconfigPath)
 		_ = osUtil.Remove(regCertPath)
 		_ = osUtil.Remove(regKeyPath)
+
 	})
 
 	RegistrationMatcher := func() gomock.Matcher {
@@ -110,6 +119,14 @@ var _ = Describe("Registration", func() {
 		return data
 	}
 
+	getResponse := func(code int) []byte {
+		response := registration.YGGDResponse{StatusCode: code}
+		responseData, err := json.Marshal(response)
+		Expect(err).NotTo(HaveOccurred())
+
+		return responseData
+	}
+
 	getYggdrasilResponse := func(content models.RegistrationResponse) []byte {
 		msgResponse := getMessageResponse(content)
 		response := registration.YGGDResponse{
@@ -123,188 +140,350 @@ var _ = Describe("Registration", func() {
 
 	Context("RegisterDevice", func() {
 
-		It("Work as expected", func() {
+		Context("Enrol", func() {
 
-			// given
-			reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
-			Expect(err).To(BeNil())
-			msgResponse := getYggdrasilResponse(models.RegistrationResponse{
-				Certificate: string(clientCertPem),
-			})
+			It("Send enrol but not approved yet", func() {
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).NotTo(HaveOccurred())
 
-			// then
-			dispatcherMock.EXPECT().
-				Send(gomock.Any(), RegistrationMatcher()).
-				Return(&pb.Response{Response: msgResponse}, nil).
-				Times(1)
-
-			//  when
-			reg.RegisterDevice()
-
-			// then
-			Expect(reg.IsRegistered()).To(BeTrue())
-
-			// cert is overwriten with the client one.
-			content, err := ioutil.ReadFile(regCertPath)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(content).To(Equal(clientCertPem))
-		})
-
-		It("Server respond  with a 404 on register", func() {
-
-			// given
-			reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
-			Expect(err).To(BeNil())
-
-			msgResponse := getMessageResponse(models.RegistrationResponse{
-				Certificate: string(clientCertPem),
-			})
-
-			response := registration.YGGDResponse{
-				StatusCode: 404,
-				Body:       msgResponse,
-			}
-
-			responseData, err := json.Marshal(response)
-			Expect(err).NotTo(HaveOccurred())
-
-			// then
-			dispatcherMock.EXPECT().
-				Send(gomock.Any(), RegistrationMatcher()).
-				Return(&pb.Response{Response: responseData}, nil).
-				Times(1)
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(&pb.Response{Response: getResponse(200)}, nil).
+					Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+						Expect(in.Directive).To(Equal("enrolment"))
+						enrolInfo := models.EnrolmentInfo{}
+						err := json.Unmarshal(in.Content, &enrolInfo)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(*enrolInfo.TargetNamespace).To(Equal("default"))
+						return &pb.Response{Response: getResponse(200)}, nil
+					}).
+					Times(1)
 
 				//  when
-			reg.RegisterDevice()
+				reg.RegisterDevice()
 
-			// then
-			Expect(reg.IsRegistered()).To(BeFalse())
-			// make sure that it's not overwriten
-			content, err := ioutil.ReadFile(regCertPath)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(content).To(Equal(regCertPem))
-		})
-
-		It("Server respond  without certificate", func() {
-
-			// given
-			reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
-			Expect(err).To(BeNil())
-			msgResponse := getYggdrasilResponse(models.RegistrationResponse{
-				Certificate: "",
+				// then
+				Expect(reg.IsRegistered()).To(BeFalse())
 			})
 
-			// then
-			dispatcherMock.EXPECT().
-				Send(gomock.Any(), RegistrationMatcher()).
-				Return(&pb.Response{Response: msgResponse}, nil).
-				Times(1)
+			It("Send enrol with custom namespace", func() {
+				// given
+				data := []byte(`namespace="foobar"`)
+				err = ioutil.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
+				Expect(err).NotTo(HaveOccurred())
 
-			//  when
-			reg.RegisterDevice()
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).NotTo(HaveOccurred())
 
-			// then
-			Expect(reg.IsRegistered()).To(BeFalse())
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(&pb.Response{Response: getResponse(200)}, nil).
+					Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+						Expect(in.Directive).To(Equal("enrolment"))
+						enrolInfo := models.EnrolmentInfo{}
+						err := json.Unmarshal(in.Content, &enrolInfo)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(*enrolInfo.TargetNamespace).To(Equal("foobar"))
+						return &pb.Response{Response: getResponse(200)}, nil
+					}).
+					Times(1)
 
-			// make sure that it's not overwriten
-			content, err := ioutil.ReadFile(regCertPath)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(content).To(Equal(regCertPem))
-		})
+				//  when
+				reg.RegisterDevice()
 
-		It("Server respond with invalid certificate", func() {
-
-			// given
-			reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
-			Expect(err).To(BeNil())
-			msgResponse := getYggdrasilResponse(models.RegistrationResponse{
-				Certificate: "XXXX",
+				// then
+				Expect(reg.IsRegistered()).To(BeFalse())
 			})
 
-			// then
-			dispatcherMock.EXPECT().
-				Send(gomock.Any(), RegistrationMatcher()).
-				Return(&pb.Response{Response: msgResponse}, nil).
-				Times(1)
+			It("Send enrol with tags without namespace defined", func() {
+				// given
+				data := []byte(`test="foobar"`)
+				err = ioutil.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
+				Expect(err).NotTo(HaveOccurred())
 
-			//  when
-			reg.RegisterDevice()
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).NotTo(HaveOccurred())
 
-			// then
-			Expect(reg.IsRegistered()).To(BeFalse())
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(&pb.Response{Response: getResponse(200)}, nil).
+					Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+						Expect(in.Directive).To(Equal("enrolment"))
+						enrolInfo := models.EnrolmentInfo{}
+						err := json.Unmarshal(in.Content, &enrolInfo)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(*enrolInfo.TargetNamespace).To(Equal("default"))
+						return &pb.Response{Response: getResponse(200)}, nil
+					}).
+					Times(1)
 
-			// make sure that it's not overwriten
-			content, err := ioutil.ReadFile(regCertPath)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(content).To(Equal(regCertPem))
-		})
+				//  when
+				reg.RegisterDevice()
 
-		It("Renew certificate on client certificate", func() {
-
-			// given
-			// Just dump client certificates to there to renew then.
-			clientCert.DumpToFiles(regCertPath, regKeyPath)
-
-			reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
-			Expect(err).To(BeNil())
-			msgResponse := getYggdrasilResponse(models.RegistrationResponse{
-				Certificate: string(clientCertPem),
+				// then
+				Expect(reg.IsRegistered()).To(BeFalse())
 			})
 
-			// then
-			dispatcherMock.EXPECT().
-				Send(gomock.Any(), RegistrationMatcher()).
-				Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) {
-					var request models.RegistrationInfo
-					err := json.Unmarshal(in.Content, &request)
-					Expect(err).NotTo(HaveOccurred())
+			It("Send enrol and it's already approved", func() {
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).NotTo(HaveOccurred())
 
-					p, next := pem.Decode([]byte(request.CertificateRequest))
-					Expect(next).To(HaveLen(0))
-					csr, err := x509.ParseCertificateRequest(p.Bytes)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(csr.Subject.CommonName).To(Equal("device-id-123"))
-				}).
-				Return(&pb.Response{Response: msgResponse}, nil).
-				Times(1)
+				// enrol one
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(&pb.Response{Response: getResponse(208)}, nil).
+					Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+						Expect(in.Directive).To(Equal("enrolment"))
+						return &pb.Response{Response: getResponse(208)}, nil
+					}).
+					Times(1)
 
-			//  when
-			reg.RegisterDevice()
+				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
+					Certificate: string(clientCertPem),
+				})
 
-			// then
-			Expect(reg.IsRegistered()).To(BeTrue())
+				// registration one
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), RegistrationMatcher()).
+					Return(&pb.Response{Response: msgResponse}, nil).
+					Times(1)
 
-			content, err := ioutil.ReadFile(regCertPath)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(content).To(Equal(clientCertPem))
-		})
+				//  when
+				reg.RegisterDevice()
 
-		It("Try to re-register", func() {
-			// given
-			reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
-			Expect(err).NotTo(HaveOccurred())
-
-			msgResponse := getYggdrasilResponse(models.RegistrationResponse{
-				Certificate: string(clientCertPem),
+				// then
+				Expect(reg.IsRegistered()).To(BeTrue())
 			})
 
-			reg.RetryAfter = 1
+			It("Not authorized to enrol", func() {
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).NotTo(HaveOccurred())
 
-			// then
-			dispatcherMock.EXPECT().Send(gomock.Any(), gomock.Any()).Return(
-				nil, fmt.Errorf("failed")).Times(1)
-			dispatcherMock.EXPECT().
-				Send(gomock.Any(), RegistrationMatcher()).
-				Return(&pb.Response{Response: msgResponse}, nil).
-				Times(1)
+				// enrol one
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(&pb.Response{Response: getResponse(401)}, nil).
+					Times(1)
 
-			//  when
-			reg.RegisterDevice()
+				//  when
+				reg.RegisterDevice()
 
-			// then
-			Eventually(reg.IsRegistered, "5s").Should(BeTrue())
+				// then
+				Expect(reg.IsRegistered()).To(BeFalse())
+			})
+
 		})
 
+		Context("Already enrolled", func() {
+
+			BeforeEach(func() {
+
+				// Just enrol before register.
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(&pb.Response{Response: getResponse(208)}, nil).
+					Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+						Expect(in.Directive).To(Equal("enrolment"))
+						return &pb.Response{Response: getResponse(208)}, nil
+					}).
+					Times(1)
+			})
+
+			It("Work as expected", func() {
+
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).To(BeNil())
+				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
+					Certificate: string(clientCertPem),
+				})
+
+				// then
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), RegistrationMatcher()).
+					Return(&pb.Response{Response: msgResponse}, nil).
+					Times(1)
+
+				//  when
+				reg.RegisterDevice()
+
+				// then
+				Expect(reg.IsRegistered()).To(BeTrue())
+
+				// cert is overwriten with the client one.
+				content, err := ioutil.ReadFile(regCertPath)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(content).To(Equal(clientCertPem))
+			})
+
+			It("Server respond  with a 404 on register", func() {
+
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).To(BeNil())
+
+				msgResponse := getMessageResponse(models.RegistrationResponse{
+					Certificate: string(clientCertPem),
+				})
+
+				response := registration.YGGDResponse{
+					StatusCode: 404,
+					Body:       msgResponse,
+				}
+
+				responseData, err := json.Marshal(response)
+				Expect(err).NotTo(HaveOccurred())
+
+				// then
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), RegistrationMatcher()).
+					Return(&pb.Response{Response: responseData}, nil).
+					Times(1)
+
+					//  when
+				reg.RegisterDevice()
+
+				// then
+				Expect(reg.IsRegistered()).To(BeFalse())
+				// make sure that it's not overwriten
+				content, err := ioutil.ReadFile(regCertPath)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(content).To(Equal(regCertPem))
+			})
+
+			It("Server respond  without certificate", func() {
+
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).To(BeNil())
+				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
+					Certificate: "",
+				})
+
+				// then
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), RegistrationMatcher()).
+					Return(&pb.Response{Response: msgResponse}, nil).
+					Times(1)
+
+				//  when
+				reg.RegisterDevice()
+
+				// then
+				Expect(reg.IsRegistered()).To(BeFalse())
+
+				// make sure that it's not overwriten
+				content, err := ioutil.ReadFile(regCertPath)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(content).To(Equal(regCertPem))
+			})
+
+			It("Server respond with invalid certificate", func() {
+
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).To(BeNil())
+				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
+					Certificate: "XXXX",
+				})
+
+				// then
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), RegistrationMatcher()).
+					Return(&pb.Response{Response: msgResponse}, nil).
+					Times(1)
+
+				//  when
+				reg.RegisterDevice()
+
+				// then
+				Expect(reg.IsRegistered()).To(BeFalse())
+
+				// make sure that it's not overwriten
+				content, err := ioutil.ReadFile(regCertPath)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(content).To(Equal(regCertPem))
+			})
+
+			It("Renew certificate on client certificate", func() {
+
+				// given
+				// Just dump client certificates to there to renew then.
+				clientCert.DumpToFiles(regCertPath, regKeyPath)
+
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).To(BeNil())
+				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
+					Certificate: string(clientCertPem),
+				})
+
+				// then
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), RegistrationMatcher()).
+					Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) {
+						var request models.RegistrationInfo
+						err := json.Unmarshal(in.Content, &request)
+						Expect(err).NotTo(HaveOccurred())
+
+						p, next := pem.Decode([]byte(request.CertificateRequest))
+						Expect(next).To(HaveLen(0))
+						csr, err := x509.ParseCertificateRequest(p.Bytes)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(csr.Subject.CommonName).To(Equal("device-id-123"))
+					}).
+					Return(&pb.Response{Response: msgResponse}, nil).
+					Times(1)
+
+				//  when
+				reg.RegisterDevice()
+
+				// then
+				Expect(reg.IsRegistered()).To(BeTrue())
+
+				content, err := ioutil.ReadFile(regCertPath)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(content).To(Equal(clientCertPem))
+			})
+
+			It("Try to re-register", func() {
+				// given
+				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				Expect(err).NotTo(HaveOccurred())
+
+				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
+					Certificate: string(clientCertPem),
+				})
+
+				reg.RetryAfter = 1
+
+				// then
+				dispatcherMock.EXPECT().Send(gomock.Any(), gomock.Any()).Return(
+					nil, fmt.Errorf("failed")).Times(1)
+
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(&pb.Response{Response: getResponse(208)}, nil).
+					Do(func(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+						Expect(in.Directive).To(Equal("enrolment"))
+						return &pb.Response{Response: getResponse(208)}, nil
+					}).
+					Times(1)
+				dispatcherMock.EXPECT().
+					Send(gomock.Any(), RegistrationMatcher()).
+					Return(&pb.Response{Response: msgResponse}, nil).
+					Times(1)
+
+				//  when
+				reg.RegisterDevice()
+
+				// then
+				Eventually(reg.IsRegistered, "5s").Should(BeTrue())
+			})
+
+		})
 	})
 
 	Context("Deregister", func() {
@@ -368,6 +547,11 @@ var _ = Describe("Registration", func() {
 			msgResponse := getYggdrasilResponse(models.RegistrationResponse{
 				Certificate: string(clientCertPem),
 			})
+
+			dispatcherMock.EXPECT().
+				Send(gomock.Any(), gomock.Any()).
+				Return(&pb.Response{Response: getResponse(208)}, nil).
+				Times(1)
 
 			dispatcherMock.EXPECT().
 				Send(gomock.Any(), gomock.Any()).

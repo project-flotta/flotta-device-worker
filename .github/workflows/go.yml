@@ -22,6 +22,8 @@ jobs:
       run: |
         sudo apt-get -y update
         sudo apt-get -y install libbtrfs-dev libgpgme-dev libdevmapper-dev ansible
+        sudo mkdir -p /usr/local/etc
+        sudo chmod 777 /usr/local/etc
 
     - name: Test
       run: |

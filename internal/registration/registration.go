@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -14,11 +15,14 @@ import (
 	hardware2 "github.com/project-flotta/flotta-device-worker/internal/hardware"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
 	"github.com/project-flotta/flotta-operator/models"
+	"github.com/redhatinsights/yggdrasil"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
 const (
-	retryAfter = 10
+	retryAfter             = 10
+	defaultTargetNamespace = "default"
+	targetNamespaceTag     = "namespace"
 )
 
 //go:generate mockgen -package=registration -destination=mock_deregistrable.go . Deregistrable
@@ -43,6 +47,7 @@ type Registration struct {
 	lock             sync.RWMutex
 	deregistrables   []Deregistrable
 	clientCert       *ClientCert
+	targetNamepsace  string
 }
 
 func NewRegistration(deviceID string, hardware *hardware2.Hardware, dispatcherClient DispatcherClient,
@@ -56,11 +61,31 @@ func NewRegistration(deviceID string, hardware *hardware2.Hardware, dispatcherCl
 		workloads:        workloadsManager,
 		lock:             sync.RWMutex{},
 	}
+
+	reg.targetNamepsace = reg.getTargetNamespace()
 	err := reg.CreateClientCerts()
 	if err != nil {
 		return nil, err
 	}
 	return reg, nil
+}
+
+func (r *Registration) getTargetNamespace() string {
+	filename := filepath.Join(yggdrasil.SysconfDir, yggdrasil.LongName, "tags.toml")
+	tags, err := readTagsFile(filename)
+	if err != nil {
+		log.Infof("cannot read tags from yggdrasil config, fp='%s', err: %v", filename, err)
+		return defaultTargetNamespace
+	}
+	val, ok := tags[targetNamespaceTag]
+	if !ok {
+		return defaultTargetNamespace
+	}
+
+	if val == "" {
+		return defaultTargetNamespace
+	}
+	return val
 }
 
 func (r *Registration) CreateClientCerts() error {
@@ -125,7 +150,60 @@ func (r *Registration) registerDeviceWithRetries(interval int64) {
 	}
 }
 
+func (r *Registration) enrol() (bool, error) {
+	hardwareInformation, err := r.hardware.GetHardwareInformation()
+	if err != nil {
+		return false, err
+	}
+
+	enrolInfo := models.EnrolmentInfo{
+		Features: &models.EnrolmentInfoFeatures{
+			Hardware: hardwareInformation,
+		},
+		TargetNamespace: &r.targetNamepsace,
+	}
+
+	content, err := json.Marshal(enrolInfo)
+	if err != nil {
+		return false, err
+	}
+
+	data := &pb.Data{
+		MessageId: uuid.New().String(),
+		Content:   content,
+		Directive: "enrolment",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	// Call "Send" to send the enrolment message
+	response, err := r.dispatcherClient.Send(ctx, data)
+	if err != nil {
+		return false, err
+	}
+
+	parsedResponse, err := NewYGGDResponse(response.Response)
+	if err != nil {
+		return false, err
+	}
+
+	if parsedResponse.StatusCode == 208 {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (r *Registration) registerDeviceOnce() error {
+
+	enrolled, err := r.enrol()
+	if err != nil {
+		return err
+	}
+
+	if !enrolled {
+		return fmt.Errorf("Device is not enrolled yet")
+	}
 
 	key, csr, err := r.renewCertificate()
 	if err != nil {
@@ -172,7 +250,7 @@ func (r *Registration) registerDeviceOnce() error {
 	var message models.MessageResponse
 	err = json.Unmarshal(parsedResponse.Body, &message)
 	if err != nil {
-    return fmt.Errorf("Cannot unmarshal registration response content: %v", err)
+		return fmt.Errorf("Cannot unmarshal registration response content: %v", err)
 	}
 
 	parsedContent, ok := message.Content.(map[string]interface{})
