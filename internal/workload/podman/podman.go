@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"text/template"
 
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/containers/podman/v3/pkg/bindings/system"
 	"github.com/containers/podman/v3/pkg/domain/entities"
 	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -30,12 +32,35 @@ const (
 	podmanStart  = string(podmanEvents.Start)
 	podmanRemove = string(podmanEvents.Remove)
 	podmanStop   = string(podmanEvents.Stop)
+
+	podmanBinary                  = "/usr/bin/podman"
+	autoUpdateServiceUnitTemplate = `[Unit]
+Description=Podman {{ .PodName }}.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+RestartSec=15
+ExecStart={{ .PodmanBinary }} play kube --replace {{ .ManifestPath }}
+ExecStop={{ .PodmanBinary }} play kube --down {{ .ManifestPath }}
+Type=forking
+
+[Install]
+WantedBy=default.target
+`
 )
 
 var (
 	logTailLines = "1"
 	boolTrue     = true
 )
+
+type AutoUpdateUnit struct {
+	ManifestPath string
+	PodName      string
+	PodmanBinary string
+}
 
 //go:generate mockgen -package=podman -destination=mock_podman.go . Podman
 type Podman interface {
@@ -49,7 +74,7 @@ type Podman interface {
 	CreateSecret(name, data string) error
 	UpdateSecret(name, data string) error
 	Exists(workloadId string) (bool, error)
-	GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error)
+	GenerateSystemdService(workload *v1.Pod, manifestPath string, monitoringInterval uint) (service.Service, error)
 	Logs(podID string, res io.Writer) (context.CancelFunc, error)
 }
 
@@ -312,16 +337,51 @@ func (p *podman) UpdateSecret(name, data string) error {
 	return p.CreateSecret(name, data)
 }
 
-func (p *podman) GenerateSystemdService(podName string, monitoringInterval uint) (service.Service, error) {
-	useName := true
-	report, err := generate.Systemd(p.podmanConnection, podName+service.PodSuffix, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
-	if err != nil {
-		return nil, err
+func hasAutoUpdateEnabled(labels map[string]string) bool {
+	for label := range labels {
+		if strings.Contains(label, "io.containers.autoupdate") {
+			return true
+		}
 	}
 
-	svc, err := service.NewSystemd(podName, service.ServicePrefix, report.Units)
-	if err != nil {
-		return nil, err
+	return false
+}
+
+func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, monitoringInterval uint) (service.Service, error) {
+	var svc service.Service
+	podName := workload.Name
+
+	// Since podman don't support generation of the systemd services that re-creates the pod, instead of restarting it,
+	// for pods/containers created via the API, we must create the custom systemd service for pods, which has enabled
+	// autoupdate feature, because in case the image of the containers is updated we need to re-create the containers.
+	if !hasAutoUpdateEnabled(workload.Labels) {
+		useName := true
+		report, err := generate.Systemd(p.podmanConnection, podName+service.PodSuffix, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
+		if err != nil {
+			return nil, err
+		}
+
+		svc, err = service.NewSystemd(podName, service.ServicePrefix, report.Units)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var unit bytes.Buffer
+
+		tmp := template.New("unit")
+		t, err := tmp.Parse(autoUpdateServiceUnitTemplate)
+		if err != nil {
+			return nil, err
+		}
+		err = t.Execute(&unit, AutoUpdateUnit{ManifestPath: manifestPath, PodmanBinary: podmanBinary, PodName: podName})
+		if err != nil {
+			return nil, err
+		}
+		units := map[string]string{service.ServicePrefix + podName: unit.String()}
+		svc, err = service.NewSystemd(podName, service.ServicePrefix, units)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return svc, nil

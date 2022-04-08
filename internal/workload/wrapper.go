@@ -237,7 +237,7 @@ func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath stri
 	}
 
 	// Create the system service to manage the pod:
-	svc, err := ww.workloads.GenerateSystemdService(workload.Name, ww.monitoringInterval)
+	svc, err := ww.workloads.GenerateSystemdService(workload, manifestPath, ww.monitoringInterval)
 	if err != nil {
 		return fmt.Errorf("Error while generating systemd service: %v", err)
 	}
