@@ -647,7 +647,7 @@ github.com/ostreedev/ostree-go/pkg/otbuiltin
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/project-flotta/flotta-operator v0.0.2-0.20220404113302-b5aed0516daa
+# github.com/project-flotta/flotta-operator v0.0.2-0.20220410092926-9776a65d2c69
 ## explicit
 github.com/project-flotta/flotta-operator/models
 github.com/project-flotta/flotta-operator/pkg/mtls
