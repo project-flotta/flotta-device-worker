@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/apenella/go-ansible/pkg/stdoutcallback/results"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	dispatcher "github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/model/message"

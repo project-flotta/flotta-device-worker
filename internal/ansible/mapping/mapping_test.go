@@ -6,7 +6,7 @@ import (
 	"path"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/mapping"
 )

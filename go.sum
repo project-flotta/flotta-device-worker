@@ -1448,9 +1448,8 @@ github.com/onsi/ginkgo v1.14.0/go.mod h1:iSB4RoI2tjJc9BBv4NKIKWKya62Rps+oPG/Lv9k
 github.com/onsi/ginkgo v1.14.1/go.mod h1:iSB4RoI2tjJc9BBv4NKIKWKya62Rps+oPG/Lv9klQyY=
 github.com/onsi/ginkgo v1.15.0/go.mod h1:hF8qUzuuC8DJGygJH3726JnCZX4MYbRB8yFfISqnKUg=
 github.com/onsi/ginkgo v1.16.2/go.mod h1:CObGmKUOKaSC0RjmoAK7tKyn4Azo5P2IWuoMnvwxz1E=
+github.com/onsi/ginkgo v1.16.4 h1:29JGrr5oVBm5ulCWet69zQkzWipVXIol6ygQUe/EzNc=
 github.com/onsi/ginkgo v1.16.4/go.mod h1:dX+/inL/fNMqNlz0e9LfyB9TswhZpCVdJM/Z6Vvnwo0=
-github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
-github.com/onsi/ginkgo v1.16.5/go.mod h1:+E8gABHa3K6zRBolWtd+ROzc/U5bkGt0FwiG042wbpU=
 github.com/onsi/ginkgo/v2 v2.0.0/go.mod h1:vw5CSIxN1JObi/U8gcbwft7ZxR2dgaR70JSE3/PpL4c=
 github.com/onsi/ginkgo/v2 v2.1.3 h1:e/3Cwtogj0HA+25nMP1jCMDIf8RtRYbGwGGuBIFztkc=
 github.com/onsi/ginkgo/v2 v2.1.3/go.mod h1:vw5CSIxN1JObi/U8gcbwft7ZxR2dgaR70JSE3/PpL4c=
@@ -1611,8 +1610,6 @@ github.com/posener/script v1.0.4/go.mod h1:Rg3ijooqulo05aGLyGsHoLmIOUzHUVK19WVgr
 github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021/go.mod h1:prYjPmNq4d1NPVmpShWobRqXY3q7Vp+80DqgxxUrUIA=
 github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
 github.com/pquerna/ffjson v0.0.0-20190813045741-dac163c6c0a9/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
-github.com/project-flotta/flotta-operator v0.0.2-0.20220404113302-b5aed0516daa h1:S0/GJrH27T7gnw0jwqiKb38B2uaqEDsr09WOwl7UXQg=
-github.com/project-flotta/flotta-operator v0.0.2-0.20220404113302-b5aed0516daa/go.mod h1:b5GaqFr2lTYTfM3+L3v5p0NsMahZNk1AmUjM6kq+p2w=
 github.com/project-flotta/flotta-operator v0.0.2-0.20220410092926-9776a65d2c69 h1:5JouD+fp7GpiAm8ywfuyX9HFFMUDlDpRGP6RIhPniYs=
 github.com/project-flotta/flotta-operator v0.0.2-0.20220410092926-9776a65d2c69/go.mod h1:b5GaqFr2lTYTfM3+L3v5p0NsMahZNk1AmUjM6kq+p2w=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.49.0/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
@@ -1936,12 +1933,6 @@ github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6Ut
 github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca/go.mod h1:ce1O1j6UtZfjr22oyGxGLbauSBp2YVXpARAosm7dHBg=
 github.com/xlab/treeprint v1.1.0/go.mod h1:gj5Gd3gPdKtR1ikdDK6fnFLdmIS0X30kTTuNd/WEJu0=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/ydayagi/k4e-operator v0.0.0-20220329090830-d066b756c24a h1:ptGSwDSKP5JHpnymn0mmdLfEdHGGyXWUiZzTfAy89zI=
-github.com/ydayagi/k4e-operator v0.0.0-20220329090830-d066b756c24a/go.mod h1:YsPyFYCu5fxTfh/9kenH40UgxqAtfOZNt1hnZH2royA=
-github.com/ydayagi/k4e-operator v0.0.0-20220404220543-73cfaaad2382 h1:UT/XY1xxeR36kmRUjhP8coIn8mFkKC7ZoBd3a4FSEbA=
-github.com/ydayagi/k4e-operator v0.0.0-20220404220543-73cfaaad2382/go.mod h1:b5GaqFr2lTYTfM3+L3v5p0NsMahZNk1AmUjM6kq+p2w=
-github.com/ydayagi/k4e-operator v0.0.0-20220410072327-e13e62fc2c96 h1:b2J4remQORnqPQS5vdIxBwRQT7pIaOBXRIlemON0164=
-github.com/ydayagi/k4e-operator v0.0.0-20220410072327-e13e62fc2c96/go.mod h1:b5GaqFr2lTYTfM3+L3v5p0NsMahZNk1AmUjM6kq+p2w=
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d/go.mod h1:rHwXgn7JulP+udvsHwJoVG1YGAP6VLg4y9I5dyZdqmA=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

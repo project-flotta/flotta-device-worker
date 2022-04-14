@@ -4,7 +4,7 @@ import (
 	"time"
 
 	gomock "github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
