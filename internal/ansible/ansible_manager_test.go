@@ -9,7 +9,7 @@ import (
 
 	"github.com/apenella/go-ansible/pkg/playbook"
 	"github.com/google/uuid"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	pb "github.com/redhatinsights/yggdrasil/protocol"

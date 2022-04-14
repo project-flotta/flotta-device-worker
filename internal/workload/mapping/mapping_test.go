@@ -4,9 +4,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
 )
 
 var _ = Describe("Mapping", func() {

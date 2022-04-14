@@ -3,9 +3,9 @@ package metrics_test
 import (
 	"compress/gzip"
 	"context"
-	"github.com/project-flotta/flotta-device-worker/internal/metrics"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"github.com/prometheus/common/model"
 	"net/http"
 	"net/http/httptest"

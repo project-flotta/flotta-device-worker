@@ -1,9 +1,9 @@
 package volumes_test
 
 import (
-	"github.com/project-flotta/flotta-device-worker/internal/volumes"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/project-flotta/flotta-device-worker/internal/volumes"
 	v1 "k8s.io/api/core/v1"
 )
 
