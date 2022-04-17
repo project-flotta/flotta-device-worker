@@ -50,7 +50,7 @@ gosec: ## Run gosec locally
 
 test: ## Run unit test on device worker
 test: test-tools
-	ginkgo --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
+	ginkgo --mod=vendor --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
 
 test-coverage:
 test-coverage: ## Run test and launch coverage tool

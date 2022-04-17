@@ -23,7 +23,6 @@ import (
 	"github.com/containers/storage/pkg/parsers"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/containers/storage/pkg/stringutils"
-	"github.com/containers/storage/pkg/system"
 	"github.com/containers/storage/types"
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
@@ -575,11 +574,10 @@ type ContainerOptions struct {
 	// container's layer will inherit settings from the image's top layer
 	// or, if it is not being created based on an image, the Store object.
 	types.IDMappingOptions
-	LabelOpts  []string
-	Flags      map[string]interface{}
-	MountOpts  []string
-	Volatile   bool
-	StorageOpt map[string]string
+	LabelOpts []string
+	Flags     map[string]interface{}
+	MountOpts []string
+	Volatile  bool
 }
 
 type store struct {
@@ -1133,6 +1131,10 @@ func (s *store) imageTopLayerForMapping(image *Image, ristore ROImageStore, crea
 		if options.HostGIDMapping && len(layer.GIDMap) != 0 {
 			return false
 		}
+		// If we don't care about the mapping, it's fine.
+		if len(options.UIDMap) == 0 && len(options.GIDMap) == 0 {
+			return true
+		}
 		// Compare the maps.
 		return reflect.DeepEqual(layer.UIDMap, options.UIDMap) && reflect.DeepEqual(layer.GIDMap, options.GIDMap)
 	}
@@ -1385,7 +1387,7 @@ func (s *store) CreateContainer(id string, names []string, image, layer, metadat
 		options.Flags["MountLabel"] = mountLabel
 	}
 
-	clayer, err := rlstore.Create(layer, imageTopLayer, nil, options.Flags["MountLabel"].(string), options.StorageOpt, layerOptions, true)
+	clayer, err := rlstore.Create(layer, imageTopLayer, nil, options.Flags["MountLabel"].(string), nil, layerOptions, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2500,15 +2502,7 @@ func (s *store) DeleteContainer(id string) error {
 			gcpath := filepath.Join(s.GraphRoot(), middleDir, container.ID)
 			wg.Add(1)
 			go func() {
-				var err error
-				for attempts := 0; attempts < 50; attempts++ {
-					err = os.RemoveAll(gcpath)
-					if err == nil || !system.IsEBUSY(err) {
-						break
-					}
-					time.Sleep(time.Millisecond * 100)
-				}
-				errChan <- err
+				errChan <- os.RemoveAll(gcpath)
 				wg.Done()
 			}()
 
@@ -2831,33 +2825,10 @@ func (s *store) Diff(from, to string, options *DiffOptions) (io.ReadCloser, erro
 	if err != nil {
 		return nil, err
 	}
-
-	// NaiveDiff could cause mounts to happen without a lock, so be safe
-	// and treat the .Diff operation as a Mount.
-	s.graphLock.Lock()
-	defer s.graphLock.Unlock()
-
-	modified, err := s.graphLock.Modified()
-	if err != nil {
-		return nil, err
-	}
-
-	// We need to make sure the home mount is present when the Mount is done.
-	if modified {
-		s.graphDriver = nil
-		s.layerStore = nil
-		s.graphDriver, err = s.getGraphDriver()
-		if err != nil {
-			return nil, err
-		}
-		s.lastLoaded = time.Now()
-	}
-
 	for _, s := range append([]ROLayerStore{lstore}, lstores...) {
 		store := s
 		store.RLock()
 		if err := store.ReloadIfChanged(); err != nil {
-			store.Unlock()
 			return nil, err
 		}
 		if store.Exists(to) {

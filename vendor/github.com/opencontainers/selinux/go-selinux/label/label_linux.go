@@ -103,11 +103,9 @@ func SetFileCreateLabel(fileLabel string) error {
 	return selinux.SetFSCreateLabel(fileLabel)
 }
 
-// Relabel changes the label of path and all the entries beneath the path.
+// Relabel changes the label of path to the filelabel string.
 // It changes the MCS label to s0 if shared is true.
 // This will allow all containers to share the content.
-//
-// The path itself is guaranteed to be relabeled last.
 func Relabel(path string, fileLabel string, shared bool) error {
 	if !selinux.GetEnabled() || fileLabel == "" {
 		return nil

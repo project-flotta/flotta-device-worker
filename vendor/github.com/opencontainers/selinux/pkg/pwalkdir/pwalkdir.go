@@ -1,4 +1,3 @@
-//go:build go1.16
 // +build go1.16
 
 package pwalkdir
@@ -52,9 +51,6 @@ func WalkN(root string, walkFn fs.WalkDirFunc, num int) error {
 	var (
 		err error
 		wg  sync.WaitGroup
-
-		rootLen   = len(root)
-		rootEntry *walkArgs
 	)
 	wg.Add(1)
 	go func() {
@@ -62,11 +58,6 @@ func WalkN(root string, walkFn fs.WalkDirFunc, num int) error {
 			if err != nil {
 				close(files)
 				return err
-			}
-			if len(p) == rootLen {
-				// Root entry is processed separately below.
-				rootEntry = &walkArgs{path: p, entry: entry}
-				return nil
 			}
 			// Add a file to the queue unless a callback sent an error.
 			select {
@@ -100,10 +91,6 @@ func WalkN(root string, walkFn fs.WalkDirFunc, num int) error {
 	}
 
 	wg.Wait()
-
-	if err == nil {
-		err = walkFn(rootEntry.path, rootEntry.entry, nil)
-	}
 
 	return err
 }

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/bits-and-blooms/bitset"
 	"golang.org/x/sys/unix"
 )
 
@@ -44,7 +44,7 @@ type selinuxState struct {
 
 type level struct {
 	sens uint
-	cats *big.Int
+	cats *bitset.BitSet
 }
 
 type mlsRange struct {
@@ -455,8 +455,8 @@ func computeCreateContext(source string, target string, class string) (string, e
 }
 
 // catsToBitset stores categories in a bitset.
-func catsToBitset(cats string) (*big.Int, error) {
-	bitset := new(big.Int)
+func catsToBitset(cats string) (*bitset.BitSet, error) {
+	bitset := &bitset.BitSet{}
 
 	catlist := strings.Split(cats, ",")
 	for _, r := range catlist {
@@ -471,14 +471,14 @@ func catsToBitset(cats string) (*big.Int, error) {
 				return nil, err
 			}
 			for i := catstart; i <= catend; i++ {
-				bitset.SetBit(bitset, int(i), 1)
+				bitset.Set(i)
 			}
 		} else {
 			cat, err := parseLevelItem(ranges[0], category)
 			if err != nil {
 				return nil, err
 			}
-			bitset.SetBit(bitset, int(cat), 1)
+			bitset.Set(cat)
 		}
 	}
 
@@ -548,30 +548,37 @@ func rangeStrToMLSRange(rangeStr string) (*mlsRange, error) {
 
 // bitsetToStr takes a category bitset and returns it in the
 // canonical selinux syntax
-func bitsetToStr(c *big.Int) string {
+func bitsetToStr(c *bitset.BitSet) string {
 	var str string
-
-	length := 0
-	for i := int(c.TrailingZeroBits()); i < c.BitLen(); i++ {
-		if c.Bit(i) == 0 {
-			continue
-		}
-		if length == 0 {
+	i, e := c.NextSet(0)
+	len := 0
+	for e {
+		if len == 0 {
 			if str != "" {
 				str += ","
 			}
-			str += "c" + strconv.Itoa(i)
+			str += "c" + strconv.Itoa(int(i))
 		}
-		if c.Bit(i+1) == 1 {
-			length++
-			continue
+
+		next, e := c.NextSet(i + 1)
+		if e {
+			// consecutive cats
+			if next == i+1 {
+				len++
+				i = next
+				continue
+			}
 		}
-		if length == 1 {
-			str += ",c" + strconv.Itoa(i)
-		} else if length > 1 {
-			str += ".c" + strconv.Itoa(i)
+		if len == 1 {
+			str += ",c" + strconv.Itoa(int(i))
+		} else if len > 1 {
+			str += ".c" + strconv.Itoa(int(i))
 		}
-		length = 0
+		if !e {
+			break
+		}
+		len = 0
+		i = next
 	}
 
 	return str
@@ -584,16 +591,13 @@ func (l1 *level) equal(l2 *level) bool {
 	if l1.sens != l2.sens {
 		return false
 	}
-	if l2.cats == nil || l1.cats == nil {
-		return l2.cats == l1.cats
-	}
-	return l1.cats.Cmp(l2.cats) == 0
+	return l1.cats.Equal(l2.cats)
 }
 
 // String returns an mlsRange as a string.
 func (m mlsRange) String() string {
 	low := "s" + strconv.Itoa(int(m.low.sens))
-	if m.low.cats != nil && m.low.cats.BitLen() > 0 {
+	if m.low.cats != nil && m.low.cats.Count() > 0 {
 		low += ":" + bitsetToStr(m.low.cats)
 	}
 
@@ -602,7 +606,7 @@ func (m mlsRange) String() string {
 	}
 
 	high := "s" + strconv.Itoa(int(m.high.sens))
-	if m.high.cats != nil && m.high.cats.BitLen() > 0 {
+	if m.high.cats != nil && m.high.cats.Count() > 0 {
 		high += ":" + bitsetToStr(m.high.cats)
 	}
 
@@ -652,12 +656,10 @@ func calculateGlbLub(sourceRange, targetRange string) (string, error) {
 
 	/* find the intersecting categories */
 	if s.low.cats != nil && t.low.cats != nil {
-		outrange.low.cats = new(big.Int)
-		outrange.low.cats.And(s.low.cats, t.low.cats)
+		outrange.low.cats = s.low.cats.Intersection(t.low.cats)
 	}
 	if s.high.cats != nil && t.high.cats != nil {
-		outrange.high.cats = new(big.Int)
-		outrange.high.cats.And(s.high.cats, t.high.cats)
+		outrange.high.cats = s.high.cats.Intersection(t.high.cats)
 	}
 
 	return outrange.String(), nil
