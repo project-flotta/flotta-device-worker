@@ -37,20 +37,27 @@ help: ## Display this help.
 
 ##@ Development
 
-test-tools:
-ifeq (, $(shell which ginkgo))
-	go get github.com/onsi/ginkgo/v2/ginkgo@v2.1.3
+GOVER = $(shell pwd)/bin/gover
+gover:
+ifeq (, $(shell which ginkgo 2> /dev/null))
+	$(call go-install-tool,$(GOVER),github.com/sozorogami/gover)
 endif
-ifeq (, $(shell which gover))
-	GO111MODULE=off go get github.com/sozorogami/gover
+
+GINKGO = $(shell pwd)/bin/ginkgo
+ginkgo:
+ifeq (, $(shell which ginkgo 2> /dev/null))
+	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.1.3)
 endif
+
+test-tools: ## Install test-tools
+test-tools: ginkgo gover
 
 gosec: ## Run gosec locally
 	$(DOCKER) run --rm -it -v $(PWD):/opt/data/:z docker.io/securego/gosec -exclude-generated /opt/data/...
 
 test: ## Run unit test on device worker
 test: test-tools
-	ginkgo --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
+	$(GINKGO)  --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
 
 test-coverage:
 test-coverage: ## Run test and launch coverage tool
@@ -158,3 +165,19 @@ deploy-container-image:
 
 dist: ## Create distribution packages
 dist: build build-arm64 rpm rpm-arm64
+
+
+
+# go-install-tool will 'go install' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-install-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef

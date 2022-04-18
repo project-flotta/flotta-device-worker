@@ -120,8 +120,3 @@ func HasWin32KSupport() bool {
 	// APIs.
 	return ntuserApiset.Load() == nil
 }
-
-// IsEBUSY checks if the specified error is EBUSY.
-func IsEBUSY(err error) bool {
-	return false
-}

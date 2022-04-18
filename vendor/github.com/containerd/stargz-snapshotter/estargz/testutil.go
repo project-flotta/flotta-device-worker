@@ -148,96 +148,93 @@ func testBuild(t *testing.T, controllers ...TestingController) {
 			srcCompression := srcCompression
 			for _, cl := range controllers {
 				cl := cl
-				for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
-					srcTarFormat := srcTarFormat
-					for _, prefix := range allowedPrefix {
-						prefix := prefix
-						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,src=%d,format=%s", cl, prefix, srcCompression, srcTarFormat), func(t *testing.T) {
-							tarBlob := buildTar(t, tt.in, prefix, srcTarFormat)
-							// Test divideEntries()
-							entries, err := sortEntries(tarBlob, nil, nil) // identical order
-							if err != nil {
-								t.Fatalf("failed to parse tar: %v", err)
+				for _, prefix := range allowedPrefix {
+					prefix := prefix
+					t.Run(tt.name+"-"+fmt.Sprintf("compression=%v-prefix=%q-src=%d", cl, prefix, srcCompression), func(t *testing.T) {
+						tarBlob := buildTarStatic(t, tt.in, prefix)
+						// Test divideEntries()
+						entries, err := sortEntries(tarBlob, nil, nil) // identical order
+						if err != nil {
+							t.Fatalf("faield to parse tar: %v", err)
+						}
+						var merged []*entry
+						for _, part := range divideEntries(entries, 4) {
+							merged = append(merged, part...)
+						}
+						if !reflect.DeepEqual(entries, merged) {
+							for _, e := range entries {
+								t.Logf("Original: %v", e.header)
 							}
-							var merged []*entry
-							for _, part := range divideEntries(entries, 4) {
-								merged = append(merged, part...)
+							for _, e := range merged {
+								t.Logf("Merged: %v", e.header)
 							}
-							if !reflect.DeepEqual(entries, merged) {
-								for _, e := range entries {
-									t.Logf("Original: %v", e.header)
-								}
-								for _, e := range merged {
-									t.Logf("Merged: %v", e.header)
-								}
-								t.Errorf("divided entries couldn't be merged")
-								return
-							}
+							t.Errorf("divided entries couldn't be merged")
+							return
+						}
 
-							// Prepare sample data
-							wantBuf := new(bytes.Buffer)
-							sw := NewWriterWithCompressor(wantBuf, cl)
-							sw.ChunkSize = tt.chunkSize
-							if err := sw.AppendTar(tarBlob); err != nil {
-								t.Fatalf("failed to append tar to want stargz: %v", err)
-							}
-							if _, err := sw.Close(); err != nil {
-								t.Fatalf("failed to prepare want stargz: %v", err)
-							}
-							wantData := wantBuf.Bytes()
-							want, err := Open(io.NewSectionReader(
-								bytes.NewReader(wantData), 0, int64(len(wantData))),
-								WithDecompressors(cl),
-							)
-							if err != nil {
-								t.Fatalf("failed to parse the want stargz: %v", err)
-							}
+						// Prepare sample data
+						wantBuf := new(bytes.Buffer)
+						sw := NewWriterWithCompressor(wantBuf, cl)
+						sw.ChunkSize = tt.chunkSize
+						if err := sw.AppendTar(tarBlob); err != nil {
+							t.Fatalf("faield to append tar to want stargz: %v", err)
+						}
+						if _, err := sw.Close(); err != nil {
+							t.Fatalf("faield to prepare want stargz: %v", err)
+						}
+						wantData := wantBuf.Bytes()
+						want, err := Open(io.NewSectionReader(
+							bytes.NewReader(wantData), 0, int64(len(wantData))),
+							WithDecompressors(cl),
+						)
+						if err != nil {
+							t.Fatalf("failed to parse the want stargz: %v", err)
+						}
 
-							// Prepare testing data
-							rc, err := Build(compressBlob(t, tarBlob, srcCompression),
-								WithChunkSize(tt.chunkSize), WithCompression(cl))
-							if err != nil {
-								t.Fatalf("failed to build stargz: %v", err)
-							}
-							defer rc.Close()
-							gotBuf := new(bytes.Buffer)
-							if _, err := io.Copy(gotBuf, rc); err != nil {
-								t.Fatalf("failed to copy built stargz blob: %v", err)
-							}
-							gotData := gotBuf.Bytes()
-							got, err := Open(io.NewSectionReader(
-								bytes.NewReader(gotBuf.Bytes()), 0, int64(len(gotData))),
-								WithDecompressors(cl),
-							)
-							if err != nil {
-								t.Fatalf("failed to parse the got stargz: %v", err)
-							}
+						// Prepare testing data
+						rc, err := Build(compressBlob(t, tarBlob, srcCompression),
+							WithChunkSize(tt.chunkSize), WithCompression(cl))
+						if err != nil {
+							t.Fatalf("faield to build stargz: %v", err)
+						}
+						defer rc.Close()
+						gotBuf := new(bytes.Buffer)
+						if _, err := io.Copy(gotBuf, rc); err != nil {
+							t.Fatalf("failed to copy built stargz blob: %v", err)
+						}
+						gotData := gotBuf.Bytes()
+						got, err := Open(io.NewSectionReader(
+							bytes.NewReader(gotBuf.Bytes()), 0, int64(len(gotData))),
+							WithDecompressors(cl),
+						)
+						if err != nil {
+							t.Fatalf("failed to parse the got stargz: %v", err)
+						}
 
-							// Check DiffID is properly calculated
-							rc.Close()
-							diffID := rc.DiffID()
-							wantDiffID := cl.DiffIDOf(t, gotData)
-							if diffID.String() != wantDiffID {
-								t.Errorf("DiffID = %q; want %q", diffID, wantDiffID)
-							}
+						// Check DiffID is properly calculated
+						rc.Close()
+						diffID := rc.DiffID()
+						wantDiffID := cl.DiffIDOf(t, gotData)
+						if diffID.String() != wantDiffID {
+							t.Errorf("DiffID = %q; want %q", diffID, wantDiffID)
+						}
 
-							// Compare as stargz
-							if !isSameVersion(t, cl, wantData, gotData) {
-								t.Errorf("built stargz hasn't same json")
-								return
-							}
-							if !isSameEntries(t, want, got) {
-								t.Errorf("built stargz isn't same as the original")
-								return
-							}
+						// Compare as stargz
+						if !isSameVersion(t, cl, wantData, gotData) {
+							t.Errorf("built stargz hasn't same json")
+							return
+						}
+						if !isSameEntries(t, want, got) {
+							t.Errorf("built stargz isn't same as the original")
+							return
+						}
 
-							// Compare as tar.gz
-							if !isSameTarGz(t, cl, wantData, gotData) {
-								t.Errorf("built stargz isn't same tar.gz")
-								return
-							}
-						})
-					}
+						// Compare as tar.gz
+						if !isSameTarGz(t, cl, wantData, gotData) {
+							t.Errorf("built stargz isn't same tar.gz")
+							return
+						}
+					})
 				}
 			}
 		}
@@ -529,7 +526,7 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 			checks: []check{
 				checkStargzTOC,
 				checkVerifyTOC,
-				checkVerifyInvalidStargzFail(buildTar(t, tarOf(
+				checkVerifyInvalidStargzFail(buildTarStatic(t, tarOf(
 					dir("test2/"), // modified
 				), allowedPrefix[0])),
 			},
@@ -547,7 +544,7 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 			checks: []check{
 				checkStargzTOC,
 				checkVerifyTOC,
-				checkVerifyInvalidStargzFail(buildTar(t, tarOf(
+				checkVerifyInvalidStargzFail(buildTarStatic(t, tarOf(
 					file("baz.txt", ""),
 					file("foo.txt", "M"), // modified
 					dir("test/"),
@@ -570,7 +567,7 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 			checks: []check{
 				checkStargzTOC,
 				checkVerifyTOC,
-				checkVerifyInvalidStargzFail(buildTar(t, tarOf(
+				checkVerifyInvalidStargzFail(buildTarStatic(t, tarOf(
 					file("baz.txt", "bazbazbazMMMbazbazbaz"), // modified
 					file("foo.txt", "a"),
 					dir("test/"),
@@ -596,7 +593,7 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 			checks: []check{
 				checkStargzTOC,
 				checkVerifyTOC,
-				checkVerifyInvalidStargzFail(buildTar(t, tarOf(
+				checkVerifyInvalidStargzFail(buildTarStatic(t, tarOf(
 					file("baz.txt", "bazbazbazbazbazbazbaz"),
 					file("foo.txt", "a"),
 					symlink("barlink", "test/bar.txt"),
@@ -618,33 +615,30 @@ func testDigestAndVerify(t *testing.T, controllers ...TestingController) {
 				cl := cl
 				for _, prefix := range allowedPrefix {
 					prefix := prefix
-					for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
-						srcTarFormat := srcTarFormat
-						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,format=%s", cl, prefix, srcTarFormat), func(t *testing.T) {
-							// Get original tar file and chunk digests
-							dgstMap := make(map[string]digest.Digest)
-							tarBlob := buildTar(t, tt.tarInit(t, dgstMap), prefix, srcTarFormat)
+					t.Run(tt.name+"-"+fmt.Sprintf("compression=%v-prefix=%q", cl, prefix), func(t *testing.T) {
+						// Get original tar file and chunk digests
+						dgstMap := make(map[string]digest.Digest)
+						tarBlob := buildTarStatic(t, tt.tarInit(t, dgstMap), prefix)
 
-							rc, err := Build(compressBlob(t, tarBlob, srcCompression),
-								WithChunkSize(chunkSize), WithCompression(cl))
-							if err != nil {
-								t.Fatalf("failed to convert stargz: %v", err)
-							}
-							tocDigest := rc.TOCDigest()
-							defer rc.Close()
-							buf := new(bytes.Buffer)
-							if _, err := io.Copy(buf, rc); err != nil {
-								t.Fatalf("failed to copy built stargz blob: %v", err)
-							}
-							newStargz := buf.Bytes()
-							// NoPrefetchLandmark is added during `Bulid`, which is expected behaviour.
-							dgstMap[chunkID(NoPrefetchLandmark, 0, int64(len([]byte{landmarkContents})))] = digest.FromBytes([]byte{landmarkContents})
+						rc, err := Build(compressBlob(t, tarBlob, srcCompression),
+							WithChunkSize(chunkSize), WithCompression(cl))
+						if err != nil {
+							t.Fatalf("failed to convert stargz: %v", err)
+						}
+						tocDigest := rc.TOCDigest()
+						defer rc.Close()
+						buf := new(bytes.Buffer)
+						if _, err := io.Copy(buf, rc); err != nil {
+							t.Fatalf("failed to copy built stargz blob: %v", err)
+						}
+						newStargz := buf.Bytes()
+						// NoPrefetchLandmark is added during `Bulid`, which is expected behaviour.
+						dgstMap[chunkID(NoPrefetchLandmark, 0, int64(len([]byte{landmarkContents})))] = digest.FromBytes([]byte{landmarkContents})
 
-							for _, check := range tt.checks {
-								check(t, newStargz, tocDigest, dgstMap, cl)
-							}
-						})
-					}
+						for _, check := range tt.checks {
+							check(t, newStargz, tocDigest, dgstMap, cl)
+						}
+					})
 				}
 			}
 		}
@@ -1064,7 +1058,7 @@ func parseStargz(sgz *io.SectionReader, controller TestingController) (decodedJT
 	if _, err := sgz.ReadAt(footer, sgz.Size()-fSize); err != nil {
 		return nil, 0, errors.Wrap(err, "error reading footer")
 	}
-	_, tocOffset, _, err := controller.ParseFooter(footer[positive(int64(len(footer))-fSize):])
+	tocOffset, _, err := controller.ParseFooter(footer[positive(int64(len(footer))-fSize):])
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to parse footer")
 	}
@@ -1091,15 +1085,11 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 		in        []tarEntry
 		want      []stargzCheck
 		wantNumGz int // expected number of streams
-
-		wantNumGzLossLess  int // expected number of streams (> 0) in lossless mode if it's different from wantNumGz
-		wantFailOnLossLess bool
 	}{
 		{
-			name:              "empty",
-			in:                tarOf(),
-			wantNumGz:         2, // empty tar + TOC + footer
-			wantNumGzLossLess: 3, // empty tar + TOC + footer
+			name:      "empty",
+			in:        tarOf(),
+			wantNumGz: 2, // TOC + footer
 			want: checks(
 				numTOCEntries(0),
 			),
@@ -1234,29 +1224,26 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 		{
 			name: "block_char_fifo",
 			in: tarOf(
-				tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+				tarEntryFunc(func(w *tar.Writer, prefix string) error {
 					return w.WriteHeader(&tar.Header{
 						Name:     prefix + "b",
 						Typeflag: tar.TypeBlock,
 						Devmajor: 123,
 						Devminor: 456,
-						Format:   format,
 					})
 				}),
-				tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+				tarEntryFunc(func(w *tar.Writer, prefix string) error {
 					return w.WriteHeader(&tar.Header{
 						Name:     prefix + "c",
 						Typeflag: tar.TypeChar,
 						Devmajor: 111,
 						Devminor: 222,
-						Format:   format,
 					})
 				}),
-				tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+				tarEntryFunc(func(w *tar.Writer, prefix string) error {
 					return w.WriteHeader(&tar.Header{
 						Name:     prefix + "f",
 						Typeflag: tar.TypeFifo,
-						Format:   format,
 					})
 				}),
 			),
@@ -1291,29 +1278,6 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 				hasMode("foo3/bar5", os.FileMode(0755)),
 			),
 		},
-		{
-			name: "lossy",
-			in: tarOf(
-				dir("bar/", sampleOwner),
-				dir("foo/", sampleOwner),
-				file("foo/bar.txt", content, sampleOwner),
-				file(TOCTarName, "dummy"), // ignored by the writer. (lossless write returns error)
-			),
-			wantNumGz: 4, // both dirs, foo.txt alone, TOC, footer
-			want: checks(
-				numTOCEntries(3),
-				hasDir("bar/"),
-				hasDir("foo/"),
-				hasFileLen("foo/bar.txt", len(content)),
-				entryHasChildren("", "bar", "foo"),
-				entryHasChildren("foo", "bar.txt"),
-				hasChunkEntries("foo/bar.txt", 1),
-				hasEntryOwner("bar/", sampleOwner),
-				hasEntryOwner("foo/", sampleOwner),
-				hasEntryOwner("foo/bar.txt", sampleOwner),
-			),
-			wantFailOnLossLess: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -1321,90 +1285,47 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 			cl := cl
 			for _, prefix := range allowedPrefix {
 				prefix := prefix
-				for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
-					srcTarFormat := srcTarFormat
-					for _, lossless := range []bool{true, false} {
-						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,lossless=%v,format=%s", cl, prefix, lossless, srcTarFormat), func(t *testing.T) {
-							var tr io.Reader = buildTar(t, tt.in, prefix, srcTarFormat)
-							origTarDgstr := digest.Canonical.Digester()
-							tr = io.TeeReader(tr, origTarDgstr.Hash())
-							var stargzBuf bytes.Buffer
-							w := NewWriterWithCompressor(&stargzBuf, cl)
-							w.ChunkSize = tt.chunkSize
-							if lossless {
-								err := w.AppendTarLossLess(tr)
-								if tt.wantFailOnLossLess {
-									if err != nil {
-										return // expected to fail
-									}
-									t.Fatalf("Append wanted to fail on lossless")
-								}
-								if err != nil {
-									t.Fatalf("Append(lossless): %v", err)
-								}
-							} else {
-								if err := w.AppendTar(tr); err != nil {
-									t.Fatalf("Append: %v", err)
-								}
-							}
-							if _, err := w.Close(); err != nil {
-								t.Fatalf("Writer.Close: %v", err)
-							}
-							b := stargzBuf.Bytes()
-
-							if lossless {
-								// Check if the result blob reserves original tar metadata
-								rc, err := Unpack(io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))), cl)
-								if err != nil {
-									t.Errorf("failed to decompress blob: %v", err)
-									return
-								}
-								defer rc.Close()
-								resultDgstr := digest.Canonical.Digester()
-								if _, err := io.Copy(resultDgstr.Hash(), rc); err != nil {
-									t.Errorf("failed to read result decompressed blob: %v", err)
-									return
-								}
-								if resultDgstr.Digest() != origTarDgstr.Digest() {
-									t.Errorf("lossy compression occurred: digest=%v; want %v",
-										resultDgstr.Digest(), origTarDgstr.Digest())
-									return
-								}
-							}
-
-							diffID := w.DiffID()
-							wantDiffID := cl.DiffIDOf(t, b)
-							if diffID != wantDiffID {
-								t.Errorf("DiffID = %q; want %q", diffID, wantDiffID)
-							}
-
-							got := cl.CountStreams(t, b)
-							wantNumGz := tt.wantNumGz
-							if lossless && tt.wantNumGzLossLess > 0 {
-								wantNumGz = tt.wantNumGzLossLess
-							}
-							if got != wantNumGz {
-								t.Errorf("number of streams = %d; want %d", got, wantNumGz)
-							}
-
-							telemetry, checkCalled := newCalledTelemetry()
-							r, err := Open(
-								io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))),
-								WithDecompressors(cl),
-								WithTelemetry(telemetry),
-							)
-							if err != nil {
-								t.Fatalf("stargz.Open: %v", err)
-							}
-							if err := checkCalled(); err != nil {
-								t.Errorf("telemetry failure: %v", err)
-							}
-							for _, want := range tt.want {
-								want.check(t, r)
-							}
-						})
+				t.Run(tt.name+"-"+fmt.Sprintf("compression=%v-prefix=%q", cl, prefix), func(t *testing.T) {
+					tr, cancel := buildTar(t, tt.in, prefix)
+					defer cancel()
+					var stargzBuf bytes.Buffer
+					w := NewWriterWithCompressor(&stargzBuf, cl)
+					w.ChunkSize = tt.chunkSize
+					if err := w.AppendTar(tr); err != nil {
+						t.Fatalf("Append: %v", err)
 					}
-				}
+					if _, err := w.Close(); err != nil {
+						t.Fatalf("Writer.Close: %v", err)
+					}
+					b := stargzBuf.Bytes()
+
+					diffID := w.DiffID()
+					wantDiffID := cl.DiffIDOf(t, b)
+					if diffID != wantDiffID {
+						t.Errorf("DiffID = %q; want %q", diffID, wantDiffID)
+					}
+
+					got := cl.CountStreams(t, b)
+					if got != tt.wantNumGz {
+						t.Errorf("number of streams = %d; want %d", got, tt.wantNumGz)
+					}
+
+					telemetry, checkCalled := newCalledTelemetry()
+					r, err := Open(
+						io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))),
+						WithDecompressors(cl),
+						WithTelemetry(telemetry),
+					)
+					if err != nil {
+						t.Fatalf("stargz.Open: %v", err)
+					}
+					if err := checkCalled(); err != nil {
+						t.Errorf("telemetry failure: %v", err)
+					}
+					for _, want := range tt.want {
+						want.check(t, r)
+					}
+				})
 			}
 		}
 	}
@@ -1734,41 +1655,49 @@ func hasEntryOwner(entry string, owner owner) stargzCheck {
 func tarOf(s ...tarEntry) []tarEntry { return s }
 
 type tarEntry interface {
-	appendTar(tw *tar.Writer, prefix string, format tar.Format) error
+	appendTar(tw *tar.Writer, prefix string) error
 }
 
-type tarEntryFunc func(*tar.Writer, string, tar.Format) error
+type tarEntryFunc func(*tar.Writer, string) error
 
-func (f tarEntryFunc) appendTar(tw *tar.Writer, prefix string, format tar.Format) error {
-	return f(tw, prefix, format)
-}
+func (f tarEntryFunc) appendTar(tw *tar.Writer, prefix string) error { return f(tw, prefix) }
 
-func buildTar(t *testing.T, ents []tarEntry, prefix string, opts ...interface{}) *io.SectionReader {
-	format := tar.FormatUnknown
-	for _, opt := range opts {
-		switch v := opt.(type) {
-		case tar.Format:
-			format = v
-		default:
-			panic(fmt.Errorf("unsupported opt for buildTar: %v", opt))
+func buildTar(t *testing.T, ents []tarEntry, prefix string) (r io.Reader, cancel func()) {
+	pr, pw := io.Pipe()
+	go func() {
+		tw := tar.NewWriter(pw)
+		for _, ent := range ents {
+			if err := ent.appendTar(tw, prefix); err != nil {
+				t.Errorf("building input tar: %v", err)
+				pw.Close()
+				return
+			}
 		}
-	}
+		if err := tw.Close(); err != nil {
+			t.Errorf("closing write of input tar: %v", err)
+		}
+		pw.Close()
+	}()
+	return pr, func() { go pr.Close(); go pw.Close() }
+}
+
+func buildTarStatic(t *testing.T, ents []tarEntry, prefix string) *io.SectionReader {
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	for _, ent := range ents {
-		if err := ent.appendTar(tw, prefix, format); err != nil {
+		if err := ent.appendTar(tw, prefix); err != nil {
 			t.Fatalf("building input tar: %v", err)
 		}
 	}
 	if err := tw.Close(); err != nil {
 		t.Errorf("closing write of input tar: %v", err)
 	}
-	data := append(buf.Bytes(), make([]byte, 100)...) // append empty bytes at the tail to see lossless works
+	data := buf.Bytes()
 	return io.NewSectionReader(bytes.NewReader(data), 0, int64(len(data)))
 }
 
 func dir(name string, opts ...interface{}) tarEntry {
-	return tarEntryFunc(func(tw *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(tw *tar.Writer, prefix string) error {
 		var o owner
 		mode := os.FileMode(0755)
 		for _, opt := range opts {
@@ -1794,7 +1723,6 @@ func dir(name string, opts ...interface{}) tarEntry {
 			Mode:     tm,
 			Uid:      o.uid,
 			Gid:      o.gid,
-			Format:   format,
 		})
 	})
 }
@@ -1809,7 +1737,7 @@ type owner struct {
 }
 
 func file(name, contents string, opts ...interface{}) tarEntry {
-	return tarEntryFunc(func(tw *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(tw *tar.Writer, prefix string) error {
 		var xattrs xAttr
 		var o owner
 		mode := os.FileMode(0644)
@@ -1832,9 +1760,6 @@ func file(name, contents string, opts ...interface{}) tarEntry {
 		if err != nil {
 			return err
 		}
-		if len(xattrs) > 0 {
-			format = tar.FormatPAX // only PAX supports xattrs
-		}
 		if err := tw.WriteHeader(&tar.Header{
 			Typeflag: tar.TypeReg,
 			Name:     prefix + name,
@@ -1843,7 +1768,6 @@ func file(name, contents string, opts ...interface{}) tarEntry {
 			Size:     int64(len(contents)),
 			Uid:      o.uid,
 			Gid:      o.gid,
-			Format:   format,
 		}); err != nil {
 			return err
 		}
@@ -1853,76 +1777,78 @@ func file(name, contents string, opts ...interface{}) tarEntry {
 }
 
 func symlink(name, target string) tarEntry {
-	return tarEntryFunc(func(tw *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(tw *tar.Writer, prefix string) error {
 		return tw.WriteHeader(&tar.Header{
 			Typeflag: tar.TypeSymlink,
 			Name:     prefix + name,
 			Linkname: target,
 			Mode:     0644,
-			Format:   format,
 		})
 	})
 }
 
 func link(name string, linkname string) tarEntry {
 	now := time.Now()
-	return tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(w *tar.Writer, prefix string) error {
 		return w.WriteHeader(&tar.Header{
-			Typeflag: tar.TypeLink,
-			Name:     prefix + name,
-			Linkname: linkname,
-			ModTime:  now,
-			Format:   format,
+			Typeflag:   tar.TypeLink,
+			Name:       prefix + name,
+			Linkname:   linkname,
+			ModTime:    now,
+			AccessTime: now,
+			ChangeTime: now,
 		})
 	})
 }
 
 func chardev(name string, major, minor int64) tarEntry {
 	now := time.Now()
-	return tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(w *tar.Writer, prefix string) error {
 		return w.WriteHeader(&tar.Header{
-			Typeflag: tar.TypeChar,
-			Name:     prefix + name,
-			Devmajor: major,
-			Devminor: minor,
-			ModTime:  now,
-			Format:   format,
+			Typeflag:   tar.TypeChar,
+			Name:       prefix + name,
+			Devmajor:   major,
+			Devminor:   minor,
+			ModTime:    now,
+			AccessTime: now,
+			ChangeTime: now,
 		})
 	})
 }
 
 func blockdev(name string, major, minor int64) tarEntry {
 	now := time.Now()
-	return tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(w *tar.Writer, prefix string) error {
 		return w.WriteHeader(&tar.Header{
-			Typeflag: tar.TypeBlock,
-			Name:     prefix + name,
-			Devmajor: major,
-			Devminor: minor,
-			ModTime:  now,
-			Format:   format,
+			Typeflag:   tar.TypeBlock,
+			Name:       prefix + name,
+			Devmajor:   major,
+			Devminor:   minor,
+			ModTime:    now,
+			AccessTime: now,
+			ChangeTime: now,
 		})
 	})
 }
 func fifo(name string) tarEntry {
 	now := time.Now()
-	return tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(w *tar.Writer, prefix string) error {
 		return w.WriteHeader(&tar.Header{
-			Typeflag: tar.TypeFifo,
-			Name:     prefix + name,
-			ModTime:  now,
-			Format:   format,
+			Typeflag:   tar.TypeFifo,
+			Name:       prefix + name,
+			ModTime:    now,
+			AccessTime: now,
+			ChangeTime: now,
 		})
 	})
 }
 
 func prefetchLandmark() tarEntry {
-	return tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(w *tar.Writer, prefix string) error {
 		if err := w.WriteHeader(&tar.Header{
 			Name:     PrefetchLandmark,
 			Typeflag: tar.TypeReg,
 			Size:     int64(len([]byte{landmarkContents})),
-			Format:   format,
 		}); err != nil {
 			return err
 		}
@@ -1935,12 +1861,11 @@ func prefetchLandmark() tarEntry {
 }
 
 func noPrefetchLandmark() tarEntry {
-	return tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(w *tar.Writer, prefix string) error {
 		if err := w.WriteHeader(&tar.Header{
 			Name:     NoPrefetchLandmark,
 			Typeflag: tar.TypeReg,
 			Size:     int64(len([]byte{landmarkContents})),
-			Format:   format,
 		}); err != nil {
 			return err
 		}
@@ -1974,12 +1899,11 @@ func regDigest(t *testing.T, name string, contentStr string, digestMap map[strin
 		n += size
 	}
 
-	return tarEntryFunc(func(w *tar.Writer, prefix string, format tar.Format) error {
+	return tarEntryFunc(func(w *tar.Writer, prefix string) error {
 		if err := w.WriteHeader(&tar.Header{
 			Typeflag: tar.TypeReg,
 			Name:     prefix + name,
 			Size:     int64(len(content)),
-			Format:   format,
 		}); err != nil {
 			return err
 		}
