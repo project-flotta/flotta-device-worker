@@ -13,7 +13,7 @@ RUN dnf update -y \
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
     sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf
 
-RUN podman pull quay.io/bitnami/nginx:1.21.6
+RUN podman pull quay.io/project-flotta/nginx:1.21.6
 
 # Certificate reqs:
 RUN mkdir /etc/pki/consumer && \
