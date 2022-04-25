@@ -138,15 +138,13 @@ func (r *Registration) RegisterDevice() {
 func (r *Registration) registerDeviceWithRetries(interval int64) {
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 	for range ticker.C {
-		if !r.config.IsInitialConfig() {
-			ticker.Stop()
-			break
-		}
 		log.Infof("configuration has not been initialized yet. Sending registration request. DeviceID: %s;", r.deviceID)
 		err := r.registerDeviceOnce()
 		if err != nil {
 			log.Errorf("cannot register device. DeviceID: %s; err: %v", r.deviceID, err)
+			continue
 		}
+		ticker.Stop()
 	}
 }
 
