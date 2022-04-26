@@ -254,11 +254,10 @@ W5WPOpTBuB5eJ1Clr/7QePRsMcRMOCTRloMTQg==
 			mockCtrl     *gomock.Controller
 			tsdbInstance *metrics.MockAPI
 			writeClient  *metrics.MockWriteClient
-			minTime      time.Time
+			minTime      = time.Now()
 		)
 
 		BeforeEach(func() {
-			minTime = time.Now()
 			os.Remove(metrics.LastWriteFileName)
 			mockCtrl = gomock.NewController(GinkgoT())
 			tsdbInstance = metrics.NewMockAPI(mockCtrl)
@@ -463,6 +462,148 @@ W5WPOpTBuB5eJ1Clr/7QePRsMcRMOCTRloMTQg==
 
 			// then
 			Expect(remoteWrite.LastWrite).To(Equal(maxTime))
+		})
+
+		Context("skip empty ranges", func() {
+			blockDuration := time.Hour * 2 // remote write default range duration is 1 hour
+			blocks := []metrics.Block{
+				{minTime, minTime.Add(blockDuration)},
+				{minTime.Add(2 * blockDuration), minTime.Add(3 * blockDuration)}, // create gap from previous block
+			}
+			series := []metrics.Series{{Labels: map[string]string{}, DataPoints: []metrics.DataPoint{{}}}}
+
+			It("next range less than minTSDB", func() {
+				// first read empty range. later change minTime to beyond empty range. then read from new minTime
+
+				// given
+				maxTime := blocks[0].MaxTime
+				minTime = blocks[0].MinTime.Add(-blockDuration)
+				lastWrite := minTime
+				rangeStart := lastWrite.Add(time.Millisecond)
+				rangeEnd := rangeStart.Add(remoteWrite.RangeDuration)
+				tsdbInstance.EXPECT().MinTime().Return(minTime, nil).Times(1)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, rangeEnd, true).
+					Return(nil, nil).Times(1)
+				minTime = blocks[0].MinTime
+				tsdbInstance.EXPECT().MinTime().Return(minTime, nil).Times(1)
+				tsdbInstance.EXPECT().Blocks().Return(blocks).Times(1)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(minTime, minTime.Add(remoteWrite.RangeDuration), true).
+					Return(series, nil).Times(1)
+				tsdbInstance.EXPECT().MinTime().Return(minTime, nil).Times(1)
+				rangeStart = minTime.Add(remoteWrite.RangeDuration).Add(time.Millisecond)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, maxTime, true).
+					Return(series, nil).Times(1)
+				tsdbInstance.EXPECT().MaxTime().Return(maxTime).Times(4)
+				writeClient.EXPECT().Write(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+				remoteWrite.LastWrite = lastWrite
+
+				// when
+				remoteWrite.Write(writeClient, requestNumSamples)
+
+				// then
+				Expect(remoteWrite.LastWrite).To(Equal(maxTime))
+			})
+
+			It("next range between blocks", func() {
+				// given
+				maxTime := blocks[1].MaxTime
+				lastWrite := blocks[0].MaxTime
+				rangeStart := lastWrite.Add(time.Millisecond)
+				blockStart := blocks[1].MinTime
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, rangeStart.Add(remoteWrite.RangeDuration), true).
+					Return(nil, nil).Times(1)
+				tsdbInstance.EXPECT().Blocks().Return(blocks).Times(1)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(blockStart, blockStart.Add(remoteWrite.RangeDuration), true).
+					Return(series, nil).Times(1)
+				rangeStart = blockStart.Add(remoteWrite.RangeDuration).Add(time.Millisecond)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, maxTime, true).
+					Return(series, nil).Times(1)
+				tsdbInstance.EXPECT().MinTime().Return(minTime, nil).Times(3)
+				tsdbInstance.EXPECT().MaxTime().Return(maxTime).Times(4)
+				writeClient.EXPECT().Write(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+				remoteWrite.LastWrite = lastWrite
+
+				// when
+				remoteWrite.Write(writeClient, requestNumSamples)
+
+				// then
+				Expect(remoteWrite.LastWrite).To(Equal(maxTime))
+			})
+
+			It("next range contained in block", func() {
+				// given
+				maxTime := blocks[0].MaxTime
+				lastWrite := minTime
+				rangeStart := lastWrite.Add(time.Millisecond)
+				rangeEnd := rangeStart.Add(remoteWrite.RangeDuration)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, rangeEnd, true).
+					Return(nil, nil).Times(1)
+				tsdbInstance.EXPECT().Blocks().Return(blocks).Times(1)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeEnd.Add(time.Millisecond), maxTime, true).
+					Return(series, nil).Times(1)
+				tsdbInstance.EXPECT().MinTime().Return(minTime, nil).Times(2)
+				tsdbInstance.EXPECT().MaxTime().Return(maxTime).Times(3)
+				writeClient.EXPECT().Write(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				remoteWrite.LastWrite = lastWrite
+
+				// when
+				remoteWrite.Write(writeClient, requestNumSamples)
+
+				// then
+				Expect(remoteWrite.LastWrite).To(Equal(maxTime))
+			})
+
+			It("next range between block and head", func() {
+				// given
+				dbHeadMin := minTime.Add(4 * blockDuration) // create gap from last block
+				maxTime := dbHeadMin.Add(blockDuration)
+				lastWrite := blocks[1].MaxTime
+				rangeStart := lastWrite.Add(time.Millisecond)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, rangeStart.Add(remoteWrite.RangeDuration), true).
+					Return(nil, nil).Times(1)
+				tsdbInstance.EXPECT().Blocks().Return(blocks).Times(1)
+				tsdbInstance.EXPECT().HeadMinTime().Return(dbHeadMin).Times(1)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(dbHeadMin, dbHeadMin.Add(remoteWrite.RangeDuration), true).
+					Return(series, nil).Times(1)
+				rangeStart = dbHeadMin.Add(remoteWrite.RangeDuration).Add(time.Millisecond)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, maxTime, true).
+					Return(series, nil).Times(1)
+				tsdbInstance.EXPECT().MinTime().Return(minTime, nil).Times(3)
+				tsdbInstance.EXPECT().MaxTime().Return(maxTime).Times(4)
+				writeClient.EXPECT().Write(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+				remoteWrite.LastWrite = lastWrite
+
+				// when
+				remoteWrite.Write(writeClient, requestNumSamples)
+
+				// then
+				Expect(remoteWrite.LastWrite).To(Equal(maxTime))
+			})
+
+			It("next range contained in head", func() {
+				// given
+				dbHeadMin := minTime.Add(4 * blockDuration) // create gap from last block
+				maxTime := dbHeadMin.Add(blockDuration)
+				lastWrite := dbHeadMin
+				rangeStart := lastWrite.Add(time.Millisecond)
+				rangeEnd := rangeStart.Add(remoteWrite.RangeDuration)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeStart, rangeEnd, true).
+					Return(nil, nil).Times(1)
+				tsdbInstance.EXPECT().Blocks().Return(blocks).Times(1)
+				tsdbInstance.EXPECT().HeadMinTime().Return(dbHeadMin).Times(1)
+				tsdbInstance.EXPECT().GetMetricsForTimeRange(rangeEnd.Add(time.Millisecond), maxTime, true).
+					Return(series, nil).Times(1)
+				tsdbInstance.EXPECT().MinTime().Return(minTime, nil).Times(2)
+				tsdbInstance.EXPECT().MaxTime().Return(maxTime).Times(3)
+				writeClient.EXPECT().Write(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				remoteWrite.LastWrite = lastWrite
+
+				// when
+				remoteWrite.Write(writeClient, requestNumSamples)
+
+				// then
+				Expect(remoteWrite.LastWrite).To(Equal(maxTime))
+			})
 		})
 	})
 })

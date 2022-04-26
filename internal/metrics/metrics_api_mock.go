@@ -63,6 +63,20 @@ func (mr *MockAPIMockRecorder) AddVector(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVector", reflect.TypeOf((*MockAPI)(nil).AddVector), arg0, arg1)
 }
 
+// Blocks mocks base method.
+func (m *MockAPI) Blocks() []Block {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Blocks")
+	ret0, _ := ret[0].([]Block)
+	return ret0
+}
+
+// Blocks indicates an expected call of Blocks.
+func (mr *MockAPIMockRecorder) Blocks() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Blocks", reflect.TypeOf((*MockAPI)(nil).Blocks))
+}
+
 // Close mocks base method.
 func (m *MockAPI) Close() error {
 	m.ctrl.T.Helper()
@@ -104,6 +118,20 @@ func (m *MockAPI) GetMetricsForTimeRange(arg0, arg1 time.Time, arg2 bool) ([]Ser
 func (mr *MockAPIMockRecorder) GetMetricsForTimeRange(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetricsForTimeRange", reflect.TypeOf((*MockAPI)(nil).GetMetricsForTimeRange), arg0, arg1, arg2)
+}
+
+// HeadMinTime mocks base method.
+func (m *MockAPI) HeadMinTime() time.Time {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HeadMinTime")
+	ret0, _ := ret[0].(time.Time)
+	return ret0
+}
+
+// HeadMinTime indicates an expected call of HeadMinTime.
+func (mr *MockAPIMockRecorder) HeadMinTime() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadMinTime", reflect.TypeOf((*MockAPI)(nil).HeadMinTime))
 }
 
 // MaxTime mocks base method.

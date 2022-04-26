@@ -229,9 +229,11 @@ func (r *RemoteWrite) applyConfig(newConfig *models.MetricsReceiverConfiguration
 		return err
 	}
 
-	err = os.Remove(r.currentServerCaFile)
-	if err != nil {
-		log.Errorf("failed removing file %s with error %s", r.currentServerCaFile, err.Error())
+	if r.currentServerCaFile != "" {
+		err = os.Remove(r.currentServerCaFile)
+		if err != nil {
+			log.Errorf("failed removing file %s with error %s", r.currentServerCaFile, err.Error())
+		}
 	}
 
 	// update RemoteWrite
@@ -280,20 +282,25 @@ func (r *RemoteWrite) writeRoutine() {
 // write
 // Writes all the metrics. Stops when either no more metrics or failure (after retries)
 func (r *RemoteWrite) Write(client WriteClient, requestNumSamples int) {
+	hadEmptyRange := false // this is for detecting a 'hole' in the DB and skipping it
+
 	// start writing
 	for maxTSDB := r.tsdb.MaxTime(); maxTSDB.Sub(r.LastWrite) > 0; maxTSDB = r.tsdb.MaxTime() {
 
 		// set range start and end
+		rangeStart := r.LastWrite.Add(time.Millisecond) // TSDB time is in milliseconds
 		minTSDB, err := r.tsdb.MinTime()
 		if err != nil {
 			log.Error("failed reading TSDB min", err)
 			return
 		}
 
-		rangeStart := r.LastWrite.Add(time.Millisecond) // TSDB time is in milliseconds
-		if rangeStart.Sub(minTSDB) < 0 {
+		if hadEmptyRange {
+			rangeStart = r.skipEmptyRanges(rangeStart)
+		} else if rangeStart.Sub(minTSDB) < 0 {
 			rangeStart = minTSDB
 		}
+
 		rangeEnd := rangeStart.Add(r.RangeDuration)
 		if rangeEnd.Sub(maxTSDB) > 0 {
 			rangeEnd = maxTSDB
@@ -307,10 +314,8 @@ func (r *RemoteWrite) Write(client WriteClient, requestNumSamples int) {
 		// read range
 		series, err := r.tsdb.GetMetricsForTimeRange(rangeStart, rangeEnd, true)
 		if err != nil {
-			if err != nil {
-				log.Errorf("failed reading metrics for range %d-%d", rangeStart.UnixNano(), rangeEnd.UnixNano())
-				return
-			}
+			log.Errorf("failed reading metrics for range %d-%d", rangeStart.UnixNano(), rangeEnd.UnixNano())
+			return
 		}
 
 		// add device label
@@ -320,12 +325,14 @@ func (r *RemoteWrite) Write(client WriteClient, requestNumSamples int) {
 
 		// write range
 		if len(series) != 0 {
+			hadEmptyRange = false
 			if r.writeRange(series, client, requestNumSamples) {
 				log.Infof("wrote metrics range %s(%d)-%s(%d)", rangeStart.String(), rangeStart.UnixNano(), rangeEnd.String(), rangeEnd.UnixNano())
 			} else {
 				return // all tries failed. we will retry later
 			}
 		} else {
+			hadEmptyRange = true
 			log.Info("metrics range is empty")
 		}
 
@@ -456,6 +463,38 @@ func (r *RemoteWrite) removeServerCaFiles() {
 			_ = os.Remove(path.Join(r.dataDir, file.Name()))
 		}
 	}
+}
+
+// skipEmptyRanges
+// Used for skipping ranges that are outside the DB blocks and head
+// Given a point in time (less than maxTSDB) find the time of the closest block (or head)
+// Return timeVal if timeVal is within a block (or head)
+// Otherwise, return the MinTime of the closest block (or head)
+func (r *RemoteWrite) skipEmptyRanges(timeVal time.Time) time.Time {
+	result := time.Time{}
+
+	for _, block := range r.tsdb.Blocks() {
+		if timeVal.Sub(block.MaxTime) > 0 { // timeVal ahead of this block
+			continue
+		}
+
+		if timeVal.Sub(block.MinTime) < 0 { // timeVal precedes this block
+			result = block.MinTime
+		} else { // timeVal contained by this block
+			result = timeVal
+		}
+
+		break
+	}
+
+	if result.IsZero() { // no block is ahead or contains timeVal. Check head
+		result = r.tsdb.HeadMinTime() // assume timeVal contained by head
+		if timeVal.Sub(result) > 0 {  // timeVal precedes head
+			result = timeVal
+		}
+	}
+
+	return result
 }
 
 // toTimeSeries
