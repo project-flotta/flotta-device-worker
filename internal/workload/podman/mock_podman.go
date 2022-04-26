@@ -12,6 +12,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	service "github.com/project-flotta/flotta-device-worker/internal/service"
 	api "github.com/project-flotta/flotta-device-worker/internal/workload/api"
+	v1 "k8s.io/api/core/v1"
 )
 
 // MockPodman is a mock of Podman interface.
@@ -67,18 +68,18 @@ func (mr *MockPodmanMockRecorder) Exists(arg0 interface{}) *gomock.Call {
 }
 
 // GenerateSystemdService mocks base method.
-func (m *MockPodman) GenerateSystemdService(arg0 string, arg1 uint) (service.Service, error) {
+func (m *MockPodman) GenerateSystemdService(arg0 *v1.Pod, arg1 string, arg2 uint) (service.Service, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GenerateSystemdService", arg0, arg1)
+	ret := m.ctrl.Call(m, "GenerateSystemdService", arg0, arg1, arg2)
 	ret0, _ := ret[0].(service.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GenerateSystemdService indicates an expected call of GenerateSystemdService.
-func (mr *MockPodmanMockRecorder) GenerateSystemdService(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockPodmanMockRecorder) GenerateSystemdService(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSystemdService", reflect.TypeOf((*MockPodman)(nil).GenerateSystemdService), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSystemdService", reflect.TypeOf((*MockPodman)(nil).GenerateSystemdService), arg0, arg1, arg2)
 }
 
 // List mocks base method.
