@@ -283,9 +283,8 @@ func (ww *Workload) createService(svc service.Service) error {
 	if err := svc.Enable(); err != nil {
 		return err
 	}
-	if err := svc.Start(); err != nil {
-		return err
-	}
+
+	_ = svc.Start()
 
 	return nil
 }
