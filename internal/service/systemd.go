@@ -140,8 +140,8 @@ func NewSystemd(name string, serviceNamePrefix string, units map[string]string) 
 
 func newDbusConnection() (*dbus.Conn, error) {
 	return dbus.NewConnection(func() (*godbus.Conn, error) {
-		uid := path.Base(os.Getenv("XDG_RUNTIME_DIR"))
-		path := filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "systemd/private")
+		uid := path.Base(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"))
+		path := filepath.Join(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"), "systemd/private")
 		conn, err := godbus.Dial(fmt.Sprintf("unix:path=%s", path))
 		if err != nil {
 			return nil, err
