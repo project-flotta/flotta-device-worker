@@ -7,11 +7,12 @@ RUN dnf copr enable project-flotta/flotta -y
 # Yum dependencies
 RUN dnf update -y \
   && dnf install -y openssl procps-ng dmidecode nc iproute \
-  yggdrasil flotta-agent-race node_exporter
+  yggdrasil flotta-agent-race node_exporter systemd-container
 
 # Modify podman configuration
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
-    sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf
+    sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf && \
+    sed -i s/ipcns=\"host\"/ipcns=\"private\"/g /etc/containers/containers.conf
 
 # Certificate reqs:
 RUN mkdir /etc/pki/consumer && \
