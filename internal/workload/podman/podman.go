@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/blang/semver"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
 	"git.sr.ht/~spc/go-log"
@@ -54,6 +55,7 @@ WantedBy=default.target
 var (
 	logTailLines = "1"
 	boolTrue     = true
+	podmanV4, _  = semver.Make("4.0.0")
 )
 
 type AutoUpdateUnit struct {
@@ -347,6 +349,27 @@ func hasAutoUpdateEnabled(labels map[string]string) bool {
 	return false
 }
 
+func isPodNameSameAsCtrName(workload *v1.Pod, podName string) bool {
+	for _, ctr := range workload.Spec.Containers {
+		if podName == ctr.Name {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *podman) podmanClientVersion() *semver.Version {
+	version, err := system.Version(p.podmanConnection, nil)
+	if err != nil {
+		return nil
+	}
+	sver, err := semver.Make(version.Client.Version)
+	if err != nil {
+		return nil
+	}
+	return &sver
+}
+
 func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, monitoringInterval uint) (service.Service, error) {
 	var svc service.Service
 	podName := workload.Name
@@ -356,7 +379,16 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 	// autoupdate feature, because in case the image of the containers is updated we need to re-create the containers.
 	if !hasAutoUpdateEnabled(workload.Labels) {
 		useName := true
-		report, err := generate.Systemd(p.podmanConnection, podName+service.PodSuffix, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
+
+		var report *entities.GenerateSystemdReport
+		var err error
+
+		// More info: https://github.com/containers/podman/pull/12726
+		if sver := p.podmanClientVersion(); sver != nil && (*sver).LT(podmanV4) && isPodNameSameAsCtrName(workload, podName) {
+			report, err = generate.Systemd(p.podmanConnection, podName+service.PodSuffix, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
+		} else {
+			report, err = generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
+		}
 		if err != nil {
 			return nil, err
 		}

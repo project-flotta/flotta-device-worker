@@ -6,6 +6,7 @@ require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
 	github.com/apenella/go-ansible v1.1.5
 	github.com/aws/aws-sdk-go v1.42.16
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
 	github.com/coreos/go-systemd/v22 v22.3.2
 	github.com/go-openapi/strfmt v0.21.1
