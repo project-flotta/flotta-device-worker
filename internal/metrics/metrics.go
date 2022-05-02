@@ -46,12 +46,19 @@ type API interface {
 	AddVector(data model.Vector, labelsMap map[string]string) error
 	MinTime() (time.Time, error)
 	MaxTime() time.Time
+	HeadMinTime() time.Time
+	Blocks() []Block
 }
 
 type TSDB struct {
 	appliedOptions *tsdb.Options
 	db             *tsdb.DB
 	dbLock         sync.RWMutex
+}
+
+type Block struct {
+	MinTime time.Time
+	MaxTime time.Time
 }
 
 func NewTSDB(dataDir string) (*TSDB, error) {
@@ -246,6 +253,25 @@ func (t *TSDB) MinTime() (time.Time, error) {
 
 func (t *TSDB) MaxTime() time.Time {
 	return fromDbTime(t.db.Head().MaxTime())
+}
+
+// HeadMinTime
+func (t *TSDB) HeadMinTime() time.Time {
+	return fromDbTime(t.db.Head().MinTime())
+}
+
+// Blocks
+func (t *TSDB) Blocks() []Block {
+	blocks := t.db.Blocks()
+	result := make([]Block, 0, len(blocks))
+	for _, block := range blocks {
+		result = append(result, Block{
+			MinTime: fromDbTime(block.MinTime()),
+			MaxTime: fromDbTime(block.MaxTime()),
+		})
+	}
+
+	return result
 }
 
 func getAllLabelsMatchers(q storage.Querier) ([]*labels.Matcher, error) {
