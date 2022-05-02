@@ -1,3 +1,3 @@
 exec = "#LIBEXEC#/yggdrasil/device-worker"
 protocol = "grpc"
-env = ["#HOME#", "#RUNTIME_DIR#"]
+env = []

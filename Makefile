@@ -57,7 +57,7 @@ gosec: ## Run gosec locally
 
 test: ## Run unit test on device worker
 test: test-tools
-	$(GINKGO) --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
+	$(GINKGO)  --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
 
 test-coverage:
 test-coverage: ## Run test and launch coverage tool
@@ -115,18 +115,16 @@ build-arm64: ## Build device worker for arm64
 
 install-worker-config:
 	mkdir -p $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/
-	mkdir -p $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/device/volumes
-	chown $(VOLUME_USER):$(VOLUME_USER) -R $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/device/volumes
-	sed 's,#LIBEXEC#,$(LIBEXECDIR),g;s,#HOME#,HOME=$(HOME),g;s,#RUNTIME_DIR#,FLOTTA_XDG_RUNTIME_DIR=$(FLOTTA_XDG_RUNTIME_DIR),g' config/device-worker.toml > $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/device-worker.toml
+	sed 's,#LIBEXEC#,$(LIBEXECDIR),g' config/device-worker.toml > $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/device-worker.toml
 
 install: ## Install device-worker with debug enabled
 install-debug: build-debug
-	sudo $(MAKE) install-worker-config HOME=$(HOME) VOLUME_USER=$(USER) FLOTTA_XDG_RUNTIME_DIR=$(XDG_RUNTIME_DIR)
+	sudo $(MAKE) install-worker-config
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install: ## Install device-worker
 install: build
-	sudo $(MAKE) install-worker-config HOME=$(HOME) VOLUME_USER=$(USER) FLOTTA_XDG_RUNTIME_DIR=$(XDG_RUNTIME_DIR)
+	sudo $(MAKE) install-worker-config
 	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install-arm64: ## Install device-worker on arm64.
