@@ -13,11 +13,9 @@ RUN dnf update -y \
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
     sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf
 
-USER flotta
-RUN podman pull quay.io/bitnami/nginx:1.21.6
+RUN podman pull quay.io/project-flotta/nginx:1.21.6
 
 # Certificate reqs:
-USER root
 RUN mkdir /etc/pki/consumer && \
     openssl req -new -newkey rsa:4096 -x509 -sha256 -days 365 -nodes -out cert.pem -keyout key.pem -subj "/C=EU/ST=No/L=State/O=D/CN=www.example.com" && \
     mv cert.pem key.pem /etc/pki/consumer

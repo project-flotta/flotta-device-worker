@@ -102,7 +102,8 @@ var _ = Describe("Workload management", func() {
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
 
 			svc.EXPECT().Add().Return(nil)
-			svc.EXPECT().Enable().Return(fmt.Errorf("Failed to add service"))
+			svc.EXPECT().Enable().Return(nil)
+			svc.EXPECT().Start().Return(fmt.Errorf("Failed to add service"))
 
 			// when
 			err := wk.Run(pod, manifestPath, authFilePath)
