@@ -43,7 +43,7 @@ getent passwd %{flotta_user} >/dev/null || useradd -g %{flotta_user} -s /sbin/no
 %post
 systemctl enable --now nftables.service
 loginctl enable-linger %{flotta_user}
-XDG_RUNTIME_DIR="/run/user/$(getent passwd %{flotta_user} | cut -d: -f3)" su %{flotta_user} -s /bin/bash -c '/usr/bin/systemctl enable --now --user podman.socket'
+XDG_RUNTIME_DIR="/run/user/$(getent passwd %{flotta_user} | cut -d: -f3)" su %{flotta_user} -s /bin/bash -c '/usr/bin/systemctl enable --user podman.socket'
 
 %prep
 tar fx %{SOURCE0}

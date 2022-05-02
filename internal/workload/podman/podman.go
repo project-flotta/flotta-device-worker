@@ -121,7 +121,7 @@ func NewPodman() (*podman, error) {
 }
 
 func podmanConnection() (context.Context, error) {
-	podmanConnection, err := bindings.NewConnection(context.Background(), fmt.Sprintf("unix:%s/podman/podman.sock", os.Getenv("FLOTTA_XDG_RUNTIME_DIR")))
+	podmanConnection, err := bindings.NewConnection(context.Background(), fmt.Sprintf("unix:%s/podman/podman.sock", os.Getenv("XDG_RUNTIME_DIR")))
 	if err != nil {
 		return nil, err
 	}
