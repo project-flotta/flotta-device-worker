@@ -14,6 +14,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/jaypipes/ghw v0.7.0
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
