@@ -384,16 +384,18 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 		var err error
 
 		// More info: https://github.com/containers/podman/pull/12726
+		name := podName
+		suffix := ""
 		if sver := p.podmanClientVersion(); sver != nil && (*sver).LT(podmanV4) && isPodNameSameAsCtrName(workload, podName) {
-			report, err = generate.Systemd(p.podmanConnection, podName+service.PodSuffix, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
-		} else {
-			report, err = generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
+			name = podName + service.PodSuffix
+			suffix = service.PodSuffix
 		}
+		report, err = generate.Systemd(p.podmanConnection, name, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
 		if err != nil {
 			return nil, err
 		}
 
-		svc, err = service.NewSystemd(podName, service.ServicePrefix, report.Units)
+		svc, err = service.NewSystemdWithSuffix(podName, service.ServicePrefix, suffix, service.ServiceSuffix, report.Units)
 		if err != nil {
 			return nil, err
 		}
