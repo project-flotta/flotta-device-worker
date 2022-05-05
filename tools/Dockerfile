@@ -1,19 +1,26 @@
 FROM quay.io/podman/stable:v3.4.4
 
+ARG quay_expiration=never
+ARG flotta_agent_rpm=flotta-agent-rpm
+LABEL maintainer="flotta@redhat.com" quay.expires-after=${quay_expiration}
+
 WORKDIR /project
+COPY . .
+
 RUN dnf install -y 'dnf-command(copr)'
 RUN dnf copr enable project-flotta/flotta -y
 
 # Yum dependencies
 RUN dnf update -y \
   && dnf install -y openssl procps-ng dmidecode nc iproute \
-  yggdrasil flotta-agent-race node_exporter
+  yggdrasil node_exporter
+
+RUN dnf install -y ${flotta_agent_rpm}
 
 # Modify podman configuration
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
-    sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf
-
-RUN podman pull quay.io/project-flotta/nginx:1.21.6
+    sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf && \
+    sed -i s/ipcns=\"host\"/ipcns=\"private\"/g /etc/containers/containers.conf
 
 # Certificate reqs:
 RUN mkdir /etc/pki/consumer && \

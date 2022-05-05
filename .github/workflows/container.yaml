@@ -1,0 +1,54 @@
+---
+name: Container build
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  rpm:
+    name: Build rpm
+    container: fedora:latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out proper version of sources
+        uses: actions/checkout@v1
+
+      - name: Install tooling for source RPM build
+        run: |
+          dnf -y install @development-tools @rpm-development-tools
+          dnf -y install copr-cli make golang
+
+      - name: Build the RPM
+        run: |
+          make rpm-tarball
+          make rpm-src
+          make rpm
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: flotta-agent-rpm
+          path: "/github/home/rpmbuild/RPMS/x86_64/"
+
+  container:
+    runs-on: ubuntu-latest
+    needs: rpm
+    steps:
+      - name: Check out proper version of sources
+        uses: actions/checkout@v1
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: flotta-agent-rpm
+          path: tools/
+
+      - name: Build the container image
+        run: |
+          docker build --build-arg quay_expiration=1d --build-arg flotta_agent_rpm=flotta-agent-race*.rpm ./tools/ -t edgedevice
+
+      - name: Upload image
+        uses: ishworkh/docker-image-artifact-upload@v1
+        with:
+          image: edgedevice
