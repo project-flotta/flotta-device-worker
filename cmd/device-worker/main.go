@@ -131,7 +131,7 @@ func main() {
 	remoteWrite := metrics.NewRemoteWrite(dataDir, deviceId, metricsStore)
 	configManager.RegisterObserver(remoteWrite)
 
-	hw := hardware2.Hardware{}
+	hw := hardware2.HardwareInfo{}
 
 	gracefulRebootChannel = make(chan struct{})
 	deviceOs := os2.NewOS(gracefulRebootChannel, os2.NewOsExecCommands())

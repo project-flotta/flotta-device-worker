@@ -8,12 +8,20 @@ import (
 	"github.com/project-flotta/flotta-operator/models"
 )
 
-type Hardware struct {
+//go:generate mockgen -package=hardware -destination=mock_hardware.go . Hardware
+type Hardware interface {
+	GetHardwareInformation() (*models.HardwareInfo, error)
+	GetHardwareImmutableInformation(hardwareInfo *models.HardwareInfo) error
+	CreateHardwareMutableInformation() *models.HardwareInfo
+	GetMutableHardwareInfoDelta(hardwareMutableInfoSource models.HardwareInfo, hardwareMutableInfoTarget models.HardwareInfo) *models.HardwareInfo
+}
+
+type HardwareInfo struct {
 	Dependencies util.IDependencies
 }
 
-func (s *Hardware) GetHardwareInformation() (*models.HardwareInfo, error) {
-	s.Init()
+func (s *HardwareInfo) GetHardwareInformation() (*models.HardwareInfo, error) {
+	s.init()
 	hardwareInfo := models.HardwareInfo{}
 	err := s.GetHardwareImmutableInformation(&hardwareInfo)
 	if err != nil {
@@ -24,8 +32,8 @@ func (s *Hardware) GetHardwareInformation() (*models.HardwareInfo, error) {
 	return &hardwareInfo, nil
 }
 
-func (s *Hardware) GetHardwareImmutableInformation(hardwareInfo *models.HardwareInfo) error {
-	s.Init()
+func (s *HardwareInfo) GetHardwareImmutableInformation(hardwareInfo *models.HardwareInfo) error {
+	s.init()
 	cpu := inventory.GetCPU(s.Dependencies)
 	systemVendor := inventory.GetVendor(s.Dependencies)
 
@@ -39,14 +47,14 @@ func (s *Hardware) GetHardwareImmutableInformation(hardwareInfo *models.Hardware
 	return nil
 }
 
-func (s *Hardware) CreateHardwareMutableInformation() *models.HardwareInfo {
+func (s *HardwareInfo) CreateHardwareMutableInformation() *models.HardwareInfo {
 	hardwareInfo := models.HardwareInfo{}
 	s.getHardwareMutableInformation(&hardwareInfo)
 	return &hardwareInfo
 }
 
-func (s *Hardware) getHardwareMutableInformation(hardwareInfo *models.HardwareInfo) {
-	s.Init()
+func (s *HardwareInfo) getHardwareMutableInformation(hardwareInfo *models.HardwareInfo) {
+	s.init()
 	hostname := inventory.GetHostname(s.Dependencies)
 	interfaces := inventory.GetInterfaces(s.Dependencies)
 
@@ -64,10 +72,14 @@ func (s *Hardware) getHardwareMutableInformation(hardwareInfo *models.HardwareIn
 	}
 }
 
-func (s *Hardware) Init() {
+func (s *HardwareInfo) init() {
 	if s.Dependencies == nil {
 		s.Dependencies = util.NewDependencies("/")
 	}
+}
+
+func (s *HardwareInfo) GetMutableHardwareInfoDelta(hardwareMutableInfoSource models.HardwareInfo, hardwareMutableInfoTarget models.HardwareInfo) *models.HardwareInfo {
+	return GetMutableHardwareInfoDelta(hardwareMutableInfoSource, hardwareMutableInfoTarget)
 }
 
 func GetMutableHardwareInfoDelta(hardwareMutableInfoSource models.HardwareInfo, hardwareMutableInfoTarget models.HardwareInfo) *models.HardwareInfo {

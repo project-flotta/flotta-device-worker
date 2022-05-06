@@ -25,6 +25,9 @@ require (
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20220323125707-cdde836c519a
 	github.com/seqsense/s3sync v1.8.0
+	github.com/stretchr/testify v1.7.0
+	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
+	golang.org/x/sys v0.0.0-20220207234003-57398862261d
 	google.golang.org/grpc v1.40.0
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5

@@ -33,13 +33,13 @@ type HeartbeatData struct {
 	workloadManager             *workld.WorkloadManager
 	ansibleManager              *ansible.Manager
 	dataMonitor                 *datatransfer.Monitor
-	hardware                    *hw.Hardware
+	hardware                    hw.Hardware
 	osInfo                      *os2.OS
 	previousMutableHardwareInfo *models.HardwareInfo
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, ansibleManager *ansible.Manager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
+	workloadManager *workld.WorkloadManager, ansibleManager *ansible.Manager, hardware hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
 
 	return &HeartbeatData{
 		configManager:               configManager,
@@ -91,36 +91,28 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 }
 
 func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
-	var hardwareInfo *models.HardwareInfo
-	var err error
+	hardwareInfo := s.getMutableHardwareInfoDelta()
+
 	if s.previousMutableHardwareInfo == nil {
+		var err error
 		// Only send all Hw info (mutable + immutable) for the 1st heartbeat, then send only mutable hw info
 		hardwareInfo, err = s.hardware.GetHardwareInformation()
 		if err != nil {
 			log.Errorf("cannot get full hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 		}
-		s.previousMutableHardwareInfo = s.hardware.CreateHardwareMutableInformation()
-		if err != nil {
-			log.Errorf("cannot get mutable hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
-		}
-	} else {
-
-		hardwareInfo = s.getMutableHardwareInfoDelta()
 	}
+	s.previousMutableHardwareInfo = s.hardware.CreateHardwareMutableInformation()
+
 	return hardwareInfo
 }
 
 func (s *HeartbeatData) getMutableHardwareInfoDelta() *models.HardwareInfo {
-	hardwareMutableInfo := s.hardware.CreateHardwareMutableInformation()
-	var hardwareInfo *models.HardwareInfo
-
+	hardwareInfo := s.hardware.CreateHardwareMutableInformation()
 	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == SCOPE_DELTA {
 		log.Debugf("Checking if mutable hardware information change between heartbeat (scope = delta). DeviceID: %s", s.workloadManager.GetDeviceID())
-		hardwareInfo = hw.GetMutableHardwareInfoDelta(*s.previousMutableHardwareInfo, *hardwareMutableInfo)
-		s.previousMutableHardwareInfo = hardwareMutableInfo
-	} else {
-		hardwareInfo = hardwareMutableInfo
-		s.previousMutableHardwareInfo = hardwareMutableInfo
+		if s.previousMutableHardwareInfo != nil {
+			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*s.previousMutableHardwareInfo, *hardwareInfo)
+		}
 	}
 
 	return hardwareInfo
@@ -135,7 +127,7 @@ type Heartbeat struct {
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware,
+	workloadManager *workld.WorkloadManager, hardware hw.Hardware,
 	dataMonitor *datatransfer.Monitor, osInfo *os2.OS,
 	reg registration.RegistrationWrapper) *Heartbeat {
 	return &Heartbeat{
