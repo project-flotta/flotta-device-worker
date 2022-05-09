@@ -32,7 +32,7 @@ jobs:
 
       - name: Submit the build by uploading the source RPM
         run: |
-          make rpm-copr
+          make rpm-copr-testing
 
   container:
     runs-on: ubuntu-latest
