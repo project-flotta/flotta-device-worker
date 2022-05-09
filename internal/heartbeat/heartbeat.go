@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	SCOPE_DELTA = "delta"
-	SCOPE_FULL  = "full"
+	ScopeDelta = "delta"
+	ScopeFull  = "full"
 )
 
 type HeartbeatData struct {
@@ -108,7 +108,7 @@ func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
 
 func (s *HeartbeatData) getMutableHardwareInfoDelta() *models.HardwareInfo {
 	hardwareInfo := s.hardware.CreateHardwareMutableInformation()
-	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == SCOPE_DELTA {
+	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == ScopeDelta {
 		log.Debugf("Checking if mutable hardware information change between heartbeat (scope = delta). DeviceID: %s", s.workloadManager.GetDeviceID())
 		if s.previousMutableHardwareInfo != nil {
 			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*s.previousMutableHardwareInfo, *hardwareInfo)

@@ -13,7 +13,7 @@ type Hardware interface {
 	GetHardwareInformation() (*models.HardwareInfo, error)
 	GetHardwareImmutableInformation(hardwareInfo *models.HardwareInfo) error
 	CreateHardwareMutableInformation() *models.HardwareInfo
-	GetMutableHardwareInfoDelta(hardwareMutableInfoSource models.HardwareInfo, hardwareMutableInfoTarget models.HardwareInfo) *models.HardwareInfo
+	GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo
 }
 
 type HardwareInfo struct {
@@ -78,17 +78,17 @@ func (s *HardwareInfo) init() {
 	}
 }
 
-func (s *HardwareInfo) GetMutableHardwareInfoDelta(hardwareMutableInfoSource models.HardwareInfo, hardwareMutableInfoTarget models.HardwareInfo) *models.HardwareInfo {
-	return GetMutableHardwareInfoDelta(hardwareMutableInfoSource, hardwareMutableInfoTarget)
+func (s *HardwareInfo) GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
+	return GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious, hardwareMutableInfoNew)
 }
 
-func GetMutableHardwareInfoDelta(hardwareMutableInfoSource models.HardwareInfo, hardwareMutableInfoTarget models.HardwareInfo) *models.HardwareInfo {
+func GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
 	hardwareInfo := &models.HardwareInfo{}
-	if hardwareMutableInfoSource.Hostname != hardwareMutableInfoTarget.Hostname {
-		hardwareInfo.Hostname = hardwareMutableInfoTarget.Hostname
+	if hardwareMutableInfoPrevious.Hostname != hardwareMutableInfoNew.Hostname {
+		hardwareInfo.Hostname = hardwareMutableInfoNew.Hostname
 	}
-	if !reflect.DeepEqual(hardwareMutableInfoSource.Interfaces, hardwareMutableInfoTarget.Interfaces) {
-		hardwareInfo.Interfaces = hardwareMutableInfoTarget.Interfaces
+	if !reflect.DeepEqual(hardwareMutableInfoPrevious.Interfaces, hardwareMutableInfoNew.Interfaces) {
+		hardwareInfo.Interfaces = hardwareMutableInfoNew.Interfaces
 	}
 
 	return hardwareInfo

@@ -160,7 +160,7 @@ var _ = Describe("Heartbeat", func() {
 		It("Report workload hw delta enable", func() {
 			//given
 			var m models.HardwareInfo
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.SCOPE_DELTA
+			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
 			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
 			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
 
@@ -180,8 +180,8 @@ var _ = Describe("Heartbeat", func() {
 			}, nil)
 
 			hwMock.EXPECT().GetMutableHardwareInfoDelta(gomock.AssignableToTypeOf(m), gomock.AssignableToTypeOf(m)).DoAndReturn(
-				func(hardwareMutableInfoSource models.HardwareInfo, hardwareMutableInfoTarget models.HardwareInfo) *models.HardwareInfo {
-					return hardware.GetMutableHardwareInfoDelta(hardwareMutableInfoSource, hardwareMutableInfoTarget)
+				func(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
+					return hardware.GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious, hardwareMutableInfoNew)
 				}).AnyTimes()
 
 			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
@@ -291,7 +291,7 @@ var _ = Describe("Heartbeat", func() {
 				Interfaces: interfaces,
 			}).AnyTimes()
 
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.SCOPE_FULL
+			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeFull
 			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
 			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
 
