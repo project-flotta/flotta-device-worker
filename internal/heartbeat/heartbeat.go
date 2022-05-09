@@ -124,6 +124,7 @@ type Heartbeat struct {
 	data             *HeartbeatData
 	lock             sync.Mutex
 	reg              *registration.Registration
+	firstHearbeat    bool
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
@@ -140,6 +141,7 @@ func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cf
 			dataMonitor:     dataMonitor,
 			osInfo:          osInfo,
 		},
+		firstHearbeat: true,
 	}
 }
 
@@ -224,7 +226,15 @@ func (s *Heartbeat) pushInformation() error {
 		Content:   content,
 		Directive: "heartbeat",
 	}
-	return s.send(data)
+
+	err = s.send(data)
+
+	if err == nil {
+		s.firstHearbeat = false
+	} else if s.firstHearbeat {
+		s.data.previousMutableHardwareInfo = nil
+	}
+	return err
 }
 
 func (s *Heartbeat) initTicker(periodSeconds int64) {
