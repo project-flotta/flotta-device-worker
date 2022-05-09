@@ -2,7 +2,7 @@ FROM quay.io/podman/stable:v3.4.4
 
 WORKDIR /project
 RUN dnf install -y 'dnf-command(copr)'
-RUN dnf copr enable project-flotta/flotta -y
+RUN dnf copr enable project-flotta/flotta-testing -y
 
 # Yum dependencies
 RUN dnf update -y \

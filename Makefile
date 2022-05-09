@@ -147,6 +147,9 @@ rpm-src: rpm-tarball
 		-D "_libexecdir $(LIBEXECDIR)" \
 		--buildroot $(DIST_DIR) ./flotta-agent.spec
 
+rpm-copr-testing: rpm-src
+	copr build project-flotta/flotta-testing $(HOME)/rpmbuild/SRPMS/flotta-agent-$(VERSION)-$(RELEASE).*.src.rpm
+
 rpm-copr: rpm-src
 	copr build project-flotta/flotta $(HOME)/rpmbuild/SRPMS/flotta-agent-$(VERSION)-$(RELEASE).*.src.rpm
 
