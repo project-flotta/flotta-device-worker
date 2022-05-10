@@ -8,13 +8,10 @@ BUILDROOT ?=
 DOCKER ?= podman
 IMG ?= quay.io/project-flotta/edgedevice:latest
 
-ifeq ($(OS),fedora)
-	LIBEXECDIR ?= /var/local/libexec
-	SYSCONFDIR ?= /var/local/etc
-else
-	LIBEXECDIR ?= /var/libexec
-	SYSCONFDIR ?= /etc
-endif
+# Installation directories
+PREFIX        ?= /usr/local
+LIBEXECDIR    ?= $(PREFIX)/libexec
+SYSCONFDIR    ?= $(PREFIX)/etc
 
 export GOFLAGS=-mod=vendor -tags=containers_image_openpgp
 
@@ -118,22 +115,23 @@ install-worker-config:
 	sed 's,#LIBEXEC#,$(LIBEXECDIR),g' config/device-worker.toml > $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/device-worker.toml
 
 install: ## Install device-worker with debug enabled
-install-debug: build-debug
-	sudo $(MAKE) install-worker-config
-	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
+install-debug: build-debug needs-root
+	$(MAKE) install-worker-config
+	install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install: ## Install device-worker
-install: build
-	sudo $(MAKE) install-worker-config
-	sudo install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
+install: build needs-root
+	$(MAKE) install-worker-config
+	install -D -m 755 ./bin/device-worker $(LIBEXECDIR)/yggdrasil/device-worker
 
 install-arm64: ## Install device-worker on arm64.
-install-arm64: build-arm64
-	sudo $(MAKE) install-worker-config
-	sudo install -D -m 755 ./bin/device-worker-aarch64 $(LIBEXECDIR)/yggdrasil/device-worker
+install-arm64: build-arm64 needs-root
+	$(MAKE) install-worker-config
+	install -D -m 755 ./bin/device-worker-aarch64 $(LIBEXECDIR)/yggdrasil/device-worker
 
-uninstall: clean
-	sudo rm -rf $(SYSCONFDIR)/yggdrasil/device/*
+uninstall: needs-root clean
+	rm -rf $(SYSCONFDIR)/yggdrasil/device/*
+	rm -rf $(LIBEXECDIR)/yggdrasil/device-worker
 
 rpm-tarball:
 	 (git archive --prefix flotta-agent-$(VERSION)/ HEAD ) \
@@ -170,6 +168,11 @@ dist: ## Create distribution packages
 dist: build build-arm64 rpm rpm-arm64
 
 
+needs-root:
+ifneq ($(shell id -u), 0)
+	@echo "You must be root to perform this action."
+	exit 1
+endif
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
