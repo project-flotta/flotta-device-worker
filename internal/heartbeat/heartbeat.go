@@ -91,7 +91,8 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 }
 
 func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
-	hardwareInfo := s.getMutableHardwareInfoDelta()
+	currentMutableHwInfo := s.hardware.CreateHardwareMutableInformation()
+	hardwareInfo := s.getMutableHardwareInfoDelta(*currentMutableHwInfo)
 
 	if s.previousMutableHardwareInfo == nil {
 		var err error
@@ -101,13 +102,13 @@ func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
 			log.Errorf("cannot get full hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 		}
 	}
-	s.previousMutableHardwareInfo = s.hardware.CreateHardwareMutableInformation()
+	s.previousMutableHardwareInfo = currentMutableHwInfo
 
 	return hardwareInfo
 }
 
-func (s *HeartbeatData) getMutableHardwareInfoDelta() *models.HardwareInfo {
-	hardwareInfo := s.hardware.CreateHardwareMutableInformation()
+func (s *HeartbeatData) getMutableHardwareInfoDelta(currentMutableHwInfo models.HardwareInfo) *models.HardwareInfo {
+	hardwareInfo := &currentMutableHwInfo
 	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == ScopeDelta {
 		log.Debugf("Checking if mutable hardware information change between heartbeat (scope = delta). DeviceID: %s", s.workloadManager.GetDeviceID())
 		if s.previousMutableHardwareInfo != nil {

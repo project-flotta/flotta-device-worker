@@ -2,8 +2,13 @@ package heartbeat_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
+	"reflect"
+	"sync"
+	"time"
 
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
@@ -45,6 +50,7 @@ var _ = Describe("Heartbeat", func() {
 	)
 
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		mockCtrl = gomock.NewController(GinkgoT())
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
@@ -157,50 +163,20 @@ var _ = Describe("Heartbeat", func() {
 			Expect(heartbeatInfo.Workloads).To(HaveLen(0))
 		})
 
-		It("Report workload hw delta enable", func() {
+		It("Report workload hw delta enable without changes", func() {
 			//given
-			var m models.HardwareInfo
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
-			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
-
+			_, _, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{{
 				Id:     "test",
 				Name:   "test",
 				Status: "Running",
 			}}, nil).AnyTimes()
-
-			hwMock.EXPECT().GetHardwareInformation().Return(&models.HardwareInfo{
-				Hostname: "localhost",
-				Interfaces: []*models.Interface{{
-					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
-				}},
-				CPU:          &models.CPU{Architecture: "TestArchi", ModelName: "ModelTest"},
-				SystemVendor: &models.SystemVendor{Manufacturer: "ManufacturerTest", ProductName: "ProductTest", SerialNumber: "SerialTest"},
-			}, nil)
-
-			hwMock.EXPECT().GetMutableHardwareInfoDelta(gomock.AssignableToTypeOf(m), gomock.AssignableToTypeOf(m)).DoAndReturn(
-				func(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
-					return hardware.GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious, hardwareMutableInfoNew)
-				}).AnyTimes()
-
-			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
-				Hostname: "localhost",
-				Interfaces: []*models.Interface{{
-					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
-				}},
-			}).Times(4)
-
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
+			createHardwareMutableInformationCall.Times(2)
 			//when
 			heartbeatInfo := hbData.RetrieveInfo()
 
 			//then
-			Expect(heartbeatInfo.Status).To(Equal("up"))
-
-			// Workload checks
-			Expect(heartbeatInfo.Workloads).To(HaveLen(1))
-			Expect(heartbeatInfo.Workloads[0].Name).To(Equal("test"))
-			Expect(heartbeatInfo.Workloads[0].Status).To(Equal("Running"))
 
 			// Hardware checks first time
 			Expect(heartbeatInfo.Hardware.CPU).To(Not(BeNil()))
@@ -208,56 +184,94 @@ var _ = Describe("Heartbeat", func() {
 			Expect(heartbeatInfo.Hardware.Interfaces).To(Not(BeNil()))
 			Expect(heartbeatInfo.Hardware.SystemVendor).To(Not(BeNil()))
 
-			// Hardware checks delta time
+			// Hardware checks delta, no changes
 			heartbeatInfo = hbData.RetrieveInfo()
 			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
 			Expect(heartbeatInfo.Hardware.Hostname).To(BeEmpty())
 			Expect(heartbeatInfo.Hardware.Interfaces).To(BeNil())
 			Expect(heartbeatInfo.Hardware.SystemVendor).To(BeNil())
+		})
 
-			// Hardware checks delta time hostname change
+		It("Report workload hw delta enable with hostname change", func() {
+			//given
+			initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{{
+				Id:     "test",
+				Name:   "test",
+				Status: "Running",
+			}}, nil).AnyTimes()
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
+			//when
+			heartbeatInfo := hbData.RetrieveInfo()
+
+			// Hardware checks delta, hostname change
 			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
 				Hostname: "localhostNEW",
 				Interfaces: []*models.Interface{{
 					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
 				}},
-			}).Times(2)
+			}).Times(1)
 			heartbeatInfo = hbData.RetrieveInfo()
 			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
 			Expect(heartbeatInfo.Hardware.Hostname).To(Equal("localhostNEW"))
 			Expect(heartbeatInfo.Hardware.Interfaces).To(BeNil())
 			Expect(heartbeatInfo.Hardware.SystemVendor).To(BeNil())
+		})
 
-			// Hardware checks delta time interface	 change
+		It("Report workload hw delta enable interface change", func() {
+			_, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{{
+				Id:     "test",
+				Name:   "test",
+				Status: "Running",
+			}}, nil).AnyTimes()
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
+			getMutableHardwareInfoDeltaCall.Times(2)
+			createHardwareMutableInformationCall.Times(2)
+			//when
+			heartbeatInfo := hbData.RetrieveInfo()
+			// get empty delta
+			heartbeatInfo = hbData.RetrieveInfo()
+
+			//then
+			// Hardware checks delta, interface change
 			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
-				Hostname: "localhostNEW",
+				Hostname: "localhost",
 				Interfaces: []*models.Interface{{
 					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
 					IPV6Addresses: []string{"f8:75:a4:a4:00:fe"},
 				}},
-			}).Times(4)
+			})
 
 			heartbeatInfo = hbData.RetrieveInfo()
 			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
 			Expect(heartbeatInfo.Hardware.Hostname).To(BeEmpty())
 			Expect(heartbeatInfo.Hardware.Interfaces).To(Not(BeNil()))
 			Expect(heartbeatInfo.Hardware.SystemVendor).To(BeNil())
+		})
 
-			// Hardware checks delta time
-			heartbeatInfo = hbData.RetrieveInfo()
-			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
-			Expect(heartbeatInfo.Hardware.Hostname).To(BeEmpty())
-			Expect(heartbeatInfo.Hardware.Interfaces).To(BeNil())
-			Expect(heartbeatInfo.Hardware.SystemVendor).To(BeNil())
+		It("Report workload hw delta enable both hostname and interfaces change", func() {
+			//given
+			initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{{
+				Id:     "test",
+				Name:   "test",
+				Status: "Running",
+			}}, nil).AnyTimes()
+			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
 
-			// Hardware checks delta time hostname and interface change
+			//when
+			heartbeatInfo := hbData.RetrieveInfo()
+
+			//then
+			// Hardware checks delta, both hostname and interface change
 			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
 				Hostname: "localhostFINAL",
 				Interfaces: []*models.Interface{{
 					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0", "10.0.0.1"},
 					IPV6Addresses: []string{"f8:75:a4:a4:00:fe"},
 				}},
-			}).Times(2)
+			}).Times(1)
 			heartbeatInfo = hbData.RetrieveInfo()
 			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
 			Expect(heartbeatInfo.Hardware.Hostname).To(Equal("localhostFINAL"))
@@ -298,6 +312,7 @@ var _ = Describe("Heartbeat", func() {
 			//when
 			heartbeatInfo := hbData.RetrieveInfo()
 
+			// then
 			// Hardware checks first time
 			Expect(heartbeatInfo.Hardware.CPU).To(Not(BeNil()))
 			Expect(heartbeatInfo.Hardware.Hostname).To(Equal(hostname))
@@ -342,6 +357,107 @@ var _ = Describe("Heartbeat", func() {
 
 			//then
 			Expect(hb.HasStarted()).To(BeTrue())
+		})
+		It("Hearbeat is sent with error", func() {
+			//given
+
+			wkwMock.EXPECT().List().AnyTimes()
+			hwMock.EXPECT().GetHardwareInformation().Return(&models.HardwareInfo{
+				Hostname: "localhost",
+				Interfaces: []*models.Interface{{
+					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
+				}},
+				CPU:          &models.CPU{Architecture: "TestArchi", ModelName: "ModelTest"},
+				SystemVendor: &models.SystemVendor{Manufacturer: "ManufacturerTest", ProductName: "ProductTest", SerialNumber: "SerialTest"},
+			}, nil).Times(5)
+			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
+				Hostname: "localhost",
+				Interfaces: []*models.Interface{{
+					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
+				}},
+			}).Times(5)
+			clientFail := DispatcherFailing{}
+			regMock := registration.NewMockRegistrationWrapper(mockCtrl)
+			configManager := configuration.NewConfigurationManager(datadir)
+			configManager.GetDeviceConfiguration().Heartbeat.PeriodSeconds = 1
+			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
+			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
+			hb := heartbeat.NewHeartbeatService(&clientFail,
+				configManager,
+				wkManager,
+				hwMock,
+				monitor,
+				deviceOs,
+				regMock)
+			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
+
+			// when
+			hb.Start()
+			Expect(hb.HasStarted()).To(BeTrue())
+			time.Sleep(5 * time.Second)
+
+			hb.Deregister()
+
+			//then
+			hwInfoList := clientFail.GetHwInfoList()
+			hwFirstInfo := hwInfoList[0]
+			Expect(hwFirstInfo.CPU).To(Not(BeNil()))
+			Expect(hwFirstInfo.Hostname).To(Equal("localhost"))
+			Expect(hwFirstInfo.Interfaces).To(Not(BeNil()))
+			Expect(hwFirstInfo.SystemVendor).To(Not(BeNil()))
+			for _, hwInfo := range hwInfoList[1:] {
+				Expect(reflect.DeepEqual(hwFirstInfo, hwInfo)).To(BeTrue())
+			}
+
+		})
+		It("Hearbeat is sent without error", func() {
+			//given
+			_, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+			wkwMock.EXPECT().List().AnyTimes()
+
+			createHardwareMutableInformationCall.Times(5)
+			// 3 or 4 times because of the sleep, sometimes a tick is missed
+			getMutableHardwareInfoDeltaCall.MinTimes(3).MaxTimes(4)
+			//have to create ne Dispatcher to avoid race error
+			clientSuccess := Dispatcher{}
+			regMock := registration.NewMockRegistrationWrapper(mockCtrl)
+			configManager := configuration.NewConfigurationManager(datadir)
+			configManager.GetDeviceConfiguration().Heartbeat.PeriodSeconds = 1
+			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
+			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
+			hb := heartbeat.NewHeartbeatService(&clientSuccess,
+				configManager,
+				wkManager,
+				hwMock,
+				monitor,
+				deviceOs,
+				regMock)
+			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
+
+			// when
+			hb.Start()
+			Expect(hb.HasStarted()).To(BeTrue())
+			time.Sleep(5 * time.Second)
+
+			hb.Deregister()
+
+			//then
+			hwInfoList := clientSuccess.GetHwInfoList()
+			hwFirstInfo := hwInfoList[0]
+			hwSecondInfo := hwInfoList[1]
+			Expect(hwFirstInfo.CPU).To(Not(BeNil()))
+			Expect(hwFirstInfo.Hostname).To(Equal("localhost"))
+			Expect(hwFirstInfo.Interfaces).To(Not(BeNil()))
+			Expect(hwFirstInfo.SystemVendor).To(Not(BeNil()))
+
+			Expect(hwSecondInfo.CPU).To(BeNil())
+			Expect(hwSecondInfo.Hostname).To(BeEmpty())
+			Expect(hwSecondInfo.Interfaces).To(BeNil())
+			Expect(hwSecondInfo.SystemVendor).To(BeNil())
+			for _, hwInfo := range hwInfoList[2:] {
+				Expect(reflect.DeepEqual(hwSecondInfo, hwInfo)).To(BeTrue())
+			}
+
 		})
 	})
 
@@ -398,11 +514,37 @@ var _ = Describe("Heartbeat", func() {
 // the operator without sent at all
 type Dispatcher struct {
 	latestData *pb.Data
+	hwInfoList []*models.HardwareInfo
+	mu         sync.Mutex
 }
 
+func (d *Dispatcher) GetHwInfoList() []*models.HardwareInfo {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	cpy := make([]*models.HardwareInfo, len(d.hwInfoList))
+	copy(cpy, d.hwInfoList)
+	return cpy
+}
 func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	heartbeat := models.Heartbeat{}
+	err := json.Unmarshal(in.Content, &heartbeat)
+	if err != nil {
+		return nil, err
+	}
+	response := &pb.Response{}
+	yggResponse := registration.YGGDResponse{}
+	yggResponse.StatusCode = http.StatusOK
+	response.Response, err = json.Marshal(yggResponse)
+	if err != nil {
+		return nil, err
+	}
+
 	d.latestData = in
-	return nil, nil
+	d.hwInfoList = append(d.hwInfoList, heartbeat.Hardware)
+
+	return response, nil
 }
 
 func (d *Dispatcher) Register(ctx context.Context, in *pb.RegistrationRequest, opts ...grpc.CallOption) (*pb.RegistrationResponse, error) {
@@ -410,6 +552,42 @@ func (d *Dispatcher) Register(ctx context.Context, in *pb.RegistrationRequest, o
 }
 
 func (d *Dispatcher) GetConfig(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.Config, error) {
+	return nil, nil
+}
+
+type DispatcherFailing struct {
+	latestData *pb.Data
+	hwInfoList []*models.HardwareInfo
+	mu         sync.Mutex
+}
+
+func (d *DispatcherFailing) GetHwInfoList() []*models.HardwareInfo {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	cpy := make([]*models.HardwareInfo, len(d.hwInfoList))
+	copy(cpy, d.hwInfoList)
+	return cpy
+}
+func (d *DispatcherFailing) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	heartbeat := models.Heartbeat{}
+	err := json.Unmarshal(in.Content, &heartbeat)
+	if err != nil {
+		return nil, err
+	}
+
+	d.hwInfoList = append(d.hwInfoList, heartbeat.Hardware)
+	d.latestData = in
+
+	return nil, fmt.Errorf("Erorr sending")
+}
+
+func (d *DispatcherFailing) Register(ctx context.Context, in *pb.RegistrationRequest, opts ...grpc.CallOption) (*pb.RegistrationResponse, error) {
+	return nil, nil
+}
+
+func (d *DispatcherFailing) GetConfig(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.Config, error) {
 	return nil, nil
 }
 
@@ -449,4 +627,32 @@ func str2Addr(addrStr string) net.Addr {
 		return &net.IPNet{}
 	}
 	return &net.IPNet{IP: ip, Mask: ipnet.Mask}
+}
+
+func initHwMock(hwMock *hardware.MockHardware, configManager *configuration.Manager, hostname string, ipv4 []string) (*gomock.Call, *gomock.Call, *gomock.Call) {
+	var m models.HardwareInfo
+	configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
+	configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
+
+	getHardwareInformationCall := hwMock.EXPECT().GetHardwareInformation().Return(&models.HardwareInfo{
+		Hostname: hostname,
+		Interfaces: []*models.Interface{{
+			IPV4Addresses: ipv4,
+		}},
+		CPU:          &models.CPU{Architecture: "TestArchi", ModelName: "ModelTest"},
+		SystemVendor: &models.SystemVendor{Manufacturer: "ManufacturerTest", ProductName: "ProductTest", SerialNumber: "SerialTest"},
+	}, nil)
+
+	getMutableHardwareInfoDeltaCall := hwMock.EXPECT().GetMutableHardwareInfoDelta(gomock.AssignableToTypeOf(m), gomock.AssignableToTypeOf(m)).DoAndReturn(
+		func(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
+			return hardware.GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious, hardwareMutableInfoNew)
+		})
+	createHardwareMutableInformationCall := hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
+		Hostname: hostname,
+		Interfaces: []*models.Interface{{
+			IPV4Addresses: ipv4,
+		}},
+	})
+
+	return getHardwareInformationCall, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall
 }
