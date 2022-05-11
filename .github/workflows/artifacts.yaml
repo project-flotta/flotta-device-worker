@@ -8,10 +8,7 @@ jobs:
     name: Submit a build from Fedora container
     container: fedora:latest
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out proper version of sources
-        uses: actions/checkout@v3
 
       - name: Install API token for copr-cli
         env:
@@ -25,8 +22,14 @@ jobs:
           dnf -y install @development-tools @rpm-development-tools
           dnf -y install copr-cli make
 
+      - name: Check out proper version of sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: Build the source RPM
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           make rpm-tarball
           make rpm-src
 
