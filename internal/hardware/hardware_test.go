@@ -22,6 +22,9 @@ var _ = Describe("Hardware", func() {
 		depMock *util.MockIDependencies
 	)
 
+	BeforeEach(func() {
+		depMock = &util.MockIDependencies{}
+	})
 	AfterEach(func() {
 		depMock.AssertExpectations(GinkgoT())
 	})
@@ -31,17 +34,15 @@ var _ = Describe("Hardware", func() {
 		It("Hw full info", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForImutable(depMock)
 			initDependencyMockForMutable(depMock, interfaceMock)
 
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo, err := hw.GetHardwareInformation()
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(hwInfo.CPU).To(Not(BeNil()))
 			Expect(hwInfo.Hostname).To(Equal("localhost"))
 			Expect(hwInfo.Interfaces).To(Not(BeNil()))
@@ -51,16 +52,15 @@ var _ = Describe("Hardware", func() {
 
 		It("Hw immutable info", func() {
 			// given
-			depMock = &util.MockIDependencies{}
+
 			initDependencyMockForImutable(depMock)
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo := models.HardwareInfo{}
 			err := hw.GetHardwareImmutableInformation(&hwInfo)
 			// then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(hwInfo.CPU).To(Not(BeNil()))
 			Expect(hwInfo.Hostname).To(BeEmpty())
 			Expect(hwInfo.Interfaces).To(BeNil())
@@ -72,13 +72,12 @@ var _ = Describe("Hardware", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
 
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForMutable(depMock, interfaceMock)
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
-			hwInfo := hw.CreateHardwareMutableInformation()
+			hwInfo, err := hw.CreateHardwareMutableInformation()
+			Expect(err).ToNot(HaveOccurred())
 			// then
 			Expect(hwInfo.CPU).To(BeNil())
 			Expect(hwInfo.Hostname).To(Equal("localhost"))
@@ -86,23 +85,31 @@ var _ = Describe("Hardware", func() {
 			Expect(hwInfo.SystemVendor).To(BeNil())
 
 		})
+
+		It("Hw not initialized", func() {
+			// given
+			hw := &hardware.HardwareInfo{}
+			// when
+			hwInfo, err := hw.CreateHardwareMutableInformation()
+			// then
+			Expect(err).To(HaveOccurred())
+			Expect(hwInfo).To(BeNil())
+		})
 	})
 	Context("Delta Hardware info test", func() {
 		It("Hostname changes", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
 
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForImutable(depMock)
 			initDependencyMockForMutable(depMock, interfaceMock)
 
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo, err := hw.GetHardwareInformation()
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// given updating Hostname
 			Expect(util.DeleteExpectedMethod(&depMock.Mock, "Hostname")).To(BeTrue())
@@ -111,7 +118,7 @@ var _ = Describe("Hardware", func() {
 			hwInfoNew, err := hw.GetHardwareInformation()
 			hwDelta := hw.GetMutableHardwareInfoDelta(*hwInfo, *hwInfoNew)
 			// then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(hwDelta.CPU).To(BeNil())
 			Expect(hwDelta.Hostname).To(Equal("localhostNEW"))
 			Expect(hwDelta.Interfaces).To(BeNil())
@@ -122,17 +129,15 @@ var _ = Describe("Hardware", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
 
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForImutable(depMock)
 			initDependencyMockForMutable(depMock, interfaceMock)
 
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo, err := hw.GetHardwareInformation()
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// given updating Interface
 			Expect(util.DeleteExpectedMethod(&depMock.Mock, "Interfaces")).To(BeTrue())
@@ -142,7 +147,7 @@ var _ = Describe("Hardware", func() {
 			hwInfoNew, err := hw.GetHardwareInformation()
 			hwDelta := hw.GetMutableHardwareInfoDelta(*hwInfo, *hwInfoNew)
 			// then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(hwDelta.CPU).To(BeNil())
 			Expect(hwDelta.Hostname).To(BeEmpty())
 			Expect(hwDelta.Interfaces).To(Not(BeNil()))
@@ -153,17 +158,15 @@ var _ = Describe("Hardware", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
 
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForImutable(depMock)
 			initDependencyMockForMutable(depMock, interfaceMock)
 
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo, err := hw.GetHardwareInformation()
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// given updating Hostname and Interfaces
 			Expect(util.DeleteExpectedMethod(&depMock.Mock, "Hostname")).To(BeTrue())
@@ -172,37 +175,34 @@ var _ = Describe("Hardware", func() {
 			interfaceMock = NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "100.0.0.18/24", "127.0.0.1/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, false, 1000)
 			depMock.On("Interfaces").Return([]util.Interface{interfaceMock}, nil)
 			// when getting hw info and applying delta to it
-			hwInfoNew := hw.CreateHardwareMutableInformation()
+			hwInfoNew, err := hw.CreateHardwareMutableInformation()
+			Expect(err).ToNot(HaveOccurred())
 			hwDelta := hw.GetMutableHardwareInfoDelta(*hwInfo, *hwInfoNew)
 			// then
 			Expect(hwDelta.CPU).To(BeNil())
 			Expect(hwDelta.Hostname).To(Equal("localhostFinal"))
 			Expect(hwDelta.Interfaces).To(Not(BeNil()))
 			Expect(hwDelta.SystemVendor).To(BeNil())
-			hwInfo = hwInfoNew
-
 		})
 		It("No Change", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
 
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForImutable(depMock)
 			initDependencyMockForMutable(depMock, interfaceMock)
 
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo, err := hw.GetHardwareInformation()
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// when getting hw information again without any changes and applying delta to it
 			hwInfoNew, err := hw.GetHardwareInformation()
 			hwDelta := hw.GetMutableHardwareInfoDelta(*hwInfo, *hwInfoNew)
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(hwDelta.CPU).To(BeNil())
 			Expect(hwDelta.Hostname).To(BeEmpty())
 			Expect(hwDelta.Interfaces).To(BeNil())
@@ -212,22 +212,20 @@ var _ = Describe("Hardware", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
 
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForImutable(depMock)
 			initDependencyMockForMutable(depMock, interfaceMock)
 
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo, err := hw.GetHardwareInformation()
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// when getting immutable information and applying delta to it
 			hwInfoNew := &models.HardwareInfo{}
 			err = hw.GetHardwareImmutableInformation(hwInfoNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			hwDelta := hw.GetMutableHardwareInfoDelta(*hwInfo, *hwInfoNew)
 			// then
 			Expect(hwDelta.CPU).To(BeNil())
@@ -240,17 +238,15 @@ var _ = Describe("Hardware", func() {
 			// given
 			interfaceMock := NewFilledInterfaceMock(1500, "eth0", "f8:75:a4:a4:00:fe", net.FlagBroadcast|net.FlagUp, []string{"10.0.0.18/24", "fe80::d832:8def:dd51:3527/128", "de90::d832:8def:dd51:3527/128"}, true, false, true, 1000)
 
-			depMock = &util.MockIDependencies{}
 			initDependencyMockForImutable(depMock)
 			initDependencyMockForMutable(depMock, interfaceMock)
 
-			hw := &hardware.HardwareInfo{
-				Dependencies: depMock,
-			}
+			hw := &hardware.HardwareInfo{}
+			hw.Init(depMock)
 			// when
 			hwInfo, err := hw.GetHardwareInformation()
 			//then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// given updating immutable information
 			Expect(util.DeleteExpectedMethod(&depMock.Mock, "Execute")).To(BeTrue())
@@ -262,7 +258,7 @@ var _ = Describe("Hardware", func() {
 			hwDelta := hw.GetMutableHardwareInfoDelta(*hwInfo, *hwInfoNew)
 
 			// then
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(hwDelta.CPU).To(BeNil())
 			Expect(hwDelta.Hostname).To(BeEmpty())
 			Expect(hwDelta.Interfaces).To(BeNil())

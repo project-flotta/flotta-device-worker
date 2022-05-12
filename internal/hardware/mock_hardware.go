@@ -35,11 +35,12 @@ func (m *MockHardware) EXPECT() *MockHardwareMockRecorder {
 }
 
 // CreateHardwareMutableInformation mocks base method.
-func (m *MockHardware) CreateHardwareMutableInformation() *models.HardwareInfo {
+func (m *MockHardware) CreateHardwareMutableInformation() (*models.HardwareInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateHardwareMutableInformation")
 	ret0, _ := ret[0].(*models.HardwareInfo)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // CreateHardwareMutableInformation indicates an expected call of CreateHardwareMutableInformation.

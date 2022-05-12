@@ -1,6 +1,7 @@
 package hardware
 
 import (
+	"errors"
 	"reflect"
 
 	"github.com/openshift/assisted-installer-agent/src/inventory"
@@ -12,30 +13,31 @@ import (
 type Hardware interface {
 	GetHardwareInformation() (*models.HardwareInfo, error)
 	GetHardwareImmutableInformation(hardwareInfo *models.HardwareInfo) error
-	CreateHardwareMutableInformation() *models.HardwareInfo
+	CreateHardwareMutableInformation() (*models.HardwareInfo, error)
 	GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo
 }
 
 type HardwareInfo struct {
-	Dependencies util.IDependencies
+	dependencies util.IDependencies
 }
 
 func (s *HardwareInfo) GetHardwareInformation() (*models.HardwareInfo, error) {
-	s.init()
 	hardwareInfo := models.HardwareInfo{}
 	err := s.GetHardwareImmutableInformation(&hardwareInfo)
 	if err != nil {
 		return nil, err
 	}
-	s.getHardwareMutableInformation(&hardwareInfo)
+	err = s.getHardwareMutableInformation(&hardwareInfo)
 
-	return &hardwareInfo, nil
+	return &hardwareInfo, err
 }
 
 func (s *HardwareInfo) GetHardwareImmutableInformation(hardwareInfo *models.HardwareInfo) error {
-	s.init()
-	cpu := inventory.GetCPU(s.Dependencies)
-	systemVendor := inventory.GetVendor(s.Dependencies)
+	if !s.isDependenciesSet() {
+		return errors.New("HardwareInfo object has not been initialized")
+	}
+	cpu := inventory.GetCPU(s.dependencies)
+	systemVendor := inventory.GetVendor(s.dependencies)
 
 	hardwareInfo.CPU = &models.CPU{
 		Architecture: cpu.Architecture,
@@ -47,16 +49,21 @@ func (s *HardwareInfo) GetHardwareImmutableInformation(hardwareInfo *models.Hard
 	return nil
 }
 
-func (s *HardwareInfo) CreateHardwareMutableInformation() *models.HardwareInfo {
+func (s *HardwareInfo) CreateHardwareMutableInformation() (*models.HardwareInfo, error) {
 	hardwareInfo := models.HardwareInfo{}
-	s.getHardwareMutableInformation(&hardwareInfo)
-	return &hardwareInfo
+	err := s.getHardwareMutableInformation(&hardwareInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &hardwareInfo, nil
 }
 
-func (s *HardwareInfo) getHardwareMutableInformation(hardwareInfo *models.HardwareInfo) {
-	s.init()
-	hostname := inventory.GetHostname(s.Dependencies)
-	interfaces := inventory.GetInterfaces(s.Dependencies)
+func (s *HardwareInfo) getHardwareMutableInformation(hardwareInfo *models.HardwareInfo) error {
+	if !s.isDependenciesSet() {
+		return errors.New("HardwareInfo object has not been initialized")
+	}
+	hostname := inventory.GetHostname(s.dependencies)
+	interfaces := inventory.GetInterfaces(s.dependencies)
 
 	hardwareInfo.Hostname = hostname
 	for _, currInterface := range interfaces {
@@ -70,12 +77,20 @@ func (s *HardwareInfo) getHardwareMutableInformation(hardwareInfo *models.Hardwa
 		}
 		hardwareInfo.Interfaces = append(hardwareInfo.Interfaces, newInterface)
 	}
+
+	return nil
 }
 
-func (s *HardwareInfo) init() {
-	if s.Dependencies == nil {
-		s.Dependencies = util.NewDependencies("/")
+func (s *HardwareInfo) Init(dep util.IDependencies) {
+	if dep == nil {
+		s.dependencies = util.NewDependencies("/")
+	} else {
+		s.dependencies = dep
 	}
+}
+
+func (s *HardwareInfo) isDependenciesSet() bool {
+	return s.dependencies != nil
 }
 
 func (s *HardwareInfo) GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {

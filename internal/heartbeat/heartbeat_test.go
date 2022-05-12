@@ -202,7 +202,7 @@ var _ = Describe("Heartbeat", func() {
 			}}, nil).AnyTimes()
 			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
 			//when
-			heartbeatInfo := hbData.RetrieveInfo()
+			hbData.RetrieveInfo()
 
 			// Hardware checks delta, hostname change
 			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
@@ -210,8 +210,8 @@ var _ = Describe("Heartbeat", func() {
 				Interfaces: []*models.Interface{{
 					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
 				}},
-			}).Times(1)
-			heartbeatInfo = hbData.RetrieveInfo()
+			}, nil).Times(1)
+			heartbeatInfo := hbData.RetrieveInfo()
 			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
 			Expect(heartbeatInfo.Hardware.Hostname).To(Equal("localhostNEW"))
 			Expect(heartbeatInfo.Hardware.Interfaces).To(BeNil())
@@ -229,9 +229,9 @@ var _ = Describe("Heartbeat", func() {
 			getMutableHardwareInfoDeltaCall.Times(2)
 			createHardwareMutableInformationCall.Times(2)
 			//when
-			heartbeatInfo := hbData.RetrieveInfo()
+			hbData.RetrieveInfo()
 			// get empty delta
-			heartbeatInfo = hbData.RetrieveInfo()
+			hbData.RetrieveInfo()
 
 			//then
 			// Hardware checks delta, interface change
@@ -241,9 +241,9 @@ var _ = Describe("Heartbeat", func() {
 					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
 					IPV6Addresses: []string{"f8:75:a4:a4:00:fe"},
 				}},
-			})
+			}, nil)
 
-			heartbeatInfo = hbData.RetrieveInfo()
+			heartbeatInfo := hbData.RetrieveInfo()
 			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
 			Expect(heartbeatInfo.Hardware.Hostname).To(BeEmpty())
 			Expect(heartbeatInfo.Hardware.Interfaces).To(Not(BeNil()))
@@ -261,7 +261,7 @@ var _ = Describe("Heartbeat", func() {
 			hbData := heartbeat.NewHeartbeatData(configManager, wkManager, ansibleManager, hwMock, monitor, deviceOs)
 
 			//when
-			heartbeatInfo := hbData.RetrieveInfo()
+			hbData.RetrieveInfo()
 
 			//then
 			// Hardware checks delta, both hostname and interface change
@@ -271,8 +271,8 @@ var _ = Describe("Heartbeat", func() {
 					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0", "10.0.0.1"},
 					IPV6Addresses: []string{"f8:75:a4:a4:00:fe"},
 				}},
-			}).Times(1)
-			heartbeatInfo = hbData.RetrieveInfo()
+			}, nil).Times(1)
+			heartbeatInfo := hbData.RetrieveInfo()
 			Expect(heartbeatInfo.Hardware.CPU).To(BeNil())
 			Expect(heartbeatInfo.Hardware.Hostname).To(Equal("localhostFINAL"))
 			Expect(heartbeatInfo.Hardware.Interfaces).To(Not(BeNil()))
@@ -303,7 +303,7 @@ var _ = Describe("Heartbeat", func() {
 			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
 				Hostname:   hostname,
 				Interfaces: interfaces,
-			}).AnyTimes()
+			}, nil).AnyTimes()
 
 			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeFull
 			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
@@ -375,7 +375,7 @@ var _ = Describe("Heartbeat", func() {
 				Interfaces: []*models.Interface{{
 					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
 				}},
-			}).Times(5)
+			}, nil).Times(5)
 			clientFail := DispatcherFailing{}
 			regMock := registration.NewMockRegistrationWrapper(mockCtrl)
 			configManager := configuration.NewConfigurationManager(datadir)
@@ -396,7 +396,7 @@ var _ = Describe("Heartbeat", func() {
 			Expect(hb.HasStarted()).To(BeTrue())
 			time.Sleep(5 * time.Second)
 
-			hb.Deregister()
+			Expect(hb.Deregister()).ToNot(HaveOccurred())
 
 			//then
 			hwInfoList := clientFail.GetHwInfoList()
@@ -439,7 +439,7 @@ var _ = Describe("Heartbeat", func() {
 			Expect(hb.HasStarted()).To(BeTrue())
 			time.Sleep(5 * time.Second)
 
-			hb.Deregister()
+			Expect(hb.Deregister()).ToNot(HaveOccurred())
 
 			//then
 			hwInfoList := clientSuccess.GetHwInfoList()
@@ -652,7 +652,7 @@ func initHwMock(hwMock *hardware.MockHardware, configManager *configuration.Mana
 		Interfaces: []*models.Interface{{
 			IPV4Addresses: ipv4,
 		}},
-	})
+	}, nil)
 
 	return getHardwareInformationCall, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall
 }

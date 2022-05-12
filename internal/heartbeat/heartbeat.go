@@ -91,7 +91,11 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 }
 
 func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
-	currentMutableHwInfo := s.hardware.CreateHardwareMutableInformation()
+	currentMutableHwInfo, err := s.hardware.CreateHardwareMutableInformation()
+	if err != nil {
+		log.Errorf("cannot create hardware mutable information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
+		return nil
+	}
 	hardwareInfo := s.getMutableHardwareInfoDelta(*currentMutableHwInfo)
 
 	if s.previousMutableHardwareInfo == nil {

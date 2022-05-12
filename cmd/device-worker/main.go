@@ -132,6 +132,7 @@ func main() {
 	configManager.RegisterObserver(remoteWrite)
 
 	hw := hardware2.HardwareInfo{}
+	hw.Init(nil)
 
 	gracefulRebootChannel = make(chan struct{})
 	deviceOs := os2.NewOS(gracefulRebootChannel, os2.NewOsExecCommands())
