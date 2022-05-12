@@ -1,4 +1,4 @@
-VERSION = 1.0
+VERSION = 0.1.0
 RELEASE = 1
 DIST_DIR = $(shell pwd)/dist
 CGO_ENABLED = 0

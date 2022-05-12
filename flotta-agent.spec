@@ -1,7 +1,7 @@
 %define _build_id_links none
 
 Name:       flotta-agent
-Version:    1.0
+Version:    0.1.0
 Release:    1%{?dist}
 Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
@@ -63,12 +63,5 @@ make install-worker-config LIBEXECDIR=%{_libexecdir} BUILDROOT=%{buildroot} SYSC
 ln -sf %{_libexecdir}/yggdrasil/device-worker-race %{_libexecdir}/yggdrasil/device-worker
 
 %changelog
-
-* Fri Feb 11 2022 Eloy Coto <eloycoto@acalustra.com> 1.1
-Using latest version of yggdrasil
-
-* Tue Nov 02 2021 Eloy Coto <eloycoto@acalustra.com> 1.0
-Compile Go code directly on the RPM spec, don't ship binaries.
-
-* Thu Sep 23 2021 Piotr Kliczewski - 1.0
-- TBD
+* Thu May 12 2022 Ondra Machacek <omachace@redhat.com> 0.1.0-1
+- Initial release.
