@@ -11,7 +11,9 @@ Source0:    %{name}-%{version}.tar.gz
 
 BuildRequires:  golang
 
+Requires:       ansible
 Requires:       nftables
+Requires:       node_exporter
 Requires:       podman
 Requires:       yggdrasil
 
