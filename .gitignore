@@ -21,3 +21,6 @@ bin
 # Coverage
 gover.coverprofile
 *.coverprofile
+
+# rpm
+*.tar.gz
