@@ -1620,8 +1620,8 @@ github.com/posener/script v1.0.4/go.mod h1:Rg3ijooqulo05aGLyGsHoLmIOUzHUVK19WVgr
 github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021/go.mod h1:prYjPmNq4d1NPVmpShWobRqXY3q7Vp+80DqgxxUrUIA=
 github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
 github.com/pquerna/ffjson v0.0.0-20190813045741-dac163c6c0a9/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
-github.com/project-flotta/flotta-operator v0.0.2-0.20220413112114-339ba618a975 h1:BxmwqiW5irIOx3mXyFROAlkapn66jKGIhp37SfXLZmk=
-github.com/project-flotta/flotta-operator v0.0.2-0.20220413112114-339ba618a975/go.mod h1:ciUWwt+RF7NnYY0K2fQ7ZDF3uyNZXDMkpDWF5BqZb/c=
+github.com/project-flotta/flotta-operator v0.1.0 h1:bVnnWyUVszTOWTkP4aw8yyinSDy/BmtwqS1Pe6S+Zk8=
+github.com/project-flotta/flotta-operator v0.1.0/go.mod h1:ciUWwt+RF7NnYY0K2fQ7ZDF3uyNZXDMkpDWF5BqZb/c=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.49.0/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
 github.com/prometheus/alertmanager v0.20.0/go.mod h1:9g2i48FAyZW6BtbsnvHtMHQXl2aVtrORKwKVCQ+nbrg=
 github.com/prometheus/alertmanager v0.23.0/go.mod h1:0MLTrjQI8EuVmvykEhcfr/7X0xmaDAZrqMgxIq3OXHk=

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
@@ -31,6 +30,10 @@ const (
 
 // RequestAuthKey is a type to be used on request context and to be validated on verify Request
 type RequestAuthKey string
+type RequestAuthVal struct {
+	CommonName string
+	Namespace  string
+}
 
 // CAProvider The main reason to have an interface here is to be able to extend this to
 // future Cert providers, like:
@@ -41,7 +44,7 @@ type CAProvider interface {
 	GetName() string
 	GetCACertificate() (*CertificateGroup, error)
 	CreateRegistrationCertificate(name string) (map[string][]byte, error)
-	SignCSR(CSRPem string, commonName string, expiration time.Time) ([]byte, error)
+	SignCSR(CSRPem string, commonName string, namespace string, expiration time.Time) ([]byte, error)
 	GetServerCertificate(dnsNames []string, localhostEnabled bool) (*CertificateGroup, error)
 }
 
@@ -82,13 +85,14 @@ func (conf *TLSConfig) SetClientExpiration(days int) error {
 }
 
 // SignCSR sign the given CSRPem using the first CA provider in use.
-func (conf *TLSConfig) SignCSR(CSRPem string, commonName string) ([]byte, error) {
+func (conf *TLSConfig) SignCSR(CSRPem string, commonName string, namespace string) ([]byte, error) {
 	if len(conf.caProvider) <= 0 {
 		return nil, fmt.Errorf("Cannot get caProvider to sign the CSR")
 	}
 	return conf.caProvider[0].SignCSR(
 		CSRPem,
 		commonName,
+		namespace,
 		time.Now().AddDate(0, 0, conf.clientExpirationDays))
 }
 
@@ -112,7 +116,7 @@ func (conf *TLSConfig) InitCertificates() (*tls.Config, []*x509.Certificate, err
 		caCert, err := caProvider.GetCACertificate()
 		if err != nil {
 			errors = multierror.Append(errors, fmt.Errorf(
-				"cannot get CA certificate for provider %s: %v",
+				"cannot get CA certificate for provider %s: %w",
 				caProvider.GetName(), err))
 			continue
 		}
@@ -138,7 +142,7 @@ func (conf *TLSConfig) InitCertificates() (*tls.Config, []*x509.Certificate, err
 
 	certificate, err := serverCert.GetCertificate()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Cannot create server certfificate: %v", err)
+		return nil, nil, fmt.Errorf("Cannot create server certfificate: %w", err)
 	}
 
 	tlsConfig := &tls.Config{
@@ -207,9 +211,16 @@ func VerifyRequest(r *http.Request, verifyType int, verifyOpts x509.VerifyOption
 	if len(r.TLS.PeerCertificates) == 0 {
 		return false, &NoClientCertSendError{}
 	}
+	subject := r.TLS.PeerCertificates[0].Subject
+	keyVal := RequestAuthVal{
+		CommonName: strings.ToLower(subject.CommonName),
+	}
 
-	*r = *r.WithContext(context.WithValue(
-		r.Context(), authzKey, strings.ToLower(r.TLS.PeerCertificates[0].Subject.CommonName)))
+	if len(subject.OrganizationalUnit) > 0 {
+		keyVal.Namespace = subject.OrganizationalUnit[0]
+	}
+
+	*r = *r.WithContext(context.WithValue(r.Context(), authzKey, keyVal))
 
 	if verifyType == YggdrasilRegisterAuth {
 		res, err := isClientCertificateSigned(r.TLS.PeerCertificates, CACertChain)

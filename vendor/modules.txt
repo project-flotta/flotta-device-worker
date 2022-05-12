@@ -633,7 +633,7 @@ github.com/pelletier/go-toml
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/project-flotta/flotta-operator v0.0.2-0.20220413112114-339ba618a975
+# github.com/project-flotta/flotta-operator v0.1.0
 ## explicit
 github.com/project-flotta/flotta-operator/models
 github.com/project-flotta/flotta-operator/pkg/mtls
