@@ -23,29 +23,37 @@ import (
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
+const (
+	ScopeDelta = "delta"
+	ScopeFull  = "full"
+)
+
 type HeartbeatData struct {
-	configManager   *cfg.Manager
-	workloadManager *workld.WorkloadManager
-	ansibleManager  *ansible.Manager
-	dataMonitor     *datatransfer.Monitor
-	hardware        *hw.Hardware
-	osInfo          *os2.OS
+	configManager               *cfg.Manager
+	workloadManager             *workld.WorkloadManager
+	ansibleManager              *ansible.Manager
+	dataMonitor                 *datatransfer.Monitor
+	hardware                    hw.Hardware
+	osInfo                      *os2.OS
+	previousMutableHardwareInfo *models.HardwareInfo
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, ansibleManager *ansible.Manager, hardware *hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
+	workloadManager *workld.WorkloadManager, ansibleManager *ansible.Manager, hardware hw.Hardware, dataMonitor *datatransfer.Monitor, deviceOs *os2.OS) *HeartbeatData {
 
 	return &HeartbeatData{
-		configManager:   configManager,
-		workloadManager: workloadManager,
-		ansibleManager:  ansibleManager,
-		hardware:        hardware,
-		dataMonitor:     dataMonitor,
-		osInfo:          deviceOs,
+		configManager:               configManager,
+		workloadManager:             workloadManager,
+		ansibleManager:              ansibleManager,
+		hardware:                    hardware,
+		dataMonitor:                 dataMonitor,
+		osInfo:                      deviceOs,
+		previousMutableHardwareInfo: nil,
 	}
 }
 
 func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
+
 	var workloadStatuses []*models.WorkloadStatus
 	workloads, err := s.workloadManager.ListWorkloads()
 	for _, info := range workloads {
@@ -65,10 +73,7 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 	config := s.configManager.GetDeviceConfiguration()
 	var hardwareInfo *models.HardwareInfo
 	if config.Heartbeat.HardwareProfile.Include {
-		hardwareInfo, err = s.hardware.GetHardwareInformation()
-		if err != nil {
-			log.Errorf("cannot get hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
-		}
+		hardwareInfo = s.buildHardwareInfo()
 	}
 	ansibleEvents := []*models.EventInfo{}
 	if s.ansibleManager != nil {
@@ -85,16 +90,50 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 	return heartbeatInfo
 }
 
+func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
+	currentMutableHwInfo, err := s.hardware.CreateHardwareMutableInformation()
+	if err != nil {
+		log.Errorf("cannot create hardware mutable information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
+		return nil
+	}
+	hardwareInfo := s.getMutableHardwareInfoDelta(*currentMutableHwInfo)
+
+	if s.previousMutableHardwareInfo == nil {
+		var err error
+		// Only send all Hw info (mutable + immutable) for the 1st heartbeat, then send only mutable hw info
+		hardwareInfo, err = s.hardware.GetHardwareInformation()
+		if err != nil {
+			log.Errorf("cannot get full hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
+		}
+	}
+	s.previousMutableHardwareInfo = currentMutableHwInfo
+
+	return hardwareInfo
+}
+
+func (s *HeartbeatData) getMutableHardwareInfoDelta(currentMutableHwInfo models.HardwareInfo) *models.HardwareInfo {
+	hardwareInfo := &currentMutableHwInfo
+	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == ScopeDelta {
+		log.Debugf("Checking if mutable hardware information change between heartbeat (scope = delta). DeviceID: %s", s.workloadManager.GetDeviceID())
+		if s.previousMutableHardwareInfo != nil {
+			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*s.previousMutableHardwareInfo, *hardwareInfo)
+		}
+	}
+
+	return hardwareInfo
+}
+
 type Heartbeat struct {
 	ticker           *time.Ticker
 	dispatcherClient pb.DispatcherClient
 	data             *HeartbeatData
 	lock             sync.Mutex
 	reg              *registration.Registration
+	firstHearbeat    bool
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware *hw.Hardware,
+	workloadManager *workld.WorkloadManager, hardware hw.Hardware,
 	dataMonitor *datatransfer.Monitor, osInfo *os2.OS,
 	reg registration.RegistrationWrapper) *Heartbeat {
 	return &Heartbeat{
@@ -107,6 +146,7 @@ func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cf
 			dataMonitor:     dataMonitor,
 			osInfo:          osInfo,
 		},
+		firstHearbeat: true,
 	}
 }
 
@@ -191,7 +231,15 @@ func (s *Heartbeat) pushInformation() error {
 		Content:   content,
 		Directive: "heartbeat",
 	}
-	return s.send(data)
+
+	err = s.send(data)
+
+	if err == nil {
+		s.firstHearbeat = false
+	} else if s.firstHearbeat {
+		s.data.previousMutableHardwareInfo = nil
+	}
+	return err
 }
 
 func (s *Heartbeat) initTicker(periodSeconds int64) {

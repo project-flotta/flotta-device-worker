@@ -37,7 +37,7 @@ type RegistrationWrapper interface {
 }
 
 type Registration struct {
-	hardware         *hardware2.Hardware
+	hardware         hardware2.Hardware
 	workloads        *workload.WorkloadManager
 	dispatcherClient pb.DispatcherClient
 	config           *configuration.Manager
@@ -50,7 +50,7 @@ type Registration struct {
 	targetNamepsace  string
 }
 
-func NewRegistration(deviceID string, hardware *hardware2.Hardware, dispatcherClient DispatcherClient,
+func NewRegistration(deviceID string, hardware hardware2.Hardware, dispatcherClient DispatcherClient,
 	config *configuration.Manager, workloadsManager *workload.WorkloadManager) (*Registration, error) {
 	reg := &Registration{
 		deviceID:         deviceID,

@@ -44,6 +44,8 @@ GINKGO = $(shell pwd)/bin/ginkgo
 ginkgo:
 ifeq (, $(shell which ginkgo 2> /dev/null))
 	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.1.3)
+else
+	GINKGO=$(shell which ginkgo)
 endif
 
 test-tools: ## Install test-tools

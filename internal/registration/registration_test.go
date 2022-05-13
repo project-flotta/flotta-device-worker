@@ -47,7 +47,7 @@ var _ = Describe("Registration", func() {
 		wkwMock        *workload.MockWorkloadWrapper
 		dispatcherMock *registration.MockDispatcherClient
 		configManager  *configuration.Manager
-		hw             = &hardware.Hardware{}
+		hwMock         *hardware.MockHardware
 		err            error
 
 		caCert        *certificate
@@ -72,6 +72,15 @@ var _ = Describe("Registration", func() {
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
 
+		hwMock = hardware.NewMockHardware(mockCtrl)
+		hwMock.EXPECT().GetHardwareInformation().Return(&models.HardwareInfo{
+			Hostname: "localhost",
+			Interfaces: []*models.Interface{{
+				IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
+			}},
+			CPU:          &models.CPU{Architecture: "TestArchi", ModelName: "ModelTest"},
+			SystemVendor: &models.SystemVendor{Manufacturer: "ManufacturerTest", ProductName: "ProductTest", SerialNumber: "SerialTest"},
+		}, nil).AnyTimes()
 		dispatcherMock = registration.NewMockDispatcherClient(mockCtrl)
 
 		dispatcherMock.EXPECT().
@@ -144,7 +153,7 @@ var _ = Describe("Registration", func() {
 
 			It("Send enrol but not approved yet", func() {
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				dispatcherMock.EXPECT().
@@ -173,7 +182,7 @@ var _ = Describe("Registration", func() {
 				err = ioutil.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
 				Expect(err).NotTo(HaveOccurred())
 
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				dispatcherMock.EXPECT().
@@ -202,7 +211,7 @@ var _ = Describe("Registration", func() {
 				err = ioutil.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
 				Expect(err).NotTo(HaveOccurred())
 
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				dispatcherMock.EXPECT().
@@ -227,7 +236,7 @@ var _ = Describe("Registration", func() {
 
 			It("Send enrol and it's already approved", func() {
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				// enrol one
@@ -259,7 +268,7 @@ var _ = Describe("Registration", func() {
 
 			It("Not authorized to enrol", func() {
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				// enrol one
@@ -295,7 +304,7 @@ var _ = Describe("Registration", func() {
 			It("Work as expected", func() {
 
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).To(BeNil())
 				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
 					Certificate: string(clientCertPem),
@@ -322,7 +331,7 @@ var _ = Describe("Registration", func() {
 			It("Server respond  with a 404 on register", func() {
 
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).To(BeNil())
 
 				msgResponse := getMessageResponse(models.RegistrationResponse{
@@ -357,7 +366,7 @@ var _ = Describe("Registration", func() {
 			It("Server respond  without certificate", func() {
 
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).To(BeNil())
 				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
 					Certificate: "",
@@ -384,7 +393,7 @@ var _ = Describe("Registration", func() {
 			It("Server respond with invalid certificate", func() {
 
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).To(BeNil())
 				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
 					Certificate: "XXXX",
@@ -414,7 +423,7 @@ var _ = Describe("Registration", func() {
 				// Just dump client certificates to there to renew then.
 				clientCert.DumpToFiles(regCertPath, regKeyPath)
 
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).To(BeNil())
 				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
 					Certificate: string(clientCertPem),
@@ -450,7 +459,7 @@ var _ = Describe("Registration", func() {
 
 			It("Try to re-register", func() {
 				// given
-				reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				msgResponse := getYggdrasilResponse(models.RegistrationResponse{
@@ -499,7 +508,7 @@ var _ = Describe("Registration", func() {
 
 		It("Works as expected", func() {
 			// given
-			reg, _ := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+			reg, _ := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 
 			deregistrable1 := registration.NewMockDeregistrable(mockCtrl)
 			deregistrable2 := registration.NewMockDeregistrable(mockCtrl)
@@ -520,7 +529,7 @@ var _ = Describe("Registration", func() {
 
 		It("Return error if anything fails", func() {
 			// given
-			reg, _ := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+			reg, _ := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 
 			deregistrable := registration.NewMockDeregistrable(mockCtrl)
 			deregistrable.EXPECT().Deregister().Return(fmt.Errorf("boom"))
@@ -542,7 +551,7 @@ var _ = Describe("Registration", func() {
 				Return(&pb.Config{CertFile: regCertPath, KeyFile: regKeyPath}, nil).
 				Times(1)
 
-			reg, err := registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+			reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 			Expect(err).NotTo(HaveOccurred())
 			msgResponse := getYggdrasilResponse(models.RegistrationResponse{
 				Certificate: string(clientCertPem),
@@ -565,7 +574,7 @@ var _ = Describe("Registration", func() {
 			err = reg.Deregister()
 			Expect(err).NotTo(HaveOccurred())
 
-			reg, err = registration.NewRegistration(deviceID, hw, dispatcherMock, configManager, wkManager)
+			reg, err = registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
 			Expect(err).NotTo(HaveOccurred())
 
 			//  when

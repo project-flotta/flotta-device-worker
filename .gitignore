@@ -17,6 +17,7 @@
 .idea
 *.iml
 bin
+.vscode/
 
 # Coverage
 gover.coverprofile

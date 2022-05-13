@@ -14,6 +14,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/jaypipes/ghw v0.7.0
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
@@ -24,6 +25,9 @@ require (
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20220323125707-cdde836c519a
 	github.com/seqsense/s3sync v1.8.0
+	github.com/stretchr/testify v1.7.0
+	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
+	golang.org/x/sys v0.0.0-20220207234003-57398862261d
 	google.golang.org/grpc v1.40.0
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
