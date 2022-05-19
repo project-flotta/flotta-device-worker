@@ -36,6 +36,7 @@ type HeartbeatData struct {
 	hardware                    hw.Hardware
 	osInfo                      *os2.OS
 	previousMutableHardwareInfo *models.HardwareInfo
+	mu                          sync.Mutex
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
@@ -90,6 +91,18 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 	return heartbeatInfo
 }
 
+func (s *HeartbeatData) GetPreviousHardwareInfo() *models.HardwareInfo {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.previousMutableHardwareInfo
+}
+
+func (s *HeartbeatData) SetPreviousHardwareInfo(previousHardwareInfo *models.HardwareInfo) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.previousMutableHardwareInfo = previousHardwareInfo
+}
+
 func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
 	currentMutableHwInfo, err := s.hardware.CreateHardwareMutableInformation()
 	if err != nil {
@@ -98,7 +111,7 @@ func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
 	}
 	hardwareInfo := s.getMutableHardwareInfoDelta(*currentMutableHwInfo)
 
-	if s.previousMutableHardwareInfo == nil {
+	if s.GetPreviousHardwareInfo() == nil {
 		var err error
 		// Only send all Hw info (mutable + immutable) for the 1st heartbeat, then send only mutable hw info
 		hardwareInfo, err = s.hardware.GetHardwareInformation()
@@ -106,7 +119,7 @@ func (s *HeartbeatData) buildHardwareInfo() *models.HardwareInfo {
 			log.Errorf("cannot get full hardware information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 		}
 	}
-	s.previousMutableHardwareInfo = currentMutableHwInfo
+	s.SetPreviousHardwareInfo(currentMutableHwInfo)
 
 	return hardwareInfo
 }
@@ -115,7 +128,7 @@ func (s *HeartbeatData) getMutableHardwareInfoDelta(currentMutableHwInfo models.
 	hardwareInfo := &currentMutableHwInfo
 	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == ScopeDelta {
 		log.Debugf("Checking if mutable hardware information change between heartbeat (scope = delta). DeviceID: %s", s.workloadManager.GetDeviceID())
-		if s.previousMutableHardwareInfo != nil {
+		if s.GetPreviousHardwareInfo() != nil {
 			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*s.previousMutableHardwareInfo, *hardwareInfo)
 		}
 	}
@@ -130,6 +143,7 @@ type Heartbeat struct {
 	lock             sync.Mutex
 	reg              *registration.Registration
 	firstHearbeat    bool
+	mu               sync.Mutex
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
@@ -234,10 +248,12 @@ func (s *Heartbeat) pushInformation() error {
 
 	err = s.send(data)
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if err == nil {
 		s.firstHearbeat = false
 	} else if s.firstHearbeat {
-		s.data.previousMutableHardwareInfo = nil
+		s.data.SetPreviousHardwareInfo(nil)
 	}
 	return err
 }
@@ -253,6 +269,7 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 			}
 		}
 	}()
+	
 	log.Infof("the heartbeat was started. DeviceID: %s", s.data.workloadManager.GetDeviceID())
 }
 
