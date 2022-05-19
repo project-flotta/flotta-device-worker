@@ -1,6 +1,8 @@
 package heartbeat_test
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"git.sr.ht/~spc/go-log"
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
@@ -377,18 +380,8 @@ var _ = Describe("Heartbeat", func() {
 				}},
 			}, nil).Times(5)
 			clientFail := DispatcherFailing{}
-			regMock := registration.NewMockRegistrationWrapper(mockCtrl)
-			configManager := configuration.NewConfigurationManager(datadir)
-			configManager.GetDeviceConfiguration().Heartbeat.PeriodSeconds = 1
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
-			hb := heartbeat.NewHeartbeatService(&clientFail,
-				configManager,
-				wkManager,
-				hwMock,
-				monitor,
-				deviceOs,
-				regMock)
+			hb := createCustomHeartbeatWithDispatcher(&clientFail, mockCtrl, datadir, int64(1), wkManager, hwMock, monitor, deviceOs)
+
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
 
 			// when
@@ -420,18 +413,8 @@ var _ = Describe("Heartbeat", func() {
 			getMutableHardwareInfoDeltaCall.MinTimes(3).MaxTimes(4)
 			//have to create ne Dispatcher to avoid race error
 			clientSuccess := Dispatcher{}
-			regMock := registration.NewMockRegistrationWrapper(mockCtrl)
-			configManager := configuration.NewConfigurationManager(datadir)
-			configManager.GetDeviceConfiguration().Heartbeat.PeriodSeconds = 1
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
-			configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
-			hb := heartbeat.NewHeartbeatService(&clientSuccess,
-				configManager,
-				wkManager,
-				hwMock,
-				monitor,
-				deviceOs,
-				regMock)
+			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(1), wkManager, hwMock, monitor, deviceOs)
+
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
 
 			// when
@@ -485,6 +468,7 @@ var _ = Describe("Heartbeat", func() {
 			// then
 			Expect(err).NotTo(HaveOccurred())
 			Expect(hb.HasStarted()).To(BeTrue())
+			Expect(hb.Deregister()).ToNot(HaveOccurred())
 		})
 		It("Ticker not created on invalid config", func() {
 
@@ -504,6 +488,104 @@ var _ = Describe("Heartbeat", func() {
 			// then
 			Expect(err).NotTo(HaveOccurred())
 			Expect(hb.HasStarted()).To(BeTrue())
+			Expect(hb.Deregister()).ToNot(HaveOccurred())
+		})
+		It("Ticker is updated with new PeriodSeconds", func() {
+			defer GinkgoRecover()
+			//given
+			initialPeriod := 2
+			newPeriod := 3
+			_, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+			wkwMock.EXPECT().List().AnyTimes()
+
+			createHardwareMutableInformationCall.AnyTimes()
+			getMutableHardwareInfoDeltaCall.AnyTimes()
+			//have to create ne Dispatcher to avoid race error
+			clientSuccess := Dispatcher{}
+			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, monitor, deviceOs)
+			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
+			var buf bytes.Buffer
+			writer := bufio.NewWriter(&buf)
+			logger := *log.New(writer, "", log.LstdFlags, log.LevelTrace)
+			hb.SetLogger(logger)
+			// when
+			hb.Start()
+			Expect(hb.HasStarted()).To(BeTrue())
+			time.Sleep(5 * time.Second)
+
+			//then
+			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(2))
+			clientSuccess.ClearHwInfoList()
+			// given
+			cfg := models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: int64(newPeriod)}},
+				DeviceID:      "",
+				Version:       "",
+				Workloads:     []*models.Workload{},
+			}
+
+			// when
+			err := hb.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			Expect(hb.HasStarted()).To(BeTrue())
+			time.Sleep(5 * time.Second)
+
+			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(1))
+			writer.Flush()
+			Expect(buf.String()).To(ContainSubstring(fmt.Sprintf("Heartbeat configuration update: periodSeconds changed from %d to %d", initialPeriod, newPeriod)))
+
+			Expect(hb.Deregister()).ToNot(HaveOccurred())
+		})
+		It("Ticker is NOT updated as period is the same", func() {
+			defer GinkgoRecover()
+			//given
+			initialPeriod := 2
+			_, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+			wkwMock.EXPECT().List().AnyTimes()
+
+			createHardwareMutableInformationCall.AnyTimes()
+			getMutableHardwareInfoDeltaCall.AnyTimes()
+			//have to create ne Dispatcher to avoid race error
+			clientSuccess := Dispatcher{}
+			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, monitor, deviceOs)
+
+			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
+			var buf bytes.Buffer
+			writer := bufio.NewWriter(&buf)
+			logger := *log.New(writer, "", log.LstdFlags, log.LevelTrace)
+			hb.SetLogger(logger)
+			// when
+			hb.Start()
+			Expect(hb.HasStarted()).To(BeTrue())
+			time.Sleep(5 * time.Second)
+
+			//then
+			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(2))
+
+			// given
+			cfg := models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: int64(initialPeriod)}},
+				DeviceID:      "",
+				Version:       "",
+				Workloads:     []*models.Workload{},
+			}
+
+			// when
+			err := hb.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			Expect(hb.HasStarted()).To(BeTrue())
+			time.Sleep(6 * time.Second)
+			// should be 5 at the end of the test: the ticker was not stopped and that the tests lasted 11 seconds with a 2 sec periods so 5 HWInfo in total
+			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(5))
+			writer.Flush()
+			Expect(buf.String()).To(Not(ContainSubstring("Heartbeat configuration update: periodSeconds changed from")))
+
+			Expect(hb.Deregister()).ToNot(HaveOccurred())
+
 		})
 
 	})
@@ -525,6 +607,13 @@ func (d *Dispatcher) GetHwInfoList() []*models.HardwareInfo {
 	copy(cpy, d.hwInfoList)
 	return cpy
 }
+
+func (d *Dispatcher) ClearHwInfoList() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.hwInfoList = make([]*models.HardwareInfo, 0)
+}
+
 func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -655,4 +744,19 @@ func initHwMock(hwMock *hardware.MockHardware, configManager *configuration.Mana
 	}, nil)
 
 	return getHardwareInformationCall, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall
+}
+
+func createCustomHeartbeatWithDispatcher(client pb.DispatcherClient, mockCtrl *gomock.Controller, datadir string, periodSeconds int64, wkManager *workload.WorkloadManager, hwMock *hardware.MockHardware, monitor *datatransfer.Monitor, deviceOs *os2.OS) *heartbeat.Heartbeat {
+	regMock := registration.NewMockRegistrationWrapper(mockCtrl)
+	configManager := configuration.NewConfigurationManager(datadir)
+	configManager.GetDeviceConfiguration().Heartbeat.PeriodSeconds = periodSeconds
+	configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope = heartbeat.ScopeDelta
+	configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Include = true
+	return heartbeat.NewHeartbeatService(client,
+		configManager,
+		wkManager,
+		hwMock,
+		monitor,
+		deviceOs,
+		regMock)
 }
