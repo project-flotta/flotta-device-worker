@@ -294,6 +294,8 @@ func (r *Registration) Deregister() error {
 		}
 	}
 
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 	r.registered = false
 	return errors
 }
