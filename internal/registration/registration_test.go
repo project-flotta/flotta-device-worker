@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	osUtil "os"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -63,7 +63,7 @@ var _ = Describe("Registration", func() {
 		datadir, err = ioutil.TempDir("", "registrationTest")
 		Expect(err).ToNot(HaveOccurred())
 
-		err = osUtil.MkdirAll(sysconfigPath, osUtil.ModePerm)
+		err = os.MkdirAll(sysconfigPath, os.ModePerm)
 		Expect(err).NotTo(HaveOccurred())
 
 		mockCtrl = gomock.NewController(GinkgoT())
@@ -105,10 +105,10 @@ var _ = Describe("Registration", func() {
 
 	AfterEach(func() {
 		mockCtrl.Finish()
-		_ = osUtil.Remove(datadir)
-		_ = osUtil.Remove(sysconfigPath)
-		_ = osUtil.Remove(regCertPath)
-		_ = osUtil.Remove(regKeyPath)
+		_ = os.Remove(datadir)
+		_ = os.Remove(sysconfigPath)
+		_ = os.Remove(regCertPath)
+		_ = os.Remove(regKeyPath)
 
 	})
 
