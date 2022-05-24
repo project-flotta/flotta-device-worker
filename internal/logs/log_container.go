@@ -65,7 +65,7 @@ func (f *FIFOLog) CurrentSize() int {
 // Write fills the current buffer with the next LogEntry
 func (f *FIFOLog) Write(entry *LogEntry) error {
 	if entry == nil {
-		return errors.New("No log entry added")
+		return errors.New("no log entry added")
 	}
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -73,7 +73,7 @@ func (f *FIFOLog) Write(entry *LogEntry) error {
 	// We have here a "soft" limit, current entry size can be bigger than
 	// f.maxlen but we only pass once.
 	if f.currentSize > f.maxlen {
-		return fmt.Errorf("Buffer is already full")
+		return fmt.Errorf("buffer is already full")
 	}
 	f.data = append(f.data, entry)
 	f.currentSize = f.currentSize + entry.Size()
