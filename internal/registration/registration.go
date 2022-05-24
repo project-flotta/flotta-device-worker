@@ -38,16 +38,16 @@ type RegistrationWrapper interface {
 
 type Registration struct {
 	hardware         hardware2.Hardware
-	workloads        *workload.WorkloadManager
 	dispatcherClient pb.DispatcherClient
+	workloads        *workload.WorkloadManager
 	config           *configuration.Manager
-	registered       bool
-	RetryAfter       int64
-	deviceID         string
-	lock             sync.RWMutex
-	deregistrables   []Deregistrable
 	clientCert       *ClientCert
 	targetNamepsace  string
+	deviceID         string
+	deregistrables   []Deregistrable
+	RetryAfter       int64
+	lock             sync.RWMutex
+	registered       bool
 }
 
 func NewRegistration(deviceID string, hardware hardware2.Hardware, dispatcherClient DispatcherClient,
@@ -97,30 +97,6 @@ func (r *Registration) CreateClientCerts() error {
 	return err
 }
 
-func (r *Registration) renewCertificate() ([]byte, []byte, error) {
-	isRegisterCert, err := r.clientCert.IsRegisterCert()
-	if err != nil {
-		return nil, nil, err
-	}
-	var key, cert []byte
-	if isRegisterCert {
-		cert, key, err = r.clientCert.CreateDeviceCerts(r.deviceID)
-		if err != nil {
-			return nil, nil, fmt.Errorf("cannot create device certs: %v", err)
-		}
-	} else {
-		bufferKey := r.clientCert.certGroup.GetKey()
-		if bufferKey == nil {
-			return nil, nil, fmt.Errorf("cannot retrieve current key")
-		}
-		cert, key, err = r.clientCert.Renew(r.deviceID, bufferKey)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	return key, cert, nil
-}
-
 func (r *Registration) DeregisterLater(deregistrables ...Deregistrable) {
 	r.deregistrables = append(r.deregistrables, deregistrables...)
 }
@@ -146,6 +122,39 @@ func (r *Registration) registerDeviceWithRetries(interval int64) {
 		}
 		ticker.Stop()
 	}
+}
+
+func (r *Registration) registerDeviceOnce() error {
+
+	enrolled, err := r.enrol()
+	if err != nil {
+		return err
+	}
+
+	if !enrolled {
+		return fmt.Errorf("device is not enrolled yet")
+	}
+
+	key, csr, err := r.renewCertificate()
+	if err != nil {
+		return err
+	}
+
+	// Call "Send"
+	response, err := r.sendRegistrationRequest(csr)
+	if err != nil {
+		return err
+	}
+
+	err = r.parseRegistrationResponse(response, key)
+	if err != nil {
+		return err
+	}
+
+	r.lock.Lock()
+	r.registered = true
+	r.lock.Unlock()
+	return nil
 }
 
 func (r *Registration) enrol() (bool, error) {
@@ -192,25 +201,34 @@ func (r *Registration) enrol() (bool, error) {
 	return false, nil
 }
 
-func (r *Registration) registerDeviceOnce() error {
-
-	enrolled, err := r.enrol()
+func (r *Registration) renewCertificate() ([]byte, []byte, error) {
+	isRegisterCert, err := r.clientCert.IsRegisterCert()
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
-	if !enrolled {
-		return fmt.Errorf("Device is not enrolled yet")
+	var key, cert []byte
+	if isRegisterCert {
+		cert, key, err = r.clientCert.CreateDeviceCerts(r.deviceID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot create device certs: %v", err)
+		}
+	} else {
+		bufferKey := r.clientCert.certGroup.GetKey()
+		if bufferKey == nil {
+			return nil, nil, fmt.Errorf("cannot retrieve current key")
+		}
+		cert, key, err = r.clientCert.Renew(r.deviceID, bufferKey)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
+	return key, cert, nil
+}
 
-	key, csr, err := r.renewCertificate()
-	if err != nil {
-		return err
-	}
-
+func (r *Registration) sendRegistrationRequest(csr []byte) (*pb.Response, error) {
 	hardwareInformation, err := r.hardware.GetHardwareInformation()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	registrationInfo := models.RegistrationInfo{
@@ -220,7 +238,7 @@ func (r *Registration) registerDeviceOnce() error {
 
 	content, err := json.Marshal(registrationInfo)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	data := &pb.Data{
@@ -231,11 +249,14 @@ func (r *Registration) registerDeviceOnce() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	// Call "Send"
 	response, err := r.dispatcherClient.Send(ctx, data)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return response, nil
+}
+
+func (r *Registration) parseRegistrationResponse(response *pb.Response, key []byte) error {
 	parsedResponse, err := NewYGGDResponse(response.Response)
 	if err != nil {
 		return err
@@ -248,7 +269,7 @@ func (r *Registration) registerDeviceOnce() error {
 	var message models.MessageResponse
 	err = json.Unmarshal(parsedResponse.Body, &message)
 	if err != nil {
-		return fmt.Errorf("Cannot unmarshal registration response content: %v", err)
+		return fmt.Errorf("cannot unmarshal registration response content: %v", err)
 	}
 
 	parsedContent, ok := message.Content.(map[string]interface{})
@@ -271,10 +292,6 @@ func (r *Registration) registerDeviceOnce() error {
 		log.Errorf("failed to write certificate: %v,", err)
 		return err
 	}
-
-	r.lock.Lock()
-	r.registered = true
-	r.lock.Unlock()
 	return nil
 }
 
@@ -301,12 +318,9 @@ func (r *Registration) Deregister() error {
 }
 
 type YGGDResponse struct {
-	// StatusCode response
+	Metadata   map[string]string
+	Body       json.RawMessage
 	StatusCode int
-	// Response Body
-	Body json.RawMessage
-	// Metadata added by the transport, in case of http are the headers
-	Metadata map[string]string
 }
 
 func NewYGGDResponse(response []byte) (*YGGDResponse, error) {
