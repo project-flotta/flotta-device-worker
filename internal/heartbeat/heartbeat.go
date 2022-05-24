@@ -30,14 +30,14 @@ const (
 )
 
 type HeartbeatData struct {
-	configManager               *cfg.Manager
-	workloadManager             *workld.WorkloadManager
-	ansibleManager              *ansible.Manager
-	dataMonitor                 *datatransfer.Monitor
-	hardware                    hw.Hardware
-	osInfo                      *os2.OS
-	previousMutableHardwareInfo *models.HardwareInfo
-	mu                          sync.Mutex
+	configManager                   *cfg.Manager
+	workloadManager                 *workld.WorkloadManager
+	ansibleManager                  *ansible.Manager
+	dataMonitor                     *datatransfer.Monitor
+	hardware                        hw.Hardware
+	osInfo                          *os2.OS
+	previousMutableHardwareInfo     *models.HardwareInfo
+	previousMutableHardwareInfoLock sync.Mutex
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
@@ -93,14 +93,14 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 }
 
 func (s *HeartbeatData) GetPreviousHardwareInfo() *models.HardwareInfo {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.previousMutableHardwareInfoLock.Lock()
+	defer s.previousMutableHardwareInfoLock.Unlock()
 	return s.previousMutableHardwareInfo
 }
 
 func (s *HeartbeatData) SetPreviousHardwareInfo(previousHardwareInfo *models.HardwareInfo) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.previousMutableHardwareInfoLock.Lock()
+	defer s.previousMutableHardwareInfoLock.Unlock()
 	s.previousMutableHardwareInfo = previousHardwareInfo
 }
 
