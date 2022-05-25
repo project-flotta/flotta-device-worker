@@ -68,9 +68,13 @@ var _ = Describe("Datatransfer", func() {
 			Workloads: []*models.Workload{
 				{
 					Data: &models.DataConfiguration{
-						Paths: []*models.DataPath{{
+						Egress: []*models.DataPath{{
 							Source: "/metrics",
 							Target: "/metrics",
+						}},
+						Ingress: []*models.DataPath{{
+							Source: "/remote/data",
+							Target: "/data",
 						}},
 					},
 					Name:          "test",
@@ -79,7 +83,7 @@ var _ = Describe("Datatransfer", func() {
 
 				{
 					Data: &models.DataConfiguration{
-						Paths: []*models.DataPath{{
+						Egress: []*models.DataPath{{
 							Source: "/metrics",
 							Target: "/metrics",
 						}},
@@ -89,9 +93,13 @@ var _ = Describe("Datatransfer", func() {
 				},
 				{
 					Data: &models.DataConfiguration{
-						Paths: []*models.DataPath{{
+						Egress: []*models.DataPath{{
 							Source: "/metrics",
 							Target: "/metrics",
+						}},
+						Ingress: []*models.DataPath{{
+							Source: "/remote/configuration",
+							Target: "/workload/configuration",
 						}},
 					},
 					Name:          "bar",
@@ -139,9 +147,9 @@ var _ = Describe("Datatransfer", func() {
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
 			fssync.EXPECT().Connect().Times(1)
-			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(1)
+			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(2)
 			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Return(fmt.Errorf("failed")).Times(1)
-			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(1)
+			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(2)
 
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			monitor.SetStorage(fssync)
@@ -200,7 +208,7 @@ var _ = Describe("Datatransfer", func() {
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
 			fssync.EXPECT().Connect().Times(1)
-			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(1)
+			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(2)
 
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			monitor.SetStorage(fssync)
@@ -244,7 +252,7 @@ var _ = Describe("Datatransfer", func() {
 			// given
 			fssync := datatransfer.NewMockFileSync(mockCtrl)
 			fssync.EXPECT().Connect().Times(1)
-			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(1)
+			fssync.EXPECT().SyncPath(gomock.Any(), gomock.Any()).Times(2)
 
 			monitor := datatransfer.NewMonitor(wkManager, configManager)
 			monitor.SetStorage(fssync)
