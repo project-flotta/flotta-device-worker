@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
-	osUtil "os"
 	"path/filepath"
 	"time"
 
@@ -106,10 +105,10 @@ var _ = Describe("Registration", func() {
 
 	AfterEach(func() {
 		mockCtrl.Finish()
-		_ = osUtil.Remove(datadir)
-		_ = osUtil.Remove(sysconfigPath)
-		_ = osUtil.Remove(regCertPath)
-		_ = osUtil.Remove(regKeyPath)
+		_ = os.Remove(datadir)
+		_ = os.Remove(sysconfigPath)
+		_ = os.Remove(regCertPath)
+		_ = os.Remove(regKeyPath)
 
 	})
 
@@ -607,10 +606,10 @@ func (regMatcher) String() string {
 }
 
 type certificate struct {
-	cert       *x509.Certificate
 	key        crypto.Signer
-	certBytes  []byte
+	cert       *x509.Certificate
 	signedCert *x509.Certificate
+	certBytes  []byte
 }
 
 func (c *certificate) DumpToFiles(certPath, keyPath string) ([]byte, []byte) {
@@ -679,7 +678,7 @@ func createGivenClientCert(cert *x509.Certificate, ca *certificate) *certificate
 	err = signedCert.CheckSignatureFrom(ca.signedCert)
 	ExpectWithOffset(1, err).To(BeNil(), "Fail on check signature")
 
-	return &certificate{cert, certKey, certBytes, signedCert}
+	return &certificate{certKey, cert, signedCert, certBytes}
 }
 
 func createCACert() *certificate {
@@ -709,5 +708,5 @@ func createCACertUsingKey(key crypto.Signer) *certificate {
 	signedCert, err := x509.ParseCertificate(caBytes)
 	ExpectWithOffset(1, err).To(BeNil(), "Fail on parsing certificate")
 
-	return &certificate{ca, key, caBytes, signedCert}
+	return &certificate{key, ca, signedCert, caBytes}
 }

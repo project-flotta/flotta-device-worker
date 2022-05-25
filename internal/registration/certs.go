@@ -51,12 +51,12 @@ func (c *ClientCert) init() error {
 
 func (c *ClientCert) IsRegisterCert() (bool, error) {
 	if c.certGroup == nil {
-		return false, errors.New("Certificates are not imported")
+		return false, errors.New("certificates are not imported")
 	}
 
 	cert := c.certGroup.GetCert()
 	if cert == nil {
-		return false, errors.New("No valid cert")
+		return false, errors.New("no valid cert")
 	}
 
 	return cert.Subject.CommonName == mtls.CertRegisterCN, nil
