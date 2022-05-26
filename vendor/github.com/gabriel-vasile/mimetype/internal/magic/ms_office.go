@@ -1,4 +1,4 @@
-package matchers
+package magic
 
 import (
 	"bytes"
@@ -92,25 +92,36 @@ func msoXML(in []byte, prefixes ...string) bool {
 }
 
 // Xlsx matches a Microsoft Excel 2007 file.
-func Xlsx(in []byte) bool {
-	return msoXML(in, xlsxSigFiles...)
+func Xlsx(raw []byte, limit uint32) bool {
+	return msoXML(raw, xlsxSigFiles...)
 }
 
 // Docx matches a Microsoft Word 2007 file.
-func Docx(in []byte) bool {
-	return msoXML(in, docxSigFiles...)
+func Docx(raw []byte, limit uint32) bool {
+	return msoXML(raw, docxSigFiles...)
 }
 
 // Pptx matches a Microsoft PowerPoint 2007 file.
-func Pptx(in []byte) bool {
-	return msoXML(in, pptxSigFiles...)
+func Pptx(raw []byte, limit uint32) bool {
+	return msoXML(raw, pptxSigFiles...)
 }
 
 // Ole matches an Open Linking and Embedding file.
 //
 // https://en.wikipedia.org/wiki/Object_Linking_and_Embedding
-func Ole(in []byte) bool {
-	return bytes.HasPrefix(in, []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
+func Ole(raw []byte, limit uint32) bool {
+	return bytes.HasPrefix(raw, []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
+}
+
+// Aaf matches an Advanced Authoring Format file.
+// See: https://pyaaf.readthedocs.io/en/latest/about.html
+// See: https://en.wikipedia.org/wiki/Advanced_Authoring_Format
+func Aaf(raw []byte, limit uint32) bool {
+	if len(raw) < 31 {
+		return false
+	}
+	return bytes.HasPrefix(raw[8:], []byte{0x41, 0x41, 0x46, 0x42, 0x0D, 0x00, 0x4F, 0x4D}) &&
+		(raw[30] == 0x09 || raw[30] == 0x0C)
 }
 
 // Doc matches a Microsoft Word 97-2003 file.
@@ -120,13 +131,26 @@ func Ole(in []byte) bool {
 // Ole is a container for Doc, Ppt, Pub and Xls.
 // Right now, when an Ole file is detected, it is considered to be a Doc file
 // if the checks for Ppt, Pub and Xls failed.
-func Doc(in []byte) bool {
+func Doc(raw []byte, limit uint32) bool {
 	return true
 }
 
-// Ppt matches a Microsoft PowerPoint 97-2003 file.
-func Ppt(in []byte) bool {
-	if len(in) < 520 {
+// Ppt matches a Microsoft PowerPoint 97-2003 file or a PowerPoint 95 presentation.
+func Ppt(raw []byte, limit uint32) bool {
+	// Root CLSID test is the safest way to detect identify OLE, however, the format
+	// often places the root CLSID at the end of the file.
+	if matchOleClsid(raw, []byte{
+		0x10, 0x8d, 0x81, 0x64, 0x9b, 0x4f, 0xcf, 0x11,
+		0x86, 0xea, 0x00, 0xaa, 0x00, 0xb9, 0x29, 0xe8,
+	}) || matchOleClsid(raw, []byte{
+		0x70, 0xae, 0x7b, 0xea, 0x3b, 0xfb, 0xcd, 0x11,
+		0xa9, 0x03, 0x00, 0xaa, 0x00, 0x51, 0x0e, 0xa3,
+	}) {
+		return true
+	}
+
+	lin := len(raw)
+	if lin < 520 {
 		return false
 	}
 	pptSubHeaders := [][]byte{
@@ -135,26 +159,36 @@ func Ppt(in []byte) bool {
 		{0x0F, 0x00, 0xE8, 0x03},
 	}
 	for _, h := range pptSubHeaders {
-		if bytes.HasPrefix(in[512:], h) {
+		if bytes.HasPrefix(raw[512:], h) {
 			return true
 		}
 	}
 
-	if bytes.HasPrefix(in[512:], []byte{0xFD, 0xFF, 0xFF, 0xFF}) &&
-		in[518] == 0x00 && in[519] == 0x00 {
+	if bytes.HasPrefix(raw[512:], []byte{0xFD, 0xFF, 0xFF, 0xFF}) &&
+		raw[518] == 0x00 && raw[519] == 0x00 {
 		return true
 	}
 
-	return bytes.Contains(in, []byte("MS PowerPoint 97")) ||
-		bytes.Contains(in, []byte("P\x00o\x00w\x00e\x00r\x00P\x00o\x00i\x00n\x00t\x00 D\x00o\x00c\x00u\x00m\x00e\x00n\x00t"))
+	return lin > 1152 && bytes.Contains(raw[1152:min(4096, lin)],
+		[]byte("P\x00o\x00w\x00e\x00r\x00P\x00o\x00i\x00n\x00t\x00 D\x00o\x00c\x00u\x00m\x00e\x00n\x00t"))
 }
 
 // Xls matches a Microsoft Excel 97-2003 file.
-func Xls(in []byte) bool {
-	if len(in) <= 512 {
-		return false
+func Xls(raw []byte, limit uint32) bool {
+	// Root CLSID test is the safest way to detect identify OLE, however, the format
+	// often places the root CLSID at the end of the file.
+	if matchOleClsid(raw, []byte{
+		0x10, 0x08, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}) || matchOleClsid(raw, []byte{
+		0x20, 0x08, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}) {
+		return true
 	}
 
+	lin := len(raw)
+	if lin < 520 {
+		return false
+	}
 	xlsSubHeaders := [][]byte{
 		{0x09, 0x08, 0x10, 0x00, 0x00, 0x06, 0x05, 0x00},
 		{0xFD, 0xFF, 0xFF, 0xFF, 0x10},
@@ -165,24 +199,41 @@ func Xls(in []byte) bool {
 		{0xFD, 0xFF, 0xFF, 0xFF, 0x29},
 	}
 	for _, h := range xlsSubHeaders {
-		if bytes.HasPrefix(in[512:], h) {
+		if bytes.HasPrefix(raw[512:], h) {
 			return true
 		}
 	}
 
-	return bytes.Contains(in, []byte("Microsoft Excel")) ||
-		bytes.Contains(in, []byte("W\x00o\x00r\x00k\x00b\x00o\x00o\x00k"))
+	return lin > 1152 && bytes.Contains(raw[1152:min(4096, lin)],
+		[]byte("W\x00k\x00s\x00S\x00S\x00W\x00o\x00r\x00k\x00B\x00o\x00o\x00k"))
 }
 
 // Pub matches a Microsoft Publisher file.
-func Pub(in []byte) bool {
-	return matchOleClsid(in, []byte{
+func Pub(raw []byte, limit uint32) bool {
+	return matchOleClsid(raw, []byte{
 		0x01, 0x12, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46,
+		0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46,
 	})
 }
 
-// Helper to match by a specific CLSID of a compound file
+// Msg matches a Microsoft Outlook email file.
+func Msg(raw []byte, limit uint32) bool {
+	return matchOleClsid(raw, []byte{
+		0x0B, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46,
+	})
+}
+
+// Msi matches a Microsoft Windows Installer file.
+// http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+func Msi(raw []byte, limit uint32) bool {
+	return matchOleClsid(raw, []byte{
+		0x84, 0x10, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46,
+	})
+}
+
+// Helper to match by a specific CLSID of a compound file.
 //
 // http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
 func matchOleClsid(in []byte, clsid []byte) bool {
