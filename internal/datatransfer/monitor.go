@@ -107,8 +107,8 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 	}
 
 	hostPath := m.workloads.GetExportedHostPath(workloadName)
-	err = syncDataConfiguration(syncWrapper, dataConfig, hostPath)
-	if err != nil {
+	err = syncData(syncWrapper, dataConfig, hostPath)
+	if err == nil {
 		m.storeLastUpdateTime(workloadName)
 	}
 }
@@ -199,7 +199,7 @@ func (m *Monitor) syncPaths() error {
 			continue
 		}
 		hostPath := m.workloads.GetExportedHostPath(wd.Name)
-		err := syncDataConfiguration(syncWrapper, dataConfig, hostPath)
+		err := syncData(syncWrapper, dataConfig, hostPath)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
@@ -238,7 +238,7 @@ func containsDataPaths(dc *models.DataConfiguration) bool {
 			dc.Ingress != nil && len(dc.Ingress) > 0)
 }
 
-func syncDataConfiguration(syncWrapper FileSync, dataConfig *models.DataConfiguration, hostPath string) error {
+func syncData(syncWrapper FileSync, dataConfig *models.DataConfiguration, hostPath string) error {
 	var errors error
 	if dataConfig.Egress != nil && len(dataConfig.Egress) > 0 {
 		for _, dp := range dataConfig.Egress {
