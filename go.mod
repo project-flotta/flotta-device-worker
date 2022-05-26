@@ -5,7 +5,7 @@ go 1.16
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
 	github.com/apenella/go-ansible v1.1.5
-	github.com/aws/aws-sdk-go v1.42.16
+	github.com/aws/aws-sdk-go v1.44.19
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/containers/podman/v3 v3.4.3-0.20211216144417-90fb2cff071a
 	github.com/coreos/go-systemd/v22 v22.3.2
@@ -24,7 +24,7 @@ require (
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20220323125707-cdde836c519a
-	github.com/seqsense/s3sync v1.8.0
+	github.com/seqsense/s3sync v1.8.2
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	golang.org/x/sys v0.0.0-20220207234003-57398862261d
