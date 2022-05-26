@@ -1,0 +1,37 @@
+---
+name: Rpm build
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  rpm:
+    name: Build rpm
+    container: fedora:latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install tooling for source RPM build
+        run: |
+          dnf -y install @development-tools @rpm-development-tools
+          dnf -y install copr-cli make golang
+
+      - name: Check out proper version of sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Build the RPM
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          make rpm-tarball
+          make rpm-src
+          make rpm
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: flotta-agent-rpm
+          path: "/github/home/rpmbuild/RPMS/x86_64/"
+          retention-days: 1
