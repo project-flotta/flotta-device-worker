@@ -89,8 +89,8 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 		return
 	}
 
-	dataPaths := m.getPathsOfWorkload(workloadName)
-	if len(dataPaths) == 0 {
+	dataConfig := m.getDataConfigOfWorkload(workloadName)
+	if !containsDataPaths(dataConfig) {
 		return
 	}
 
@@ -107,33 +107,19 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 	}
 
 	hostPath := m.workloads.GetExportedHostPath(workloadName)
-	success := true
-	for _, dp := range dataPaths {
-		source := path.Join(hostPath, dp.Source)
-		target := dp.Target
-		log.Debugf("synchronizing [device]%s => [remote]%s", source, target)
-
-		if err := syncWrapper.SyncPath(source, target); err != nil {
-			log.Errorf("error while synchronizing [device]%s => [remote]%s: %v", source, target, err)
-			success = false
-		}
-	}
-	if success {
+	err = syncData(syncWrapper, dataConfig, hostPath)
+	if err == nil {
 		m.storeLastUpdateTime(workloadName)
 	}
 }
 
-func (m *Monitor) getPathsOfWorkload(workloadName string) []*models.DataPath {
-	dataPaths := []*models.DataPath{}
+func (m *Monitor) getDataConfigOfWorkload(workloadName string) *models.DataConfiguration {
 	for _, wd := range m.config.GetWorkloads() {
 		if wd.Name == workloadName {
-			if wd.Data != nil && len(wd.Data.Paths) > 0 {
-				dataPaths = wd.Data.Paths
-			}
-			break
+			return wd.Data
 		}
 	}
-	return dataPaths
+	return nil
 }
 
 func (m *Monitor) ForceSync() error {
@@ -196,10 +182,10 @@ func (m *Monitor) syncPaths() error {
 		return err
 	}
 
-	workloadToDataPaths := make(map[string][]*models.DataPath)
+	workloadToDataPaths := make(map[string]*models.DataConfiguration)
 	for _, wd := range m.config.GetWorkloads() {
-		if wd.Data != nil && len(wd.Data.Paths) > 0 {
-			workloadToDataPaths[wd.Name] = wd.Data.Paths
+		if containsDataPaths(wd.Data) {
+			workloadToDataPaths[wd.Name] = wd.Data
 		}
 	}
 
@@ -207,30 +193,18 @@ func (m *Monitor) syncPaths() error {
 	// Monitor actual workloads and not ones expected by the configuration
 
 	for _, wd := range workloads {
-		dataPaths := workloadToDataPaths[wd.Name]
-		if len(dataPaths) == 0 {
+		dataConfig := workloadToDataPaths[wd.Name]
+		if dataConfig == nil {
+			log.Infof("workload %s not found in configuration", wd.Name)
 			continue
 		}
-
 		hostPath := m.workloads.GetExportedHostPath(wd.Name)
-		success := true
-		for _, dp := range dataPaths {
-			source := path.Join(hostPath, dp.Source)
-			target := dp.Target
-
-			logMessage := fmt.Sprintf("synchronizing [device]%s => [remote]%s", source, target)
-			log.Debug(logMessage)
-			err := syncWrapper.SyncPath(source, target)
-			if err != nil {
-				errors = multierror.Append(errors, fmt.Errorf("error while %s", logMessage))
-				log.Errorf("error while %s", logMessage)
-				success = false
-			}
+		err := syncData(syncWrapper, dataConfig, hostPath)
+		if err != nil {
+			errors = multierror.Append(errors, err)
+			continue
 		}
-
-		if success {
-			m.storeLastUpdateTime(wd.Name)
-		}
+		m.storeLastUpdateTime(wd.Name)
 	}
 	return errors
 }
@@ -255,5 +229,46 @@ func (m *Monitor) Update(configuration models.DeviceConfigurationMessage) error 
 		return fmt.Errorf("observer update failed. DeviceID: %s; err: %s", m.workloads.GetDeviceID(), err)
 	}
 	m.SetStorage(s3sync)
+	return nil
+}
+
+func containsDataPaths(dc *models.DataConfiguration) bool {
+	return dc != nil &&
+		(dc.Egress != nil && len(dc.Egress) > 0 ||
+			dc.Ingress != nil && len(dc.Ingress) > 0)
+}
+
+func syncData(syncWrapper FileSync, dataConfig *models.DataConfiguration, hostPath string) error {
+	var errors error
+	if dataConfig.Egress != nil && len(dataConfig.Egress) > 0 {
+		for _, dp := range dataConfig.Egress {
+			err := syncPath(syncWrapper, path.Join(hostPath, dp.Source), dp.Target)
+			if err != nil {
+				errors = multierror.Append(errors, err)
+			}
+		}
+	}
+	// TODO: Identify how much disk space is required for complete ingress sync before pulling remote data onto the device storage.
+	// a simple check of a diff in disk usage between remote and local will suffice.
+	if dataConfig.Ingress != nil && len(dataConfig.Ingress) > 0 {
+		for _, dp := range dataConfig.Ingress {
+			err := syncPath(syncWrapper, dp.Source, path.Join(hostPath, dp.Target))
+			if err != nil {
+				errors = multierror.Append(errors, err)
+			}
+		}
+	}
+
+	return errors
+}
+
+func syncPath(syncWrapper FileSync, source, target string) error {
+	logMessage := fmt.Sprintf("synchronizing [source]%s => [target]%s", source, target)
+	log.Debug(logMessage)
+	err := syncWrapper.SyncPath(source, target)
+	if err != nil {
+		log.Errorf("error while %s", logMessage)
+		return fmt.Errorf("error while %s", logMessage)
+	}
 	return nil
 }
