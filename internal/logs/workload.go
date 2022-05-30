@@ -2,6 +2,7 @@ package logs
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -53,11 +54,12 @@ func (t *transportLog) Stop() {
 }
 
 type WorkloadsLogsTarget struct {
-	deviceID        string
-	transports      map[string]transportLog
-	wwriter         map[string]*WorkloadWriter // key is the workload name
-	workloadsConfig map[string]string
-	workloadManager *workload.WorkloadManager
+	deviceID            string
+	transports          map[string]transportLog
+	wwriter             map[string]*WorkloadWriter // key is the workload name
+	workloadsConfig     map[string]string
+	workloadManager     *workload.WorkloadManager
+	workloadsConfigLock sync.RWMutex
 }
 
 func NewWorkloadsLogsTarget(manager *workload.WorkloadManager) *WorkloadsLogsTarget {
@@ -167,6 +169,8 @@ func (w *WorkloadsLogsTarget) Update(config models.DeviceConfigurationMessage) e
 			workloadsConfig[workload.Name] = workload.LogCollection
 		}
 	}
+	w.workloadsConfigLock.Lock()
+	defer w.workloadsConfigLock.Unlock()
 	w.workloadsConfig = workloadsConfig
 	return nil
 }
@@ -180,7 +184,9 @@ func (w *WorkloadsLogsTarget) WorkloadStarted(workloadName string, report []*pod
 	// and want to delete in case a restart.
 	w.deleteWorkload(workloadName)
 
+	w.workloadsConfigLock.RLock()
 	targetTransport, ok := w.workloadsConfig[workloadName]
+	w.workloadsConfigLock.RUnlock()
 	if !ok {
 		return
 	}
