@@ -59,7 +59,7 @@ type WorkloadsLogsTarget struct {
 	wwriter             map[string]*WorkloadWriter // key is the workload name
 	workloadsConfig     map[string]string
 	workloadManager     *workload.WorkloadManager
-	workloadsConfigLock sync.Mutex
+	workloadsConfigLock sync.RWMutex
 }
 
 func NewWorkloadsLogsTarget(manager *workload.WorkloadManager) *WorkloadsLogsTarget {
@@ -184,9 +184,9 @@ func (w *WorkloadsLogsTarget) WorkloadStarted(workloadName string, report []*pod
 	// and want to delete in case a restart.
 	w.deleteWorkload(workloadName)
 
-	w.workloadsConfigLock.Lock()
+	w.workloadsConfigLock.RLock()
 	targetTransport, ok := w.workloadsConfig[workloadName]
-	w.workloadsConfigLock.Unlock()
+	w.workloadsConfigLock.RUnlock()
 	if !ok {
 		return
 	}
