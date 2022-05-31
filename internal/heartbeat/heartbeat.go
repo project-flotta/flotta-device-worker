@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -130,8 +131,9 @@ func (s *HeartbeatData) getMutableHardwareInfoDelta(currentMutableHwInfo models.
 	hardwareInfo := &currentMutableHwInfo
 	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == ScopeDelta {
 		log.Debugf("Checking if mutable hardware information change between heartbeat (scope = delta). DeviceID: %s", s.workloadManager.GetDeviceID())
-		if s.GetPreviousHardwareInfo() != nil {
-			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*s.previousMutableHardwareInfo, *hardwareInfo)
+		previousMutableHardwareInfo := s.GetPreviousHardwareInfo()
+		if previousMutableHardwareInfo != nil {
+			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*previousMutableHardwareInfo, *hardwareInfo)
 		}
 	}
 
@@ -146,7 +148,7 @@ type Heartbeat struct {
 	firstHearbeat         bool
 	previousPeriodSeconds int64
 	sendLock              sync.Mutex
-	confLock              sync.RWMutex
+	tickerLock            sync.RWMutex
 	pushInfoLock          sync.RWMutex
 	log                   log.Logger
 }
@@ -221,6 +223,8 @@ func (s *Heartbeat) Start() {
 }
 
 func (s *Heartbeat) HasStarted() bool {
+	s.tickerLock.RLock()
+	defer s.tickerLock.RUnlock()
 	return s.ticker != nil
 }
 
@@ -232,19 +236,14 @@ func (s *Heartbeat) Init(config models.DeviceConfigurationMessage) error {
 
 func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {
 	periodSeconds := s.getInterval(*config.Configuration)
-	s.confLock.RLock()
-	defer s.confLock.RUnlock()
-	if s.previousPeriodSeconds <= 0 || s.previousPeriodSeconds != periodSeconds {
-		s.log.Debugf("Heartbeat configuration update: periodSeconds changed from %d to %d; Device ID: %s", s.previousPeriodSeconds, periodSeconds, s.data.workloadManager.GetDeviceID())
+	previousPeriodSeconds := atomic.LoadInt64(&s.previousPeriodSeconds)
+	if previousPeriodSeconds <= 0 || previousPeriodSeconds != periodSeconds {
+		s.log.Debugf("Heartbeat configuration update: periodSeconds changed from %d to %d; Device ID: %s", previousPeriodSeconds, periodSeconds, s.data.workloadManager.GetDeviceID())
 		s.log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, s.data.workloadManager.GetDeviceID())
-		if s.ticker != nil {
-			s.ticker.Stop()
-		}
-		s.confLock.RUnlock()
-		s.confLock.Lock()
-		s.previousPeriodSeconds = periodSeconds
-		s.confLock.Unlock()
-		s.confLock.RLock()
+		s.stopTicker()
+
+		atomic.StoreInt64(&s.previousPeriodSeconds, periodSeconds)
+
 		s.initTicker(periodSeconds)
 		return nil
 	}
@@ -299,6 +298,8 @@ func (s *Heartbeat) pushInformation() error {
 
 func (s *Heartbeat) initTicker(periodSeconds int64) {
 	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
+	s.tickerLock.Lock()
+	defer s.tickerLock.Unlock()
 	s.ticker = ticker
 	go func() {
 		for range ticker.C {
@@ -314,8 +315,14 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 
 func (s *Heartbeat) Deregister() error {
 	s.log.Infof("stopping heartbeat ticker. DeviceID: %s", s.data.workloadManager.GetDeviceID())
-	if s.ticker != nil {
+	s.stopTicker()
+	return nil
+}
+
+func (s *Heartbeat) stopTicker() {
+	if s.HasStarted() {
+		s.tickerLock.RLock()
+		defer s.tickerLock.RUnlock()
 		s.ticker.Stop()
 	}
-	return nil
 }

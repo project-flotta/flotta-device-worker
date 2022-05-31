@@ -544,6 +544,29 @@ var _ = Describe("Heartbeat", func() {
 			}
 
 			// when
+			// Calling Update in goroutines to simulate and test data races
+			quit_1 := make(chan bool)
+			go func() {
+				for {
+					select {
+					case <-quit_1:
+						return
+					default:
+						Expect(hb.Update(cfg)).NotTo(HaveOccurred())
+					}
+				}
+			}()
+			quit_2 := make(chan bool)
+			go func() {
+				for {
+					select {
+					case <-quit_2:
+						return
+					default:
+						Expect(hb.Update(cfg)).NotTo(HaveOccurred())
+					}
+				}
+			}()
 			err := hb.Update(cfg)
 
 			// then
@@ -552,6 +575,8 @@ var _ = Describe("Heartbeat", func() {
 			time.Sleep(5 * time.Second)
 
 			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(1))
+			quit_1 <- true
+			quit_2 <- true
 			writer.Flush()
 			Expect(buf.String()).To(ContainSubstring(fmt.Sprintf("Heartbeat configuration update: periodSeconds changed from %d to %d", initialPeriod, newPeriod)))
 
