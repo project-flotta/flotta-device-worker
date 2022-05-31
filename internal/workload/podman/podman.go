@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/blang/semver"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
@@ -444,6 +445,7 @@ func (p *podman) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
 
 	go func() {
 		for {
+			hadLines := false // did we read any lines in this iteration?
 			for containerID, buffer := range readers {
 				resultLine := []byte{}
 				for {
@@ -451,6 +453,8 @@ func (p *podman) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
 					if len(line) == 0 {
 						break
 					}
+
+					hadLines = true
 
 					if !isPrefix {
 						resultLine = append(resultLine, line...)
@@ -463,11 +467,21 @@ func (p *podman) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
 					}
 				}
 			}
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				continue
+
+			if hadLines {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					continue
+				}
+			} else {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.NewTimer(100 * time.Millisecond).C:
+					continue
+				}
 			}
 		}
 	}()
