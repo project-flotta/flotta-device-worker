@@ -23,5 +23,5 @@ bin
 gover.coverprofile
 *.coverprofile
 
-# rpm
+# RPM
 *.tar.gz
