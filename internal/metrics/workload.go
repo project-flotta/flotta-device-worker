@@ -16,7 +16,6 @@ const (
 )
 
 type WorkloadMetrics struct {
-	latestConfig   models.WorkloadList
 	daemon         MetricsDaemon
 	workloadConfig map[string]*models.Workload
 	lock           sync.RWMutex
@@ -44,9 +43,7 @@ func (wrkM *WorkloadMetrics) Update(config models.DeviceConfigurationMessage) er
 
 	wrkM.lock.Lock()
 	defer wrkM.lock.Unlock()
-	wrkM.latestConfig = config.Workloads
 	wrkM.workloadConfig = cfg
-	log.Infof("metrics workload config update: %+v", cfg)
 	return nil
 }
 
