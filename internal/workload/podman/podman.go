@@ -515,8 +515,6 @@ func (p *podman) containerLog(ctx context.Context, containerID string, res io.Wr
 					log.Errorf("cannot write log line to io.Writer for container '%v': %v", containerID, err)
 				}
 			case <-ctx.Done():
-				close(stderrCh)
-				close(stdoutCh)
 				return
 			}
 		}
