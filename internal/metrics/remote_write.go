@@ -206,7 +206,7 @@ func (r *RemoteWrite) applyConfig(newConfig *models.MetricsReceiverConfiguration
 		}
 		if err != nil {
 			_ = caFile.Close()
-			log.Errorf("cannot write to metics remote write server CA file %s", caFilePath)
+			log.Errorf("cannot write to metrics remote write server CA file %s", caFilePath)
 			return err
 		}
 
