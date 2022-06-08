@@ -1,6 +1,7 @@
 package datatransfer
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/model"
@@ -36,14 +37,17 @@ var (
 		}, []string{"workload_name"})
 	DeletedRemoteFilesTransferredCounter = factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "flotta_agent_datasync_deleted_remote_files_transferred_counter",
+			Name: "flotta_agent_datasync_deleted_files_transferred_counter",
 			Help: "The total number of files deleted from the target destination",
 		}, []string{"workload_name"})
 )
 
 func StartMetrics() {
 	http.Handle(DataSyncTransferMetricsPath, promhttp.Handler())
-	http.ListenAndServe(DataSyncTransferMetricsAddress, nil)
+	err := http.ListenAndServe(DataSyncTransferMetricsAddress, nil)
+	if err != nil {
+		log.Fatalf("unable to start data transfer metrics server %s", err)
+	}
 }
 
 func reportMetrics(workloadName string, stats model.DataSyncStatistics) {

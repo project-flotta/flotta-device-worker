@@ -31,7 +31,7 @@ var _ = Describe("System", func() {
 		customConfig = models.DeviceConfigurationMessage{
 			Configuration: &models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
+					System: &models.ComponentMetricsConfiguration{
 						Interval:  duration,
 						AllowList: customAllowList,
 					},
@@ -97,7 +97,7 @@ var _ = Describe("System", func() {
 		config := models.DeviceConfigurationMessage{
 			Configuration: &models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
+					System: &models.ComponentMetricsConfiguration{
 						AllowList: customAllowList,
 					},
 				},
@@ -277,7 +277,7 @@ var _ = Describe("System", func() {
 		config := models.DeviceConfigurationMessage{
 			Configuration: &models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
+					System: &models.ComponentMetricsConfiguration{
 						Disabled: true,
 					},
 				},
@@ -331,7 +331,7 @@ var _ = Describe("System", func() {
 		config := models.DeviceConfigurationMessage{
 			Configuration: &models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
+					System: &models.ComponentMetricsConfiguration{
 						Disabled: true,
 					},
 				},
@@ -355,7 +355,7 @@ var _ = Describe("System", func() {
 		config := models.DeviceConfigurationMessage{
 			Configuration: &models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
+					System: &models.ComponentMetricsConfiguration{
 						Disabled: true,
 					},
 				},
@@ -395,7 +395,7 @@ var _ = Describe("System", func() {
 		config := models.DeviceConfigurationMessage{
 			Configuration: &models.DeviceConfiguration{
 				Metrics: &models.MetricsConfiguration{
-					System: &models.SystemMetricsConfiguration{
+					System: &models.ComponentMetricsConfiguration{
 						Disabled: true,
 					},
 				},
