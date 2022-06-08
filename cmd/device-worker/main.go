@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os/signal"
 	"os/user"
+	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
@@ -36,6 +38,30 @@ const (
 	defaultDataDir = "/var/local/yggdrasil"
 )
 
+func initSystemdDirectory() error {
+	systemddir := filepath.Join(os.Getenv("HOME"), ".config/systemd/user/")
+	// init the flotta user systemd units directory
+	err := os.MkdirAll(systemddir, 0644)
+	if err != nil {
+		return err
+	}
+
+	// chown the dir
+	theuser, err := user.Lookup(os.Getenv("USER"))
+	if err != nil {
+		return err
+	}
+	uid, _ := strconv.Atoi(theuser.Uid)
+	gid, _ := strconv.Atoi(theuser.Gid)
+
+	return filepath.Walk(filepath.Join(os.Getenv("HOME"), ".config"), func(name string, info os.FileInfo, err error) error {
+		if err == nil {
+			err = syscall.Chown(name, uid, gid)
+		}
+		return err
+	})
+}
+
 func main() {
 	log.SetFlags(0) // No datatime, is already done on yggradsil server
 
@@ -58,6 +84,11 @@ func main() {
 	if !ok {
 		log.Warnf("missing BASE_DATA_DIR environment variable. Using default: %s", defaultDataDir)
 		baseDataDir = defaultDataDir
+	}
+
+	err = initSystemdDirectory()
+	if err != nil {
+		log.Warnf("Failed to create systemd directory for the user.")
 	}
 
 	// For RPM installation we stick with using flotta user:

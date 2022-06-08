@@ -63,7 +63,7 @@ cd flotta-agent-%{VERSION}
 mkdir -p %{buildroot}%{_libexecdir}/yggdrasil/
 install ./bin/device-worker %{buildroot}%{_libexecdir}/yggdrasil/device-worker
 install ./bin/device-worker-race %{buildroot}%{_libexecdir}/yggdrasil/device-worker-race
-make install-worker-config HOME=/home/%{flotta_user} LIBEXECDIR=%{_libexecdir} BUILDROOT=%{buildroot} SYSCONFDIR=%{_sysconfdir}
+make install-worker-config USER=%{flotta_user} HOME=/home/%{flotta_user} LIBEXECDIR=%{_libexecdir} BUILDROOT=%{buildroot} SYSCONFDIR=%{_sysconfdir}
 
 %files
 %{_libexecdir}/yggdrasil/device-worker
