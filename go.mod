@@ -21,7 +21,7 @@ require (
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
 	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
-	github.com/project-flotta/flotta-operator v0.1.1-0.20220525150420-93aad5c0cfbb
+	github.com/project-flotta/flotta-operator v0.1.1-0.20220609063144-fb91b9b4f811
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
 	github.com/redhatinsights/yggdrasil v0.0.0-20220323125707-cdde836c519a

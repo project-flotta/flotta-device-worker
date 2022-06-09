@@ -392,7 +392,7 @@ github.com/go-ole/go-ole/oleutil
 # github.com/go-openapi/analysis v0.20.0
 github.com/go-openapi/analysis
 github.com/go-openapi/analysis/internal
-# github.com/go-openapi/errors v0.20.0
+# github.com/go-openapi/errors v0.20.1
 github.com/go-openapi/errors
 # github.com/go-openapi/jsonpointer v0.19.5
 github.com/go-openapi/jsonpointer
@@ -636,7 +636,7 @@ github.com/pelletier/go-toml
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/project-flotta/flotta-operator v0.1.1-0.20220525150420-93aad5c0cfbb
+# github.com/project-flotta/flotta-operator v0.1.1-0.20220609063144-fb91b9b4f811
 ## explicit
 github.com/project-flotta/flotta-operator/models
 github.com/project-flotta/flotta-operator/pkg/mtls
