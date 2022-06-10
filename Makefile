@@ -116,7 +116,7 @@ install-worker-config:
 	mkdir -p $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/
 	mkdir -p $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/device/volumes
 	chown $(VOLUME_USER):$(VOLUME_USER) -R $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/device/volumes
-	sed 's,#LIBEXEC#,$(LIBEXECDIR),g;s,#HOME#,HOME=$(HOME),g;s,#RUNTIME_DIR#,FLOTTA_XDG_RUNTIME_DIR=$(FLOTTA_XDG_RUNTIME_DIR),g' config/device-worker.toml > $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/device-worker.toml
+	sed 's,#LIBEXEC#,$(LIBEXECDIR),g;s,#USER#,USER=$(USER),g;s,#HOME#,HOME=$(HOME),g;s,#RUNTIME_DIR#,FLOTTA_XDG_RUNTIME_DIR=$(FLOTTA_XDG_RUNTIME_DIR),g' config/device-worker.toml > $(BUILDROOT)$(SYSCONFDIR)/yggdrasil/workers/device-worker.toml
 
 install: ## Install device-worker with debug enabled
 install-debug: build-debug needs-root
