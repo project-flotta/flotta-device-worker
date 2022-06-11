@@ -41,7 +41,7 @@ const (
 func initSystemdDirectory() error {
 	systemddir := filepath.Join(os.Getenv("HOME"), ".config/systemd/user/")
 	// init the flotta user systemd units directory
-	err := os.MkdirAll(systemddir, 0644)
+	err := os.MkdirAll(systemddir, 0750)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func initSystemdDirectory() error {
 }
 
 func main() {
-	log.SetFlags(0) // No datatime, is already done on yggradsil server
+	log.SetFlags(0) // No datetime, is already done on yggdrasil server
 
 	logLevel, ok := os.LookupEnv("YGG_LOG_LEVEL")
 	if !ok {

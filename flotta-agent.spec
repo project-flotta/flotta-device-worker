@@ -45,8 +45,12 @@ getent passwd %{flotta_user} >/dev/null || useradd -g %{flotta_user} -s /sbin/no
 %post
 systemctl enable --now nftables.service
 loginctl enable-linger %{flotta_user}
-systemctl start user@$(getent passwd %{flotta_user} | cut -d: -f3).service
-systemctl --machine %{flotta_user}@.host --user start podman.socket
+
+# HACK till https://bugzilla.redhat.com/show_bug.cgi?id=2060702 is fixed
+setenforce 0
+systemctl enable --now --machine %{flotta_user}@.host --user podman.socket
+setenforce 1
+# END HACK
 
 %prep
 tar fx %{SOURCE0}
@@ -77,8 +81,13 @@ make install-worker-config USER=%{flotta_user} HOME=/home/%{flotta_user} LIBEXEC
 
 %post race
 loginctl enable-linger %{flotta_user}
-systemctl start user@$(getent passwd %{flotta_user} | cut -d: -f3).service
-systemctl --machine %{flotta_user}@.host --user start podman.socket
+
+# HACK till https://bugzilla.redhat.com/show_bug.cgi?id=2060702 is fixed
+setenforce 0
+systemctl enable --now --machine %{flotta_user}@.host --user podman.socket
+setenforce 1
+# END HACK
+
 systemctl enable --now nftables.service
 ln -sf %{_libexecdir}/yggdrasil/device-worker-race %{_libexecdir}/yggdrasil/device-worker
 
