@@ -11,6 +11,5 @@ type FileSync interface {
 type DataSyncStatistics struct {
 	FilesTransmitted   float64
 	BytesTransmitted   float64
-	TransmissionTime   float64
 	DeletedRemoteFiles float64
 }

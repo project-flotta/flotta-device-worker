@@ -89,8 +89,7 @@ func (s *Sync) GetStatistics() model.DataSyncStatistics {
 	return model.DataSyncStatistics{
 		FilesTransmitted:   float64(stats.Files),
 		BytesTransmitted:   float64(stats.Bytes),
-		TransmissionTime:   float64(stats.Time),
-		DeletedRemoteFiles: float64(stats.DeletedRemoteFiles)}
+		DeletedRemoteFiles: float64(stats.DeletedFiles)}
 }
 
 func createHttpClient(caBundle []byte) *http.Client {
