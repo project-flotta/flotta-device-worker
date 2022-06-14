@@ -3,21 +3,23 @@ package workload
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
+	"syscall"
 
 	"io"
 	"sync"
 
-	"github.com/project-flotta/flotta-device-worker/internal/service"
-
 	"git.sr.ht/~spc/go-log"
+	_ "github.com/golang/mock/mockgen/model"
+	v1 "k8s.io/api/core/v1"
+
+	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
-	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
+
 	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/network"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
-	v1 "k8s.io/api/core/v1"
-
-	_ "github.com/golang/mock/mockgen/model"
 )
 
 const nfTableName string = "edge"
@@ -145,7 +147,7 @@ func (ww *Workload) Init() error {
 	return ww.netfilter.AddTable(nfTableName)
 }
 
-func (ww *Workload) List() ([]api2.WorkloadInfo, error) {
+func (ww *Workload) List() ([]api.WorkloadInfo, error) {
 	infos, err := ww.workloads.List()
 	if err != nil {
 		return nil, err
@@ -351,6 +353,9 @@ func getHostPorts(workload *v1.Pod) ([]int32, error) {
 	for _, c := range workload.Spec.Containers {
 		for _, p := range c.Ports {
 			if p.HostPort > 0 && p.HostPort < 65536 {
+				if !isPortAvailable(p.HostPort) {
+					return nil, fmt.Errorf("host port %d already in use for container %s in workload %s", p.HostPort, c.Name, workload.Name)
+				}
 				hostPorts = append(hostPorts, p.HostPort)
 			} else {
 				return nil, fmt.Errorf("illegal host port number %d for container %s in workload %s", p.HostPort, c.Name, workload.Name)
@@ -358,4 +363,28 @@ func getHostPorts(workload *v1.Pod) ([]int32, error) {
 		}
 	}
 	return hostPorts, nil
+}
+
+func isPortAvailable(port int32) bool {
+	conn, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		errOpError, ok := err.(*net.OpError)
+		if !ok {
+			return true
+		}
+		errSyscallError, ok := errOpError.Err.(*os.SyscallError)
+		if !ok {
+			return true
+		}
+		errErrno, ok := errSyscallError.Err.(syscall.Errno)
+		if !ok {
+			return true
+		}
+		if errErrno == syscall.EADDRINUSE {
+			return false
+		}
+		return true
+	}
+	defer conn.Close()
+	return true
 }
