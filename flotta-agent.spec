@@ -13,7 +13,11 @@ Source0:    %{name}-%{version}.tar.gz
 
 BuildRequires:  golang
 
+%if 0%{?rhel}
+Requires:       ansible-core
+%else
 Requires:       ansible
+%endif
 Requires:       nftables
 Requires:       node_exporter
 Requires:       podman
