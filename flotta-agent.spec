@@ -26,7 +26,7 @@ Requires:       ansible
 %endif
 Requires:       nftables
 Requires:       node_exporter
-Requires:       podman
+Requires:       podman >= 4.0.0
 Requires:       yggdrasil
 
 Requires(pre): shadow-utils

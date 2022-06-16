@@ -12,19 +12,19 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/blang/semver"
+	"github.com/go-openapi/swag"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
 	"git.sr.ht/~spc/go-log"
-	podmanEvents "github.com/containers/podman/v3/libpod/events"
-	"github.com/containers/podman/v3/pkg/bindings"
-	"github.com/containers/podman/v3/pkg/bindings/containers"
-	"github.com/containers/podman/v3/pkg/bindings/generate"
-	"github.com/containers/podman/v3/pkg/bindings/play"
-	"github.com/containers/podman/v3/pkg/bindings/pods"
-	"github.com/containers/podman/v3/pkg/bindings/secrets"
-	"github.com/containers/podman/v3/pkg/bindings/system"
-	"github.com/containers/podman/v3/pkg/domain/entities"
+	podmanEvents "github.com/containers/podman/v4/libpod/events"
+	"github.com/containers/podman/v4/pkg/bindings"
+	"github.com/containers/podman/v4/pkg/bindings/containers"
+	"github.com/containers/podman/v4/pkg/bindings/generate"
+	"github.com/containers/podman/v4/pkg/bindings/play"
+	"github.com/containers/podman/v4/pkg/bindings/pods"
+	"github.com/containers/podman/v4/pkg/bindings/secrets"
+	"github.com/containers/podman/v4/pkg/bindings/system"
+	"github.com/containers/podman/v4/pkg/domain/entities"
 	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	v1 "k8s.io/api/core/v1"
 )
@@ -32,6 +32,8 @@ import (
 const (
 	StoppedContainer = "stoppedContainer"
 	StartedContainer = "startedContainer"
+
+	DefaultNetworkName = "podman"
 
 	podmanStart  = string(podmanEvents.Start)
 	podmanRemove = string(podmanEvents.Remove)
@@ -58,7 +60,6 @@ WantedBy=default.target
 var (
 	logTailLines = "1"
 	boolTrue     = true
-	podmanV4, _  = semver.Make("4.0.0")
 )
 
 type AutoUpdateUnit struct {
@@ -180,7 +181,7 @@ func (p *podman) getContainerDetails(containerId string) (*ContainerReport, erro
 		return nil, err
 	}
 	// this is the default one
-	network, ok := data.NetworkSettings.Networks["podman"]
+	network, ok := data.NetworkSettings.Networks[DefaultNetworkName]
 	if !ok {
 		return nil, fmt.Errorf("cannot retrieve container '%s' network information", containerId)
 	}
@@ -291,7 +292,7 @@ func (p *podman) Stop(workloadId string) error {
 }
 
 func (p *podman) Run(manifestPath, authFilePath string) ([]*PodReport, error) {
-	network := "podman"
+	network := []string{DefaultNetworkName}
 	options := play.KubeOptions{
 		Authfile: &authFilePath,
 		Network:  &network,
@@ -364,27 +365,6 @@ func hasAutoUpdateEnabled(labels map[string]string) bool {
 	return false
 }
 
-func isPodNameSameAsCtrName(workload *v1.Pod, podName string) bool {
-	for _, ctr := range workload.Spec.Containers {
-		if podName == ctr.Name {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *podman) podmanClientVersion() *semver.Version {
-	version, err := system.Version(p.podmanConnection, nil)
-	if err != nil {
-		return nil
-	}
-	sver, err := semver.Make(version.Client.Version)
-	if err != nil {
-		return nil
-	}
-	return &sver
-}
-
 func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, monitoringInterval uint) (service.Service, error) {
 	var svc service.Service
 	podName := workload.Name
@@ -398,20 +378,15 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 		var report *entities.GenerateSystemdReport
 		var err error
 
-		// More info: https://github.com/containers/podman/pull/12726
-		name := podName
-		suffix := ""
-		if sver := p.podmanClientVersion(); sver != nil && (*sver).LT(podmanV4) && isPodNameSameAsCtrName(workload, podName) {
-			name = podName + service.PodSuffix
-			suffix = service.PodSuffix
-		}
-		report, err = generate.Systemd(p.podmanConnection, name, &generate.SystemdOptions{RestartSec: &monitoringInterval, UseName: &useName})
+		report, err = generate.Systemd(p.podmanConnection, podName, &generate.SystemdOptions{PodPrefix: swag.String(""), RestartSec: &monitoringInterval, UseName: &useName})
 		if err != nil {
 			return nil, err
 		}
 
-		svc = service.NewSystemdWithSuffix(podName, service.ServicePrefix, suffix, service.ServiceSuffix, report.Units, true)
-
+		svc, err = service.NewSystemd(podName, report.Units)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		var unit bytes.Buffer
 
@@ -424,8 +399,11 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 		if err != nil {
 			return nil, err
 		}
-		units := map[string]string{service.ServicePrefix + podName: unit.String()}
-		svc = service.NewSystemd(podName, service.ServicePrefix, units)
+		units := map[string]string{podName: unit.String()}
+		svc, err = service.NewSystemd(podName, units)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return svc, nil

@@ -18,10 +18,8 @@ import (
 
 const (
 	DefaultRestartTimeout = 15
-	PodSuffix             = "_pod"
-	ServicePrefix         = "pod-"
-	ServiceSuffix         = ".service"
 	TimerSuffix           = ".timer"
+	ServiceSuffix         = ".service"
 )
 
 var (
@@ -40,14 +38,12 @@ type Service interface {
 }
 
 type systemd struct {
-	Name          string            `json:"name"`
-	RestartSec    int               `json:"restartSec"`
-	Units         []string          `json:"units"`
-	UnitsContent  map[string]string `json:"-"`
-	Rootless      bool              `json:"rootless"`
-	servicePrefix string
-	suffix        string
-	podSuffix     string
+	Name           string            `json:"name"`
+	RestartSec     int               `json:"restartSec"`
+	Units          []string          `json:"units"`
+	UnitsContent   map[string]string `json:"-"`
+	dbusConnection *dbus.Conn        `json:"-"`
+	Rootless       bool              `json:"rootless"`
 }
 
 //go:generate mockgen -package=service -destination=mock_systemd_manager.go . SystemdManager
@@ -134,8 +130,8 @@ func (mgr *systemdManager) write() error {
 	return nil
 }
 
-func NewSystemd(name string, serviceNamePrefix string, units map[string]string) Service {
-	return NewSystemdWithSuffix(name, serviceNamePrefix, PodSuffix, ServiceSuffix, units, true)
+func NewSystemd(name string, units map[string]string) (Service, error) {
+	return NewSystemdRootless(name, units, true)
 }
 
 func newDbusConnection(rootless bool) (*dbus.Conn, error) {
@@ -145,6 +141,7 @@ func newDbusConnection(rootless bool) (*dbus.Conn, error) {
 			path := filepath.Join(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"), "systemd/private")
 			conn, err := godbus.Dial(fmt.Sprintf("unix:path=%s", path))
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -165,7 +162,14 @@ func newDbusConnection(rootless bool) (*dbus.Conn, error) {
 	}
 }
 
-func NewSystemdWithSuffix(name string, serviceNamePrefix string, serviceNameSuffix string, serviceSuffix string, units map[string]string, rootless bool) Service {
+func NewSystemdRootless(name string, units map[string]string, rootless bool) (Service, error) {
+	var err error
+	var conn *dbus.Conn
+
+	conn, err = newDbusConnection(rootless)
+	if err != nil {
+		return nil, err
+	}
 
 	var unitNames []string
 	for unit := range units {
@@ -173,20 +177,18 @@ func NewSystemdWithSuffix(name string, serviceNamePrefix string, serviceNameSuff
 	}
 
 	return &systemd{
-		Name:          name,
-		RestartSec:    DefaultRestartTimeout,
-		Units:         unitNames,
-		UnitsContent:  units,
-		Rootless:      rootless,
-		servicePrefix: serviceNamePrefix,
-		suffix:        serviceSuffix,
-		podSuffix:     serviceNameSuffix,
-	}
+		Name:           name,
+		RestartSec:     DefaultRestartTimeout,
+		dbusConnection: conn,
+		Units:          unitNames,
+		Rootless:       rootless,
+		UnitsContent:   units,
+	}, nil
 }
 
 func (s *systemd) Add() error {
 	for unit, content := range s.UnitsContent {
-		err := os.WriteFile(path.Join(DefaultUnitsPath, unit+s.suffix), []byte(content), 0644) //#nosec
+		err := os.WriteFile(path.Join(DefaultUnitsPath, DefaultServiceName(unit)), []byte(content), 0644) //#nosec
 		if err != nil {
 			return err
 		}
@@ -196,7 +198,7 @@ func (s *systemd) Add() error {
 
 func (s *systemd) Remove() error {
 	for _, unit := range s.Units {
-		err := os.Remove(path.Join(DefaultUnitsPath, unit+s.suffix))
+		err := os.Remove(path.Join(DefaultUnitsPath, DefaultServiceName(unit)))
 		if err != nil {
 			return err
 		}
@@ -225,7 +227,7 @@ func (s *systemd) Start() error {
 	}
 	defer conn.Close()
 	startChan := make(chan string)
-	if _, err := conn.StartUnitContext(context.Background(), s.serviceName(s.Name), "replace", startChan); err != nil {
+	if _, err := conn.StartUnitContext(context.Background(), DefaultServiceName(s.Name), "replace", startChan); err != nil {
 		return err
 	}
 
@@ -234,7 +236,7 @@ func (s *systemd) Start() error {
 	case "done":
 		return nil
 	default:
-		return errors.Errorf("Failed[%s] to start systemd service %s", result, s.serviceName(s.Name))
+		return errors.Errorf("Failed[%s] to start systemd service %s", result, DefaultServiceName(s.Name))
 	}
 }
 
@@ -245,7 +247,7 @@ func (s *systemd) Stop() error {
 	}
 	defer conn.Close()
 	stopChan := make(chan string)
-	if _, err := conn.StopUnitContext(context.Background(), s.serviceName(s.Name), "replace", stopChan); err != nil {
+	if _, err := conn.StopUnitContext(context.Background(), DefaultServiceName(s.Name), "replace", stopChan); err != nil {
 		return err
 	}
 
@@ -254,7 +256,7 @@ func (s *systemd) Stop() error {
 	case "done":
 		return nil
 	default:
-		return errors.Errorf("Failed[%s] to stop systemd service %s", result, s.serviceName(s.Name))
+		return errors.Errorf("Failed[%s] to stop systemd service %s", result, DefaultServiceName(s.Name))
 	}
 }
 
@@ -265,7 +267,7 @@ func (s *systemd) Enable() error {
 	}
 	defer conn.Close()
 
-	_, _, err = conn.EnableUnitFilesContext(context.Background(), []string{s.serviceName(s.Name)}, false, true)
+	_, _, err = conn.EnableUnitFilesContext(context.Background(), []string{DefaultServiceName(s.Name)}, false, true)
 	return err
 }
 
@@ -275,14 +277,10 @@ func (s *systemd) Disable() error {
 		return err
 	}
 	defer conn.Close()
-	_, err = conn.DisableUnitFilesContext(context.Background(), []string{s.serviceName(s.Name)}, false)
+	_, err = conn.DisableUnitFilesContext(context.Background(), []string{DefaultServiceName(s.Name)}, false)
 	return err
 }
 
-func (s *systemd) serviceName(serviceName string) string {
-	return s.servicePrefix + serviceName + s.podSuffix + s.suffix
-}
-
 func DefaultServiceName(serviceName string) string {
-	return ServicePrefix + serviceName + PodSuffix + ServiceSuffix
+	return serviceName + ServiceSuffix
 }
