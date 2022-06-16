@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -801,7 +802,7 @@ type segmentRef struct {
 }
 
 func listSegments(dir string) (refs []segmentRef, err error) {
-	files, err := os.ReadDir(dir)
+	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}

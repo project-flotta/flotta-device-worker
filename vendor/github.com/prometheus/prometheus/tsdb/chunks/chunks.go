@@ -21,6 +21,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -590,7 +591,7 @@ func (s *Reader) Chunk(ref ChunkRef) (chunkenc.Chunk, error) {
 }
 
 func nextSequenceFile(dir string) (string, int, error) {
-	files, err := os.ReadDir(dir)
+	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return "", 0, err
 	}
@@ -616,7 +617,7 @@ func segmentFile(baseDir string, index int) string {
 }
 
 func sequenceFiles(dir string) ([]string, error) {
-	files, err := os.ReadDir(dir)
+	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}

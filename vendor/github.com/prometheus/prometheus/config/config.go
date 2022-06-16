@@ -14,18 +14,19 @@
 package config
 
 import (
-	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/alecthomas/units"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/grafana/regexp"
+	"github.com/pkg/errors"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/sigv4"
@@ -82,9 +83,6 @@ func Load(s string, expandExternalLabels bool, logger log.Logger) (*Config, erro
 
 	for i, v := range cfg.GlobalConfig.ExternalLabels {
 		newV := os.Expand(v.Value, func(s string) string {
-			if s == "$" {
-				return "$"
-			}
 			if v := os.Getenv(s); v != "" {
 				return v
 			}
@@ -102,13 +100,13 @@ func Load(s string, expandExternalLabels bool, logger log.Logger) (*Config, erro
 
 // LoadFile parses the given YAML file into a Config.
 func LoadFile(filename string, agentMode, expandExternalLabels bool, logger log.Logger) (*Config, error) {
-	content, err := os.ReadFile(filename)
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 	cfg, err := Load(string(content), expandExternalLabels, logger)
 	if err != nil {
-		return nil, fmt.Errorf("parsing YAML file %s: %w", filename, err)
+		return nil, errors.Wrapf(err, "parsing YAML file %s", filename)
 	}
 
 	if agentMode {
@@ -202,9 +200,8 @@ var (
 
 	// DefaultRemoteReadConfig is the default remote read configuration.
 	DefaultRemoteReadConfig = RemoteReadConfig{
-		RemoteTimeout:        model.Duration(1 * time.Minute),
-		HTTPClientConfig:     config.DefaultHTTPClientConfig,
-		FilterExternalLabels: true,
+		RemoteTimeout:    model.Duration(1 * time.Minute),
+		HTTPClientConfig: config.DefaultHTTPClientConfig,
 	}
 
 	// DefaultStorageConfig is the default TSDB/Exemplar storage configuration.
@@ -224,7 +221,6 @@ type Config struct {
 	RuleFiles      []string        `yaml:"rule_files,omitempty"`
 	ScrapeConfigs  []*ScrapeConfig `yaml:"scrape_configs,omitempty"`
 	StorageConfig  StorageConfig   `yaml:"storage,omitempty"`
-	TracingConfig  TracingConfig   `yaml:"tracing,omitempty"`
 
 	RemoteWriteConfigs []*RemoteWriteConfig `yaml:"remote_write,omitempty"`
 	RemoteReadConfigs  []*RemoteReadConfig  `yaml:"remote_read,omitempty"`
@@ -234,7 +230,6 @@ type Config struct {
 func (c *Config) SetDirectory(dir string) {
 	c.GlobalConfig.SetDirectory(dir)
 	c.AlertingConfig.SetDirectory(dir)
-	c.TracingConfig.SetDirectory(dir)
 	for i, file := range c.RuleFiles {
 		c.RuleFiles[i] = config.JoinDir(dir, file)
 	}
@@ -276,7 +271,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	for _, rf := range c.RuleFiles {
 		if !patRulePath.MatchString(rf) {
-			return fmt.Errorf("invalid rule file path %q", rf)
+			return errors.Errorf("invalid rule file path %q", rf)
 		}
 	}
 	// Do global overrides and validate unique names.
@@ -291,7 +286,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			scfg.ScrapeInterval = c.GlobalConfig.ScrapeInterval
 		}
 		if scfg.ScrapeTimeout > scfg.ScrapeInterval {
-			return fmt.Errorf("scrape timeout greater than scrape interval for scrape config with job name %q", scfg.JobName)
+			return errors.Errorf("scrape timeout greater than scrape interval for scrape config with job name %q", scfg.JobName)
 		}
 		if scfg.ScrapeTimeout == 0 {
 			if c.GlobalConfig.ScrapeTimeout > scfg.ScrapeInterval {
@@ -302,7 +297,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 
 		if _, ok := jobNames[scfg.JobName]; ok {
-			return fmt.Errorf("found multiple scrape configs with job name %q", scfg.JobName)
+			return errors.Errorf("found multiple scrape configs with job name %q", scfg.JobName)
 		}
 		jobNames[scfg.JobName] = struct{}{}
 	}
@@ -313,7 +308,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 		// Skip empty names, we fill their name with their config hash in remote write code.
 		if _, ok := rwNames[rwcfg.Name]; ok && rwcfg.Name != "" {
-			return fmt.Errorf("found multiple remote write configs with job name %q", rwcfg.Name)
+			return errors.Errorf("found multiple remote write configs with job name %q", rwcfg.Name)
 		}
 		rwNames[rwcfg.Name] = struct{}{}
 	}
@@ -324,7 +319,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 		// Skip empty names, we fill their name with their config hash in remote read code.
 		if _, ok := rrNames[rrcfg.Name]; ok && rrcfg.Name != "" {
-			return fmt.Errorf("found multiple remote read configs with job name %q", rrcfg.Name)
+			return errors.Errorf("found multiple remote read configs with job name %q", rrcfg.Name)
 		}
 		rrNames[rrcfg.Name] = struct{}{}
 	}
@@ -363,10 +358,10 @@ func (c *GlobalConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	for _, l := range gc.ExternalLabels {
 		if !model.LabelName(l.Name).IsValid() {
-			return fmt.Errorf("%q is not a valid label name", l.Name)
+			return errors.Errorf("%q is not a valid label name", l.Name)
 		}
 		if !model.LabelValue(l.Value).IsValid() {
-			return fmt.Errorf("%q is not a valid label value", l.Value)
+			return errors.Errorf("%q is not a valid label value", l.Value)
 		}
 	}
 
@@ -502,75 +497,6 @@ func (c *ScrapeConfig) MarshalYAML() (interface{}, error) {
 // StorageConfig configures runtime reloadable configuration options.
 type StorageConfig struct {
 	ExemplarsConfig *ExemplarsConfig `yaml:"exemplars,omitempty"`
-}
-
-type TracingClientType string
-
-const (
-	TracingClientHTTP TracingClientType = "http"
-	TracingClientGRPC TracingClientType = "grpc"
-
-	GzipCompression = "gzip"
-)
-
-// UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (t *TracingClientType) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*t = TracingClientType("")
-	type plain TracingClientType
-	if err := unmarshal((*plain)(t)); err != nil {
-		return err
-	}
-
-	if *t != TracingClientHTTP && *t != TracingClientGRPC {
-		return fmt.Errorf("expected tracing client type to be to be %s or %s, but got %s",
-			TracingClientHTTP, TracingClientGRPC, *t,
-		)
-	}
-
-	return nil
-}
-
-// TracingConfig configures the tracing options.
-type TracingConfig struct {
-	ClientType       TracingClientType `yaml:"client_type,omitempty"`
-	Endpoint         string            `yaml:"endpoint,omitempty"`
-	SamplingFraction float64           `yaml:"sampling_fraction,omitempty"`
-	Insecure         bool              `yaml:"insecure,omitempty"`
-	TLSConfig        config.TLSConfig  `yaml:"tls_config,omitempty"`
-	Headers          map[string]string `yaml:"headers,omitempty"`
-	Compression      string            `yaml:"compression,omitempty"`
-	Timeout          model.Duration    `yaml:"timeout,omitempty"`
-}
-
-// SetDirectory joins any relative file paths with dir.
-func (t *TracingConfig) SetDirectory(dir string) {
-	t.TLSConfig.SetDirectory(dir)
-}
-
-// UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (t *TracingConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*t = TracingConfig{
-		ClientType: TracingClientGRPC,
-	}
-	type plain TracingConfig
-	if err := unmarshal((*plain)(t)); err != nil {
-		return err
-	}
-
-	if err := validateHeadersForTracing(t.Headers); err != nil {
-		return err
-	}
-
-	if t.Endpoint == "" {
-		return errors.New("tracing endpoint must be set")
-	}
-
-	if t.Compression != "" && t.Compression != GzipCompression {
-		return fmt.Errorf("invalid compression type %s provided, valid options: %s",
-			t.Compression, GzipCompression)
-	}
-
-	return nil
 }
 
 // ExemplarsConfig configures runtime reloadable configuration options.
@@ -741,7 +667,7 @@ func checkStaticTargets(configs discovery.Configs) error {
 func CheckTargetAddress(address model.LabelValue) error {
 	// For now check for a URL, we may want to expand this later.
 	if strings.Contains(string(address), "/") {
-		return fmt.Errorf("%q is not a valid hostname", address)
+		return errors.Errorf("%q is not a valid hostname", address)
 	}
 	return nil
 }
@@ -804,25 +730,13 @@ func (c *RemoteWriteConfig) UnmarshalYAML(unmarshal func(interface{}) error) err
 	return nil
 }
 
-func validateHeadersForTracing(headers map[string]string) error {
-	for header := range headers {
-		if strings.ToLower(header) == "authorization" {
-			return errors.New("custom authorization header configuration is not yet supported")
-		}
-		if _, ok := reservedHeaders[strings.ToLower(header)]; ok {
-			return fmt.Errorf("%s is a reserved header. It must not be changed", header)
-		}
-	}
-	return nil
-}
-
 func validateHeaders(headers map[string]string) error {
 	for header := range headers {
 		if strings.ToLower(header) == "authorization" {
 			return errors.New("authorization header must be changed via the basic_auth, authorization, oauth2, or sigv4 parameter")
 		}
 		if _, ok := reservedHeaders[strings.ToLower(header)]; ok {
-			return fmt.Errorf("%s is a reserved header. It must not be changed", header)
+			return errors.Errorf("%s is a reserved header. It must not be changed", header)
 		}
 	}
 	return nil
@@ -879,9 +793,6 @@ type RemoteReadConfig struct {
 	// RequiredMatchers is an optional list of equality matchers which have to
 	// be present in a selector to query the remote read endpoint.
 	RequiredMatchers model.LabelSet `yaml:"required_matchers,omitempty"`
-
-	// Whether to use the external labels as selectors for the remote read endpoint.
-	FilterExternalLabels bool `yaml:"filter_external_labels,omitempty"`
 }
 
 // SetDirectory joins any relative file paths with dir.

@@ -271,13 +271,13 @@ func (p *PromParser) Next() (Entry, error) {
 		return p.Next()
 
 	case tHelp, tType:
-		switch t2 := p.nextToken(); t2 {
+		switch t := p.nextToken(); t {
 		case tMName:
 			p.offsets = append(p.offsets, p.l.start, p.l.i)
 		default:
-			return EntryInvalid, parseError("expected metric name after "+t.String(), t2)
+			return EntryInvalid, parseError("expected metric name after HELP", t)
 		}
-		switch t2 := p.nextToken(); t2 {
+		switch t := p.nextToken(); t {
 		case tText:
 			if len(p.l.buf()) > 1 {
 				p.text = p.l.buf()[1:]
@@ -285,7 +285,7 @@ func (p *PromParser) Next() (Entry, error) {
 				p.text = []byte{}
 			}
 		default:
-			return EntryInvalid, fmt.Errorf("expected text in %s", t.String())
+			return EntryInvalid, parseError("expected text in HELP", t)
 		}
 		switch t {
 		case tType:

@@ -27,12 +27,8 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
-const (
-	// Indicates that there is no index entry for an exmplar.
-	noExemplar = -1
-	// Estimated number of exemplars per series, for sizing the index.
-	estimatedExemplarsPerSeries = 16
-)
+// Indicates that there is no index entry for an exmplar.
+const noExemplar = -1
 
 type CircularExemplarStorage struct {
 	lock      sync.RWMutex
@@ -121,7 +117,7 @@ func NewCircularExemplarStorage(len int64, m *ExemplarMetrics) (ExemplarStorage,
 	}
 	c := &CircularExemplarStorage{
 		exemplars: make([]*circularBufferEntry, len),
-		index:     make(map[string]*indexEntry, len/estimatedExemplarsPerSeries),
+		index:     make(map[string]*indexEntry),
 		metrics:   m,
 	}
 
@@ -206,8 +202,7 @@ Outer:
 }
 
 func (ce *CircularExemplarStorage) ValidateExemplar(l labels.Labels, e exemplar.Exemplar) error {
-	var buf [1024]byte
-	seriesLabels := l.Bytes(buf[:])
+	seriesLabels := l.String()
 
 	// TODO(bwplotka): This lock can lock all scrapers, there might high contention on this on scale.
 	// Optimize by moving the lock to be per series (& benchmark it).
@@ -218,7 +213,7 @@ func (ce *CircularExemplarStorage) ValidateExemplar(l labels.Labels, e exemplar.
 
 // Not thread safe. The append parameters tells us whether this is an external validation, or internal
 // as a result of an AddExemplar call, in which case we should update any relevant metrics.
-func (ce *CircularExemplarStorage) validateExemplar(key []byte, e exemplar.Exemplar, append bool) error {
+func (ce *CircularExemplarStorage) validateExemplar(l string, e exemplar.Exemplar, append bool) error {
 	if len(ce.exemplars) <= 0 {
 		return storage.ErrExemplarsDisabled
 	}
@@ -235,7 +230,7 @@ func (ce *CircularExemplarStorage) validateExemplar(key []byte, e exemplar.Exemp
 		}
 	}
 
-	idx, ok := ce.index[string(key)]
+	idx, ok := ce.index[l]
 	if !ok {
 		return nil
 	}
@@ -274,7 +269,7 @@ func (ce *CircularExemplarStorage) Resize(l int64) int {
 	oldNextIndex := int64(ce.nextIndex)
 
 	ce.exemplars = make([]*circularBufferEntry, l)
-	ce.index = make(map[string]*indexEntry, l/estimatedExemplarsPerSeries)
+	ce.index = make(map[string]*indexEntry)
 	ce.nextIndex = 0
 
 	// Replay as many entries as needed, starting with oldest first.
@@ -310,14 +305,13 @@ func (ce *CircularExemplarStorage) Resize(l int64) int {
 // migrate is like AddExemplar but reuses existing structs. Expected to be called in batch and requires
 // external lock and does not compute metrics.
 func (ce *CircularExemplarStorage) migrate(entry *circularBufferEntry) {
-	var buf [1024]byte
-	seriesLabels := entry.ref.seriesLabels.Bytes(buf[:])
+	seriesLabels := entry.ref.seriesLabels.String()
 
-	idx, ok := ce.index[string(seriesLabels)]
+	idx, ok := ce.index[seriesLabels]
 	if !ok {
 		idx = entry.ref
 		idx.oldest = ce.nextIndex
-		ce.index[string(seriesLabels)] = idx
+		ce.index[seriesLabels] = idx
 	} else {
 		entry.ref = idx
 		ce.exemplars[idx.newest].next = ce.nextIndex
@@ -335,8 +329,7 @@ func (ce *CircularExemplarStorage) AddExemplar(l labels.Labels, e exemplar.Exemp
 		return storage.ErrExemplarsDisabled
 	}
 
-	var buf [1024]byte
-	seriesLabels := l.Bytes(buf[:])
+	seriesLabels := l.String()
 
 	// TODO(bwplotka): This lock can lock all scrapers, there might high contention on this on scale.
 	// Optimize by moving the lock to be per series (& benchmark it).
@@ -352,11 +345,11 @@ func (ce *CircularExemplarStorage) AddExemplar(l labels.Labels, e exemplar.Exemp
 		return err
 	}
 
-	_, ok := ce.index[string(seriesLabels)]
+	_, ok := ce.index[seriesLabels]
 	if !ok {
-		ce.index[string(seriesLabels)] = &indexEntry{oldest: ce.nextIndex, seriesLabels: l}
+		ce.index[seriesLabels] = &indexEntry{oldest: ce.nextIndex, seriesLabels: l}
 	} else {
-		ce.exemplars[ce.index[string(seriesLabels)].newest].next = ce.nextIndex
+		ce.exemplars[ce.index[seriesLabels].newest].next = ce.nextIndex
 	}
 
 	if prev := ce.exemplars[ce.nextIndex]; prev == nil {
@@ -364,13 +357,12 @@ func (ce *CircularExemplarStorage) AddExemplar(l labels.Labels, e exemplar.Exemp
 	} else {
 		// There exists exemplar already on this ce.nextIndex entry, drop it, to make place
 		// for others.
-		var buf [1024]byte
-		prevLabels := prev.ref.seriesLabels.Bytes(buf[:])
+		prevLabels := prev.ref.seriesLabels.String()
 		if prev.next == noExemplar {
 			// Last item for this series, remove index entry.
-			delete(ce.index, string(prevLabels))
+			delete(ce.index, prevLabels)
 		} else {
-			ce.index[string(prevLabels)].oldest = prev.next
+			ce.index[prevLabels].oldest = prev.next
 		}
 	}
 
@@ -378,8 +370,8 @@ func (ce *CircularExemplarStorage) AddExemplar(l labels.Labels, e exemplar.Exemp
 	// since this is the first exemplar stored for this series.
 	ce.exemplars[ce.nextIndex].next = noExemplar
 	ce.exemplars[ce.nextIndex].exemplar = e
-	ce.exemplars[ce.nextIndex].ref = ce.index[string(seriesLabels)]
-	ce.index[string(seriesLabels)].newest = ce.nextIndex
+	ce.exemplars[ce.nextIndex].ref = ce.index[seriesLabels]
+	ce.index[seriesLabels].newest = ce.nextIndex
 
 	ce.nextIndex = (ce.nextIndex + 1) % len(ce.exemplars)
 
