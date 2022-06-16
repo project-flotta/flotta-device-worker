@@ -1,4 +1,4 @@
-FROM quay.io/podman/stable:v3.4.4
+FROM quay.io/podman/stable:v4.1.0
 
 WORKDIR /project
 RUN dnf install -y 'dnf-command(copr)'
@@ -7,7 +7,8 @@ RUN dnf copr enable project-flotta/flotta-testing -y
 # Yum dependencies
 RUN dnf update -y \
   && dnf install -y openssl procps-ng dmidecode nc iproute \
-  yggdrasil flotta-agent-race node_exporter systemd-container
+  yggdrasil flotta-agent-race node_exporter systemd-container \
+  libselinux-utils util-linux sssd-client
 
 # Modify podman configuration
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
