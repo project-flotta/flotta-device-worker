@@ -291,8 +291,10 @@ func (p *podman) Stop(workloadId string) error {
 }
 
 func (p *podman) Run(manifestPath, authFilePath string) ([]*PodReport, error) {
+	network := "podman"
 	options := play.KubeOptions{
 		Authfile: &authFilePath,
+		Network:  &network,
 	}
 	report, err := play.Kube(p.podmanConnection, manifestPath, &options)
 	if err != nil {
