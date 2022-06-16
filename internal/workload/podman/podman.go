@@ -407,10 +407,8 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 
-		svc, err = service.NewSystemdWithSuffix(podName, service.ServicePrefix, suffix, service.ServiceSuffix, report.Units, true)
-		if err != nil {
-			return nil, err
-		}
+		svc = service.NewSystemdWithSuffix(podName, service.ServicePrefix, suffix, service.ServiceSuffix, report.Units, true)
+
 	} else {
 		var unit bytes.Buffer
 
@@ -424,10 +422,7 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 		units := map[string]string{service.ServicePrefix + podName: unit.String()}
-		svc, err = service.NewSystemd(podName, service.ServicePrefix, units)
-		if err != nil {
-			return nil, err
-		}
+		svc = service.NewSystemd(podName, service.ServicePrefix, units)
 	}
 
 	return svc, nil
