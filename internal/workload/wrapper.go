@@ -366,7 +366,7 @@ func getHostPorts(workload *v1.Pod) ([]int32, error) {
 }
 
 func isPortAvailable(port int32) bool {
-	conn, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	conn, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		errOpError, ok := err.(*net.OpError)
 		if !ok {
