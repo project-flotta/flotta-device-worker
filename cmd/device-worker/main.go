@@ -232,6 +232,9 @@ func main() {
 	go listenStartGracefulRebootChannel(wl, dataMonitor, systemMetricsWatcher, metricsStore, hbs, ansibleManager,
 		gracefulRebootChannel, deviceOs)
 
+	// Start prometheus httpd handler
+	go datatransfer.StartMetrics()
+
 	if err := s.Serve(l); err != nil {
 		log.Fatalf("cannot start worker server, err: %v", err)
 	}

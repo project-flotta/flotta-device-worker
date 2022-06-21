@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/model"
 	"github.com/project-flotta/flotta-operator/models"
 	"github.com/seqsense/s3sync"
 )
@@ -77,6 +78,19 @@ func (s *Sync) Connect() error {
 
 	s.s3SyncManager = s3sync.New(sess)
 	return nil
+}
+
+func (s *Sync) Disconnect() {
+	s.s3SyncManager = nil
+}
+
+func (s *Sync) GetStatistics() model.DataSyncStatistics {
+	stats := s.s3SyncManager.GetStatistics()
+	return model.DataSyncStatistics{
+		FilesTransmitted:   float64(stats.Files),
+		BytesTransmitted:   float64(stats.Bytes),
+		TransmissionTime:   float64(stats.Time),
+		DeletedRemoteFiles: float64(stats.DeletedRemoteFiles)}
 }
 
 func createHttpClient(caBundle []byte) *http.Client {

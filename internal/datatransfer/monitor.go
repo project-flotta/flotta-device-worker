@@ -9,6 +9,7 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/hashicorp/go-multierror"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/model"
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/s3"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
@@ -21,7 +22,7 @@ type Monitor struct {
 	ticker                      *time.Ticker
 	lastSuccessfulSyncTimes     map[string]time.Time
 	lastSuccessfulSyncTimesLock sync.RWMutex
-	fsSync                      FileSync
+	fsSync                      model.FileSync
 	syncMutex                   sync.RWMutex
 }
 
@@ -94,23 +95,12 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 		return
 	}
 
-	syncWrapper, err := m.getFsSync()
-	if err != nil {
-		log.Errorf("error while getting s3 synchronizer. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
-		return
-	}
-
-	err = syncWrapper.Connect()
-	if err != nil {
-		log.Errorf("error while creating s3 synchronizer. DeviceID: %s; err : %v", m.workloads.GetDeviceID(), err)
-		return
-	}
-
 	hostPath := m.workloads.GetExportedHostPath(workloadName)
-	err = syncData(syncWrapper, dataConfig, hostPath)
+	err := m.syncData(dataConfig, hostPath, workloadName)
 	if err == nil {
 		m.storeLastUpdateTime(workloadName)
 	}
+
 }
 
 func (m *Monitor) getDataConfigOfWorkload(workloadName string) *models.DataConfiguration {
@@ -135,13 +125,13 @@ func (m *Monitor) HasStorageDefined() bool {
 	return storage.S3 != nil
 }
 
-func (m *Monitor) SetStorage(fs FileSync) {
+func (m *Monitor) SetStorage(fs model.FileSync) {
 	m.syncMutex.Lock()
 	defer m.syncMutex.Unlock()
 	m.fsSync = fs
 }
 
-func (m *Monitor) getFsSync() (FileSync, error) {
+func (m *Monitor) getFsSync() (model.FileSync, error) {
 	m.syncMutex.Lock()
 	defer m.syncMutex.Unlock()
 	if m.fsSync == nil {
@@ -172,16 +162,6 @@ func (m *Monitor) syncPaths() error {
 		return nil
 	}
 
-	syncWrapper, err := m.getFsSync()
-	if err != nil {
-		return err
-	}
-
-	err = syncWrapper.Connect()
-	if err != nil {
-		return err
-	}
-
 	workloadToDataPaths := make(map[string]*models.DataConfiguration)
 	for _, wd := range m.config.GetWorkloads() {
 		if containsDataPaths(wd.Data) {
@@ -199,7 +179,7 @@ func (m *Monitor) syncPaths() error {
 			continue
 		}
 		hostPath := m.workloads.GetExportedHostPath(wd.Name)
-		err := syncData(syncWrapper, dataConfig, hostPath)
+		err := m.syncData(dataConfig, hostPath, wd.Name)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
@@ -238,11 +218,20 @@ func containsDataPaths(dc *models.DataConfiguration) bool {
 			dc.Ingress != nil && len(dc.Ingress) > 0)
 }
 
-func syncData(syncWrapper FileSync, dataConfig *models.DataConfiguration, hostPath string) error {
+func (m *Monitor) syncData(dataConfig *models.DataConfiguration, hostPath, workloadName string) error {
+	syncWrapper, err := m.getFsSync()
+	if err != nil {
+		return err
+	}
+	err = syncWrapper.Connect()
+	if err != nil {
+		return err
+	}
+	defer syncWrapper.Disconnect()
 	var errors error
 	if dataConfig.Egress != nil && len(dataConfig.Egress) > 0 {
 		for _, dp := range dataConfig.Egress {
-			err := syncPath(syncWrapper, path.Join(hostPath, dp.Source), dp.Target)
+			err := m.syncPath(path.Join(hostPath, dp.Source), dp.Target)
 			if err != nil {
 				errors = multierror.Append(errors, err)
 			}
@@ -252,20 +241,21 @@ func syncData(syncWrapper FileSync, dataConfig *models.DataConfiguration, hostPa
 	// a simple check of a diff in disk usage between remote and local will suffice.
 	if dataConfig.Ingress != nil && len(dataConfig.Ingress) > 0 {
 		for _, dp := range dataConfig.Ingress {
-			err := syncPath(syncWrapper, dp.Source, path.Join(hostPath, dp.Target))
+			err := m.syncPath(dp.Source, path.Join(hostPath, dp.Target))
 			if err != nil {
 				errors = multierror.Append(errors, err)
 			}
 		}
 	}
-
+	stats := syncWrapper.GetStatistics()
+	reportMetrics(workloadName, stats)
 	return errors
 }
 
-func syncPath(syncWrapper FileSync, source, target string) error {
+func (m *Monitor) syncPath(source, target string) error {
 	logMessage := fmt.Sprintf("synchronizing [source]%s => [target]%s", source, target)
 	log.Debug(logMessage)
-	err := syncWrapper.SyncPath(source, target)
+	err := m.fsSync.SyncPath(source, target)
 	if err != nil {
 		log.Errorf("error while %s", logMessage)
 		return fmt.Errorf("error while %s", logMessage)
