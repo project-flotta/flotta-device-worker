@@ -365,20 +365,11 @@ var _ = Describe("Heartbeat", func() {
 			//given
 
 			wkwMock.EXPECT().List().AnyTimes()
-			hwMock.EXPECT().GetHardwareInformation().Return(&models.HardwareInfo{
-				Hostname: "localhost",
-				Interfaces: []*models.Interface{{
-					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
-				}},
-				CPU:          &models.CPU{Architecture: "TestArchi", ModelName: "ModelTest"},
-				SystemVendor: &models.SystemVendor{Manufacturer: "ManufacturerTest", ProductName: "ProductTest", SerialNumber: "SerialTest"},
-			}, nil).Times(5)
-			hwMock.EXPECT().CreateHardwareMutableInformation().Return(&models.HardwareInfo{
-				Hostname: "localhost",
-				Interfaces: []*models.Interface{{
-					IPV4Addresses: []string{"127.0.0.1", "0.0.0.0"},
-				}},
-			}, nil).Times(5)
+			getHardwareInformationCall, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+
+			getHardwareInformationCall.Times(5)
+			createHardwareMutableInformationCall.Times(5)
+			getMutableHardwareInfoDeltaCall.Times(0)
 			clientFail := DispatcherFailing{}
 			hb := createCustomHeartbeatWithDispatcher(&clientFail, mockCtrl, datadir, int64(1), wkManager, hwMock, monitor, deviceOs)
 
@@ -408,8 +399,8 @@ var _ = Describe("Heartbeat", func() {
 			_, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
 			wkwMock.EXPECT().List().AnyTimes()
 
-			createHardwareMutableInformationCall.Times(5)
-			// 3 or 4 times because of the sleep, sometimes a tick is missed
+			// min and max times are used because of the sleep, sometimes a tick is missed
+			createHardwareMutableInformationCall.MinTimes(4).MaxTimes(5)
 			getMutableHardwareInfoDeltaCall.MinTimes(3).MaxTimes(4)
 			//have to create ne Dispatcher to avoid race error
 			clientSuccess := Dispatcher{}
@@ -440,6 +431,34 @@ var _ = Describe("Heartbeat", func() {
 			for _, hwInfo := range hwInfoList[2:] {
 				Expect(reflect.DeepEqual(hwSecondInfo, hwInfo)).To(BeTrue())
 			}
+
+		})
+
+		It("Hearbeat is sent and empty response is given", func() {
+			//given
+
+			wkwMock.EXPECT().List().AnyTimes()
+			getHardwareInformationCall, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
+
+			getHardwareInformationCall.Times(1)
+			createHardwareMutableInformationCall.Times(1)
+			getMutableHardwareInfoDeltaCall.Times(0)
+			clientEmpty := DispatcherEmptyResponse{}
+			hb := createCustomHeartbeatWithDispatcher(&clientEmpty, mockCtrl, datadir, 2, wkManager, hwMock, monitor, deviceOs)
+
+			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
+			var buf bytes.Buffer
+			writer := bufio.NewWriter(&buf)
+			logger := *log.New(writer, "", log.LstdFlags, log.LevelTrace)
+			hb.SetLogger(logger)
+			// when
+			hb.Start()
+			Expect(hb.HasStarted()).To(BeTrue())
+			time.Sleep(3 * time.Second)
+			Expect(hb.Deregister()).ToNot(HaveOccurred())
+			//then
+			writer.Flush()
+			Expect(buf.String()).To(ContainSubstring("empty response received, host may not be reachable"))
 
 		})
 	})
@@ -525,6 +544,29 @@ var _ = Describe("Heartbeat", func() {
 			}
 
 			// when
+			// Calling Update in goroutines to simulate and test data races
+			quit_1 := make(chan bool)
+			go func() {
+				for {
+					select {
+					case <-quit_1:
+						return
+					default:
+						Expect(hb.Update(cfg)).NotTo(HaveOccurred())
+					}
+				}
+			}()
+			quit_2 := make(chan bool)
+			go func() {
+				for {
+					select {
+					case <-quit_2:
+						return
+					default:
+						Expect(hb.Update(cfg)).NotTo(HaveOccurred())
+					}
+				}
+			}()
 			err := hb.Update(cfg)
 
 			// then
@@ -533,13 +575,14 @@ var _ = Describe("Heartbeat", func() {
 			time.Sleep(5 * time.Second)
 
 			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(1))
+			quit_1 <- true
+			quit_2 <- true
 			writer.Flush()
 			Expect(buf.String()).To(ContainSubstring(fmt.Sprintf("Heartbeat configuration update: periodSeconds changed from %d to %d", initialPeriod, newPeriod)))
 
 			Expect(hb.Deregister()).ToNot(HaveOccurred())
 		})
 		It("Ticker is NOT updated as period is the same", func() {
-			defer GinkgoRecover()
 			//given
 			initialPeriod := 2
 			_, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall := initHwMock(hwMock, configManager, "localhost", []string{"127.0.0.1", "0.0.0.0"})
@@ -597,26 +640,26 @@ var _ = Describe("Heartbeat", func() {
 type Dispatcher struct {
 	latestData *pb.Data
 	hwInfoList []*models.HardwareInfo
-	mu         sync.Mutex
+	lock       sync.Mutex
 }
 
 func (d *Dispatcher) GetHwInfoList() []*models.HardwareInfo {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	cpy := make([]*models.HardwareInfo, len(d.hwInfoList))
 	copy(cpy, d.hwInfoList)
 	return cpy
 }
 
 func (d *Dispatcher) ClearHwInfoList() {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	d.hwInfoList = make([]*models.HardwareInfo, 0)
 }
 
 func (d *Dispatcher) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	heartbeat := models.Heartbeat{}
 	err := json.Unmarshal(in.Content, &heartbeat)
 	if err != nil {
@@ -644,22 +687,58 @@ func (d *Dispatcher) GetConfig(ctx context.Context, in *pb.Empty, opts ...grpc.C
 	return nil, nil
 }
 
+type DispatcherEmptyResponse struct {
+	latestData *pb.Data
+	hwInfoList []*models.HardwareInfo
+	lock       sync.Mutex
+}
+
+func (d *DispatcherEmptyResponse) GetHwInfoList() []*models.HardwareInfo {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	cpy := make([]*models.HardwareInfo, len(d.hwInfoList))
+	copy(cpy, d.hwInfoList)
+	return cpy
+}
+func (d *DispatcherEmptyResponse) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	heartbeat := models.Heartbeat{}
+	err := json.Unmarshal(in.Content, &heartbeat)
+	if err != nil {
+		return nil, err
+	}
+
+	d.latestData = in
+	d.hwInfoList = append(d.hwInfoList, heartbeat.Hardware)
+
+	return &pb.Response{}, nil
+}
+
+func (d *DispatcherEmptyResponse) Register(ctx context.Context, in *pb.RegistrationRequest, opts ...grpc.CallOption) (*pb.RegistrationResponse, error) {
+	return nil, nil
+}
+
+func (d *DispatcherEmptyResponse) GetConfig(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.Config, error) {
+	return nil, nil
+}
+
 type DispatcherFailing struct {
 	latestData *pb.Data
 	hwInfoList []*models.HardwareInfo
-	mu         sync.Mutex
+	lock       sync.Mutex
 }
 
 func (d *DispatcherFailing) GetHwInfoList() []*models.HardwareInfo {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	cpy := make([]*models.HardwareInfo, len(d.hwInfoList))
 	copy(cpy, d.hwInfoList)
 	return cpy
 }
 func (d *DispatcherFailing) Send(ctx context.Context, in *pb.Data, opts ...grpc.CallOption) (*pb.Response, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	heartbeat := models.Heartbeat{}
 	err := json.Unmarshal(in.Content, &heartbeat)
 	if err != nil {

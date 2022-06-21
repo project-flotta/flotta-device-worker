@@ -3,9 +3,11 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -37,7 +39,7 @@ type HeartbeatData struct {
 	hardware                        hw.Hardware
 	osInfo                          *os2.OS
 	previousMutableHardwareInfo     *models.HardwareInfo
-	previousMutableHardwareInfoLock sync.Mutex
+	previousMutableHardwareInfoLock sync.RWMutex
 }
 
 func NewHeartbeatData(configManager *cfg.Manager,
@@ -93,8 +95,8 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 }
 
 func (s *HeartbeatData) GetPreviousHardwareInfo() *models.HardwareInfo {
-	s.previousMutableHardwareInfoLock.Lock()
-	defer s.previousMutableHardwareInfoLock.Unlock()
+	s.previousMutableHardwareInfoLock.RLock()
+	defer s.previousMutableHardwareInfoLock.RUnlock()
 	return s.previousMutableHardwareInfo
 }
 
@@ -129,8 +131,9 @@ func (s *HeartbeatData) getMutableHardwareInfoDelta(currentMutableHwInfo models.
 	hardwareInfo := &currentMutableHwInfo
 	if s.configManager.GetDeviceConfiguration().Heartbeat.HardwareProfile.Scope == ScopeDelta {
 		log.Debugf("Checking if mutable hardware information change between heartbeat (scope = delta). DeviceID: %s", s.workloadManager.GetDeviceID())
-		if s.GetPreviousHardwareInfo() != nil {
-			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*s.previousMutableHardwareInfo, *hardwareInfo)
+		previousMutableHardwareInfo := s.GetPreviousHardwareInfo()
+		if previousMutableHardwareInfo != nil {
+			hardwareInfo = s.hardware.GetMutableHardwareInfoDelta(*previousMutableHardwareInfo, *hardwareInfo)
 		}
 	}
 
@@ -141,12 +144,12 @@ type Heartbeat struct {
 	ticker                *time.Ticker
 	dispatcherClient      pb.DispatcherClient
 	data                  *HeartbeatData
-	lock                  sync.Mutex
 	reg                   *registration.Registration
 	firstHearbeat         bool
-	pushInfoLock          sync.Mutex
 	previousPeriodSeconds int64
-	tickerLock            sync.Mutex
+	sendLock              sync.Mutex
+	tickerLock            sync.RWMutex
+	pushInfoLock          sync.RWMutex
 	log                   log.Logger
 }
 
@@ -175,14 +178,19 @@ func (s *Heartbeat) SetLogger(logger log.Logger) {
 }
 
 func (s *Heartbeat) send(data *pb.Data) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.sendLock.Lock()
+	defer s.sendLock.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-
+	log.Debugf("Heartbeat send: Sending data: %+v; Device ID: %s", data, s.data.workloadManager.GetDeviceID())
 	response, err := s.dispatcherClient.Send(ctx, data)
+	log.Debugf("Heartbeat send: Response: %+v, err: %+v; Device ID: %s", response, err, s.data.workloadManager.GetDeviceID())
 	if err != nil {
 		return err
+	}
+
+	if isResponseEmpty(response) {
+		return fmt.Errorf("empty response received, host may not be reachable; reponse: %+v, response.Response: %s, Device ID: %s", response, response.Response, s.data.workloadManager.GetDeviceID())
 	}
 
 	parsedResponse, err := registration.NewYGGDResponse(response.Response)
@@ -197,7 +205,12 @@ func (s *Heartbeat) send(data *pb.Data) error {
 	s.reg.RegisterDevice()
 	// Sending again the heartbeat info with the right info.
 	_, err = s.dispatcherClient.Send(ctx, data)
+
 	return err
+}
+
+func isResponseEmpty(response *pb.Response) bool {
+	return response == nil || len(response.Response) == 0
 }
 
 func (s *Heartbeat) String() string {
@@ -205,10 +218,13 @@ func (s *Heartbeat) String() string {
 }
 
 func (s *Heartbeat) Start() {
+	s.previousPeriodSeconds = s.getInterval(s.data.configManager.GetDeviceConfiguration())
 	s.initTicker(s.getInterval(s.data.configManager.GetDeviceConfiguration()))
 }
 
 func (s *Heartbeat) HasStarted() bool {
+	s.tickerLock.RLock()
+	defer s.tickerLock.RUnlock()
 	return s.ticker != nil
 }
 
@@ -219,19 +235,18 @@ func (s *Heartbeat) Init(config models.DeviceConfigurationMessage) error {
 }
 
 func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {
-	s.tickerLock.Lock()
 	periodSeconds := s.getInterval(*config.Configuration)
-	if s.previousPeriodSeconds <= 0 || s.previousPeriodSeconds != periodSeconds {
-		s.log.Debugf("Heartbeat configuration update: periodSeconds changed from %d to %d; Device ID: %s", s.previousPeriodSeconds, periodSeconds, s.data.workloadManager.GetDeviceID())
-		s.tickerLock.Unlock()
+	previousPeriodSeconds := atomic.LoadInt64(&s.previousPeriodSeconds)
+	if previousPeriodSeconds <= 0 || previousPeriodSeconds != periodSeconds {
+		s.log.Debugf("Heartbeat configuration update: periodSeconds changed from %d to %d; Device ID: %s", previousPeriodSeconds, periodSeconds, s.data.workloadManager.GetDeviceID())
 		s.log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, s.data.workloadManager.GetDeviceID())
-		if s.ticker != nil {
-			s.ticker.Stop()
-		}
+		s.stopTicker()
+
+		atomic.StoreInt64(&s.previousPeriodSeconds, periodSeconds)
+
 		s.initTicker(periodSeconds)
 		return nil
 	}
-	s.tickerLock.Unlock()
 	return nil
 }
 
@@ -248,10 +263,10 @@ func (s *Heartbeat) getInterval(config models.DeviceConfiguration) int64 {
 }
 
 func (s *Heartbeat) pushInformation() error {
-
 	// Create a data message to send back to the dispatcher.
 	heartbeatInfo := s.data.RetrieveInfo()
-
+	deviceId := s.data.workloadManager.GetDeviceID()
+	log.Debugf("pushInformation: Heartbeat info: %+v; DeviceID: %s;", heartbeatInfo, deviceId)
 	content, err := json.Marshal(heartbeatInfo)
 	if err != nil {
 		return err
@@ -262,24 +277,29 @@ func (s *Heartbeat) pushInformation() error {
 		Content:   content,
 		Directive: "heartbeat",
 	}
-
+	log.Debugf("pushInformation: sending content %+v; DeviceID: %s;", content, deviceId)
 	err = s.send(data)
+	log.Debugf("pushInformation: sending content results %s; DeviceID: %s;", err, deviceId)
 
+	if err != nil {
+		s.pushInfoLock.RLock()
+		defer s.pushInfoLock.RUnlock()
+		if s.firstHearbeat {
+			s.data.SetPreviousHardwareInfo(nil)
+		}
+		return err
+	}
 	s.pushInfoLock.Lock()
 	defer s.pushInfoLock.Unlock()
-	if err == nil {
-		s.firstHearbeat = false
-	} else if s.firstHearbeat {
-		s.data.SetPreviousHardwareInfo(nil)
-	}
-	return err
+	s.firstHearbeat = false
+
+	return nil
 }
 
 func (s *Heartbeat) initTicker(periodSeconds int64) {
+	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
 	s.tickerLock.Lock()
 	defer s.tickerLock.Unlock()
-	s.previousPeriodSeconds = periodSeconds
-	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
 	s.ticker = ticker
 	go func() {
 		for range ticker.C {
@@ -295,11 +315,14 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 
 func (s *Heartbeat) Deregister() error {
 	s.log.Infof("stopping heartbeat ticker. DeviceID: %s", s.data.workloadManager.GetDeviceID())
-	if s.ticker != nil {
-		s.ticker.Stop()
-		s.tickerLock.Lock()
-		defer s.tickerLock.Unlock()
-		s.previousPeriodSeconds = -1
-	}
+	s.stopTicker()
 	return nil
+}
+
+func (s *Heartbeat) stopTicker() {
+	if s.HasStarted() {
+		s.tickerLock.RLock()
+		defer s.tickerLock.RUnlock()
+		s.ticker.Stop()
+	}
 }
