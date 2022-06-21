@@ -748,7 +748,7 @@ func (d *DispatcherFailing) Send(ctx context.Context, in *pb.Data, opts ...grpc.
 	d.hwInfoList = append(d.hwInfoList, heartbeat.Hardware)
 	d.latestData = in
 
-	return nil, fmt.Errorf("Erorr sending")
+	return nil, fmt.Errorf("Error sending")
 }
 
 func (d *DispatcherFailing) Register(ctx context.Context, in *pb.RegistrationRequest, opts ...grpc.CallOption) (*pb.RegistrationResponse, error) {
