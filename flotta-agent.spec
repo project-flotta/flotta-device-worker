@@ -4,7 +4,7 @@
 
 Name:       flotta-agent
 Version:    0.1.0
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
 Group:      Flotta
