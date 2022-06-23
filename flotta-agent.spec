@@ -14,6 +14,8 @@ Source0:    %{name}-%{version}.tar.gz
 BuildRequires:  golang
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  bash
+BuildRequires:  btrfs-progs-devel
+BuildRequires:  device-mapper-devel
 
 %if 0%{?rhel}
 Requires:       ansible-core
