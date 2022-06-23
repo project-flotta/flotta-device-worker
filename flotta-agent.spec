@@ -48,9 +48,10 @@ tar fx %{SOURCE0}
 
 %build
 cd flotta-agent-%{VERSION}
-export CGO_ENABLED=1
+export CGO_ENABLED=0
 export GOFLAGS="-mod=vendor -tags=containers_image_openpgp"
 go build -o ./bin/device-worker ./cmd/device-worker
+export CGO_ENABLED=1
 go build -race -o ./bin/device-worker-race ./cmd/device-worker
 
 %install
