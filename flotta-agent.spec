@@ -13,6 +13,7 @@ Source0:    %{name}-%{version}.tar.gz
 
 BuildRequires:  golang
 BuildRequires:  systemd-rpm-macros
+BuildRequires:  bash
 
 %if 0%{?rhel}
 Requires:       ansible-core
