@@ -40,13 +40,11 @@ ifeq (, $(shell which ginkgo 2> /dev/null))
 	$(call go-install-tool,$(GOVER),github.com/sozorogami/gover)
 endif
 
-GINKGO = $(shell pwd)/bin/ginkgo
 ginkgo:
 ifeq (, $(shell which ginkgo 2> /dev/null))
 	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.1.3)
-else
-	GINKGO=$(shell which ginkgo)
 endif
+GINKGO=$(shell which ginkgo)
 
 test-tools: ## Install test-tools
 test-tools: ginkgo gover
