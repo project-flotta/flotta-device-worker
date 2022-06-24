@@ -1,5 +1,5 @@
 ---
-name: RPM build
+name: COPR and quay build
 on:
   push:
     branches: [ main ]
