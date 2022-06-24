@@ -1,0 +1,10 @@
+FROM fedora:36
+
+RUN dnf install -y git make which go ansible btrfs-progs-devel device-mapper device-mapper-devel
+
+ARG GINKGO_VERS=v2.1.3
+RUN go install github.com/onsi/ginkgo/v2/ginkgo@${GINKGO_VERS}
+
+WORKDIR /device-worker
+
+ENTRYPOINT ["/bin/bash", "-c", "make test"]

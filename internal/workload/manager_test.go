@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/project-flotta/flotta-device-worker/internal/common"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
 	api "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/project-flotta/flotta-operator/models"
@@ -141,6 +142,10 @@ var _ = Describe("Manager", func() {
 			datadir, err = ioutil.TempDir("", "worloadTest")
 			err = os.Chmod(datadir, 0444)
 			Expect(err).NotTo(HaveOccurred())
+
+			if common.IsContainerized() {
+				datadir = "/sys" // set to /sys which is always readonly
+			}
 
 			// When
 			wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, deviceId)

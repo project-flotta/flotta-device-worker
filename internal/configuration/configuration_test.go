@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/project-flotta/flotta-device-worker/internal/common"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
 	"github.com/project-flotta/flotta-operator/models"
 )
@@ -208,8 +209,16 @@ var _ = Describe("Configuration", func() {
 		It("Cannot write device config", func() {
 
 			// given
-			err = os.Chmod(datadir, 0444)
-			Expect(err).NotTo(HaveOccurred())
+			if common.IsContainerized() {
+				err = os.RemoveAll(datadir)
+				Expect(err).NotTo(HaveOccurred())
+				defer func() {
+					_ = os.Mkdir(datadir, 0777)
+				}()
+			} else {
+				err = os.Chmod(datadir, 0444)
+				Expect(err).NotTo(HaveOccurred())
+			}
 
 			configManager := configuration.NewConfigurationManager(datadir)
 
@@ -578,8 +587,16 @@ var _ = Describe("Configuration", func() {
 
 			deviceConfigExists()
 
-			err = os.Chmod(datadir, 0444)
-			Expect(err).NotTo(HaveOccurred())
+			if common.IsContainerized() {
+				err = os.RemoveAll(datadir)
+				Expect(err).NotTo(HaveOccurred())
+				defer func() {
+					_ = os.Mkdir(datadir, 0777)
+				}()
+			} else {
+				err = os.Chmod(datadir, 0444)
+				Expect(err).NotTo(HaveOccurred())
+			}
 
 			// when
 			err = configManager.Deregister()
