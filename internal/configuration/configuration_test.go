@@ -284,6 +284,93 @@ var _ = Describe("Configuration", func() {
 			})
 
 		})
+
+		Context("workloads", func() {
+			It("not changed", func() {
+
+				// given
+				configManager := configuration.NewConfigurationManager(datadir)
+
+				observerMock := configuration.NewMockObserver(mockCtrl)
+				observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+				observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
+				configManager.RegisterObserver(observerMock)
+
+				expectedWorkloads := models.WorkloadList{
+					&models.Workload{
+						Name: "workload-1",
+					},
+					&models.Workload{
+						Name: "workload-2",
+					},
+				}
+				cfg.Workloads = expectedWorkloads
+
+				err := configManager.Update(cfg)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(configManager.GetWorkloads()).To(Equal(expectedWorkloads))
+
+				cfg.Workloads = models.WorkloadList{
+					&models.Workload{
+						Name: "workload-2",
+					},
+					&models.Workload{
+						Name: "workload-1",
+					},
+				}
+
+				// when
+				err = configManager.Update(cfg)
+
+				// then
+				Expect(err).NotTo(HaveOccurred())
+				Expect(configManager.GetWorkloads()).To(Equal(expectedWorkloads))
+			})
+
+			It("changed", func() {
+				// given
+				configManager := configuration.NewConfigurationManager(datadir)
+
+				observerMock := configuration.NewMockObserver(mockCtrl)
+				observerMock.EXPECT().Update(gomock.Any()).Return(nil).Times(2)
+				observerMock.EXPECT().Init(gomock.Any()).Return(nil).Times(1)
+				configManager.RegisterObserver(observerMock)
+
+				cfg.Workloads = models.WorkloadList{
+					&models.Workload{
+						Name: "workload-1",
+					},
+					&models.Workload{
+						Name: "workload-2",
+					},
+				}
+
+				err := configManager.Update(cfg)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(configManager.GetWorkloads()).To(Equal(cfg.Workloads))
+
+				expectedWorkloads := models.WorkloadList{
+					&models.Workload{
+						Name: "workload-1",
+					},
+					&models.Workload{
+						Name: "workload-2",
+					},
+					&models.Workload{
+						Name: "workload-3",
+					},
+				}
+
+				cfg.Workloads = expectedWorkloads
+
+				// when
+				err = configManager.Update(cfg)
+
+				// then
+				Expect(err).NotTo(HaveOccurred())
+				Expect(configManager.GetWorkloads()).To(Equal(expectedWorkloads))
+			})
+		})
 	})
 
 	Context("GetConfigurationVersion", func() {
