@@ -158,6 +158,14 @@ func main() {
 	}
 	configManager.RegisterObserver(systemMetricsWatcher)
 
+	dataTransferWatcher := metrics.NewDataTransferMetrics(metricsDaemon)
+	if err != nil {
+		log.Fatalf("cannot initialize data transfer metrics. DeviceID: %s; err: %v", deviceId, err)
+	} else {
+		configManager.RegisterObserver(dataTransferWatcher)
+	}
+	configManager.RegisterObserver(systemMetricsWatcher)
+
 	wl, err := workload2.NewWorkloadManager(dataDir, deviceId)
 	if err != nil {
 		log.Fatalf("cannot start Workload Manager. DeviceID: %s; err: %v", deviceId, err)

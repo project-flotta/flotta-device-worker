@@ -97,11 +97,11 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 
 	hostPath := m.workloads.GetExportedHostPath(workloadName)
 	var errors error
-	err := m.syncEgress(dataConfig, hostPath, workloadName)
+	err := m.syncDataPaths(dataConfig.Egress, hostPath, workloadName, egress)
 	if err != nil {
 		errors = multierror.Append(errors, err)
 	}
-	err = m.syncIngress(dataConfig, hostPath, workloadName)
+	err = m.syncDataPaths(dataConfig.Ingress, hostPath, workloadName, ingress)
 	if err != nil {
 		errors = multierror.Append(errors, err)
 	}
@@ -187,12 +187,12 @@ func (m *Monitor) syncPaths() error {
 			continue
 		}
 		hostPath := m.workloads.GetExportedHostPath(wd.Name)
-		err := m.syncEgress(dataConfig, hostPath, wd.Name)
+		err := m.syncDataPaths(dataConfig.Egress, hostPath, wd.Name, egress)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
 		}
-		err = m.syncIngress(dataConfig, hostPath, wd.Name)
+		err = m.syncDataPaths(dataConfig.Ingress, hostPath, wd.Name, ingress)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
@@ -231,7 +231,7 @@ func containsDataPaths(dc *models.DataConfiguration) bool {
 			dc.Ingress != nil && len(dc.Ingress) > 0)
 }
 
-func (m *Monitor) syncEgress(dataConfig *models.DataConfiguration, hostPath, workloadName string) error {
+func (m *Monitor) syncDataPaths(dataPaths []*models.DataPath, hostPath, workloadName string, dir direction) error {
 	syncWrapper, err := m.getFsSync()
 	if err != nil {
 		return err
@@ -242,47 +242,30 @@ func (m *Monitor) syncEgress(dataConfig *models.DataConfiguration, hostPath, wor
 	}
 	defer syncWrapper.Disconnect()
 	var errors error
-	if dataConfig.Egress != nil && len(dataConfig.Egress) > 0 {
+	// For Ingress
+	// TODO: Identify how much disk space is required for complete ingress sync before pulling remote data onto the device storage.
+	// a simple check of a diff in disk usage between remote and local will suffice.
+	if dataPaths != nil {
 		startSync := time.Now().UnixMilli()
-		for _, dp := range dataConfig.Egress {
-			err := m.syncPath(path.Join(hostPath, dp.Source), dp.Target)
+		for _, dp := range dataPaths {
+			source, target := resolvePaths(dp.Source, dp.Target, hostPath, dir)
+			err := m.syncPath(source, target)
 			if err != nil {
 				errors = multierror.Append(errors, err)
 			}
 		}
 		syncTime := time.Now().UnixMilli() - startSync
 		stats := syncWrapper.GetStatistics()
-		reportMetrics(workloadName, egress, stats.BytesTransmitted, stats.FilesTransmitted, stats.DeletedRemoteFiles, syncTime)
+		reportMetrics(workloadName, dir, stats.BytesTransmitted, stats.FilesTransmitted, stats.DeletedRemoteFiles, syncTime)
 	}
 	return errors
 }
 
-func (m *Monitor) syncIngress(dataConfig *models.DataConfiguration, hostPath, workloadName string) error {
-	syncWrapper, err := m.getFsSync()
-	if err != nil {
-		return err
+func resolvePaths(source, target, hostPath string, dir direction) (string, string) {
+	if dir == egress {
+		return path.Join(hostPath, source), target
 	}
-	err = syncWrapper.Connect()
-	if err != nil {
-		return err
-	}
-	defer syncWrapper.Disconnect()
-	var errors error
-	// TODO: Identify how much disk space is required for complete ingress sync before pulling remote data onto the device storage.
-	// a simple check of a diff in disk usage between remote and local will suffice.
-	if dataConfig.Ingress != nil && len(dataConfig.Ingress) > 0 {
-		startSync := time.Now().UnixMilli()
-		for _, dp := range dataConfig.Ingress {
-			err := m.syncPath(dp.Source, path.Join(hostPath, dp.Target))
-			if err != nil {
-				errors = multierror.Append(errors, err)
-			}
-		}
-		syncTime := time.Now().UnixMilli() - startSync
-		stats := syncWrapper.GetStatistics()
-		reportMetrics(workloadName, ingress, stats.BytesTransmitted, stats.FilesTransmitted, stats.DeletedRemoteFiles, syncTime)
-	}
-	return errors
+	return source, path.Join(hostPath, target)
 }
 
 func (m *Monitor) syncPath(source, target string) error {

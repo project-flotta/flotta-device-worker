@@ -52,15 +52,18 @@ func (dt *DataTransferMetrics) Update(config models.DeviceConfigurationMessage) 
 		}
 	}
 
+	dt.updateTarget(newConfiguration)
+	return nil
+}
+
+func (dt *DataTransferMetrics) updateTarget(newConfiguration models.ComponentMetricsConfiguration) {
 	if newConfiguration.Disabled {
 		dt.daemon.DeleteTarget(dataTransferTargetName)
 	} else {
 		filter := getDataTransferSampleFilter(newConfiguration.AllowList)
 		dt.daemon.AddTarget(dataTransferTargetName, []string{datatransfer.MetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
 	}
-
 	dt.latestConfig.Store(&newConfiguration)
-	return nil
 }
 
 func (dt *DataTransferMetrics) Deregister() error {
