@@ -24,6 +24,7 @@ var _ = Describe("Hardware", func() {
 
 	BeforeEach(func() {
 		depMock = &util.MockIDependencies{}
+
 	})
 	AfterEach(func() {
 		depMock.AssertExpectations(GinkgoT())
@@ -47,7 +48,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwInfo.Hostname).To(Equal("localhost"))
 			Expect(hwInfo.Interfaces).To(Not(BeNil()))
 			Expect(hwInfo.SystemVendor).To(Not(BeNil()))
-
+			Expect(hwInfo.HostDevices).To(Not(BeNil()))
 		})
 
 		It("Hw immutable info", func() {
@@ -65,7 +66,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwInfo.Hostname).To(BeEmpty())
 			Expect(hwInfo.Interfaces).To(BeNil())
 			Expect(hwInfo.SystemVendor).To(Not(BeNil()))
-
+			Expect(hwInfo.HostDevices).To(Not(BeNil()))
 		})
 
 		It("Hw mutable info", func() {
@@ -83,6 +84,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwInfo.Hostname).To(Equal("localhost"))
 			Expect(hwInfo.Interfaces).To(Not(BeNil()))
 			Expect(hwInfo.SystemVendor).To(BeNil())
+			Expect(hwInfo.HostDevices).To(BeNil())
 
 		})
 
@@ -123,7 +125,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwDelta.Hostname).To(Equal("localhostNEW"))
 			Expect(hwDelta.Interfaces).To(BeNil())
 			Expect(hwDelta.SystemVendor).To(BeNil())
-
+			Expect(hwDelta.HostDevices).To(BeNil())
 		})
 		It("Interface changes", func() {
 			// given
@@ -152,7 +154,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwDelta.Hostname).To(BeEmpty())
 			Expect(hwDelta.Interfaces).To(Not(BeNil()))
 			Expect(hwDelta.SystemVendor).To(BeNil())
-
+			Expect(hwDelta.HostDevices).To(BeNil())
 		})
 		It("All mutables change", func() {
 			// given
@@ -183,6 +185,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwDelta.Hostname).To(Equal("localhostFinal"))
 			Expect(hwDelta.Interfaces).To(Not(BeNil()))
 			Expect(hwDelta.SystemVendor).To(BeNil())
+			Expect(hwDelta.HostDevices).To(BeNil())
 		})
 		It("No Change", func() {
 			// given
@@ -207,6 +210,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwDelta.Hostname).To(BeEmpty())
 			Expect(hwDelta.Interfaces).To(BeNil())
 			Expect(hwDelta.SystemVendor).To(BeNil())
+			Expect(hwDelta.HostDevices).To(BeNil())
 		})
 		It("No change if get immutable info only", func() {
 			// given
@@ -232,7 +236,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwDelta.Hostname).To(BeEmpty())
 			Expect(hwDelta.Interfaces).To(BeNil())
 			Expect(hwDelta.SystemVendor).To(BeNil())
-
+			Expect(hwDelta.HostDevices).To(BeNil())
 		})
 		It("Only mutable are checked", func() {
 			// given
@@ -263,7 +267,7 @@ var _ = Describe("Hardware", func() {
 			Expect(hwDelta.Hostname).To(BeEmpty())
 			Expect(hwDelta.Interfaces).To(BeNil())
 			Expect(hwDelta.SystemVendor).To(BeNil())
-
+			Expect(hwDelta.HostDevices).To(BeNil())
 		})
 	})
 

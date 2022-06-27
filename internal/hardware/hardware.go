@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 
+	"git.sr.ht/~spc/go-log"
+	runc "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/openshift/assisted-installer-agent/src/inventory"
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-operator/models"
@@ -45,6 +47,12 @@ func (s *HardwareInfo) GetHardwareImmutableInformation(hardwareInfo *models.Hard
 		Flags:        []string{},
 	}
 	hardwareInfo.SystemVendor = (*models.SystemVendor)(systemVendor)
+
+	if hostDevices, err := s.getHostDevices(); err != nil {
+		log.Warnf("failed to list host devices: %v", err)
+	} else {
+		hardwareInfo.HostDevices = hostDevices
+	}
 
 	return nil
 }
@@ -95,6 +103,29 @@ func (s *HardwareInfo) isDependenciesSet() bool {
 
 func (s *HardwareInfo) GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
 	return GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious, hardwareMutableInfoNew)
+}
+
+func (s *HardwareInfo) getHostDevices() ([]*models.HostDevice, error) {
+	runcDevices, err := runc.HostDevices()
+	if err != nil {
+		return []*models.HostDevice{}, err
+	}
+
+	devices := make([]*models.HostDevice, 0, len(runcDevices))
+	for _, d := range runcDevices {
+		device := models.HostDevice{
+			Path:       d.Path,
+			DeviceType: string(d.Type),
+			Major:      d.Major,
+			Minor:      d.Minor,
+			UID:        int64(d.Uid),
+			Gid:        int64(d.Gid),
+		}
+
+		devices = append(devices, &device)
+	}
+
+	return devices, nil
 }
 
 func GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
