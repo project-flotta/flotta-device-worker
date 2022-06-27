@@ -12,6 +12,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/model"
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/s3"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
 	"github.com/project-flotta/flotta-operator/models"
 )
@@ -186,20 +187,27 @@ func (m *Monitor) syncPaths() error {
 			log.Infof("workload %s not found in configuration", wd.Name)
 			continue
 		}
-		hostPath := m.workloads.GetExportedHostPath(wd.Name)
-		err := m.syncDataPaths(dataConfig.Egress, hostPath, wd.Name, egress)
+		err := m.processSyncDataPaths(wd, dataConfig)
 		if err != nil {
 			errors = multierror.Append(errors, err)
-			continue
 		}
-		err = m.syncDataPaths(dataConfig.Ingress, hostPath, wd.Name, ingress)
-		if err != nil {
-			errors = multierror.Append(errors, err)
-			continue
-		}
-		m.storeLastUpdateTime(wd.Name)
 	}
 	return errors
+}
+
+func (m *Monitor) processSyncDataPaths(wd api.WorkloadInfo, dataConfig *models.DataConfiguration) error {
+	hostPath := m.workloads.GetExportedHostPath(wd.Name)
+	err := m.syncDataPaths(dataConfig.Egress, hostPath, wd.Name, egress)
+	if err != nil {
+		return err
+
+	}
+	err = m.syncDataPaths(dataConfig.Ingress, hostPath, wd.Name, ingress)
+	if err != nil {
+		return err
+	}
+	m.storeLastUpdateTime(wd.Name)
+	return nil
 }
 
 func (m *Monitor) storeLastUpdateTime(workloadName string) {
@@ -240,6 +248,7 @@ func (m *Monitor) syncDataPaths(dataPaths []*models.DataPath, hostPath, workload
 	if err != nil {
 		return err
 	}
+	// We don't reuse the connection because the metrics need to be reinitialized per sync direcction
 	defer syncWrapper.Disconnect()
 	var errors error
 	// For Ingress

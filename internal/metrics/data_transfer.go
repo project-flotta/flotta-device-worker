@@ -40,20 +40,29 @@ func (dt *DataTransferMetrics) Init(config models.DeviceConfigurationMessage) er
 
 func (dt *DataTransferMetrics) Update(config models.DeviceConfigurationMessage) error {
 	newConfiguration := retrieveConfigurationOrDefault(config.Configuration)
+	update, err := dt.checkForUpdates(newConfiguration)
+	if err != nil {
+		return err
+	}
+	if update {
+		dt.updateTarget(newConfiguration)
+	}
+	return nil
+}
+
+func (dt *DataTransferMetrics) checkForUpdates(newConfiguration models.ComponentMetricsConfiguration) (bool, error) {
 	latestConfig := dt.latestConfig.Load()
 	if latestConfig != nil {
 		oldConfiguration, ok := latestConfig.(*models.ComponentMetricsConfiguration)
 		if !ok {
-			return fmt.Errorf("invalid type %+v", latestConfig)
+			return false, fmt.Errorf("invalid type %+v", latestConfig)
 		}
 		if oldConfiguration != nil && reflect.DeepEqual(newConfiguration, *oldConfiguration) {
 			// Same configuration, no updates required.
-			return nil
+			return false, nil
 		}
 	}
-
-	dt.updateTarget(newConfiguration)
-	return nil
+	return true, nil
 }
 
 func (dt *DataTransferMetrics) updateTarget(newConfiguration models.ComponentMetricsConfiguration) {
