@@ -16,6 +16,7 @@ import (
 	heartbeat2 "github.com/project-flotta/flotta-device-worker/internal/heartbeat"
 	"github.com/project-flotta/flotta-device-worker/internal/logs"
 	"github.com/project-flotta/flotta-device-worker/internal/metrics"
+	"github.com/project-flotta/flotta-device-worker/internal/mount"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
 	"github.com/project-flotta/flotta-device-worker/internal/server"
@@ -181,6 +182,12 @@ func main() {
 	gracefulRebootChannel = make(chan struct{})
 	deviceOs := os2.NewOS(gracefulRebootChannel, os2.NewOsExecCommands())
 	configManager.RegisterObserver(deviceOs)
+
+	mountManager, err := mount.New()
+	if err != nil {
+		log.Fatalf("cannot create Mount Manager: %s", err)
+	}
+	configManager.RegisterObserver(mountManager)
 
 	dataMonitor := datatransfer.NewMonitor(wl, configManager)
 	wl.RegisterObserver(dataMonitor)
