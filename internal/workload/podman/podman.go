@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -452,24 +453,20 @@ func (p *podman) Logs(podID string, res io.Writer) (context.CancelFunc, error) {
 		for {
 			hadLines := false // did we read any lines in this iteration?
 			for containerID, buffer := range readers {
-				resultLine := []byte{}
-				for {
-					line, isPrefix, _ := buffer.ReadLine()
-					if len(line) == 0 {
-						break
-					}
-
-					hadLines = true
-
-					if !isPrefix {
-						resultLine = append(resultLine, line...)
-					}
+				line, err := buffer.ReadString('\n')
+				if err != nil && !errors.Is(err, io.EOF) {
+					log.Errorf("Cannot read container log line from buffer: %v podID=%s containerID=%s", err, podID, containerID)
+					continue
 				}
-				if len(resultLine) > 0 {
-					_, err := res.Write([]byte(fmt.Sprintf("%s: %s\n", containerID, resultLine)))
-					if err != nil {
-						log.Errorf("Cannot write container log line: %v podID=%s containerID=%s", err, podID, containerID)
-					}
+
+				if len(line) == 0 {
+					continue
+				}
+
+				hadLines = true
+				_, err = res.Write([]byte(fmt.Sprintf("%s: %s", containerID, line)))
+				if err != nil {
+					log.Errorf("Cannot write container log line: %v podID=%s containerID=%s", err, podID, containerID)
 				}
 			}
 
@@ -514,12 +511,12 @@ func (p *podman) containerLog(ctx context.Context, containerID string, res io.Wr
 		for {
 			select {
 			case line := <-stdoutCh:
-				_, err := io.WriteString(res, line)
+				_, err := io.WriteString(res, line+"\n")
 				if err != nil {
 					log.Errorf("cannot write log line to io.Writer for container '%v': %v", containerID, err)
 				}
 			case line := <-stderrCh:
-				_, err := io.WriteString(res, line)
+				_, err := io.WriteString(res, line+"\n")
 				if err != nil {
 					log.Errorf("cannot write log line to io.Writer for container '%v': %v", containerID, err)
 				}
