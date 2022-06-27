@@ -4,7 +4,7 @@
 
 Name:       flotta-agent
 Version:    0.1.0
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
 Group:      Flotta
@@ -14,6 +14,8 @@ Source0:    %{name}-%{version}.tar.gz
 BuildRequires:  golang
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  bash
+BuildRequires:  btrfs-progs-devel
+BuildRequires:  device-mapper-devel
 
 %if 0%{?rhel}
 Requires:       ansible-core
@@ -34,7 +36,7 @@ Provides:       golang(%{go_import_path}) = %{version}-%{release}
 Summary:        flotta-agent with race-enabled
 
 %description race
-The same as flotta agent, but in this case compiled with --race flag to be able
+The same as flotta agent, but in this case compiled with -race flag to be able
 to detect race-conditions in the e2e test
 
 %description
@@ -49,7 +51,8 @@ cd flotta-agent-%{VERSION}
 export CGO_ENABLED=0
 export GOFLAGS="-mod=vendor -tags=containers_image_openpgp"
 go build -o ./bin/device-worker ./cmd/device-worker
-go build -o ./bin/device-worker-race ./cmd/device-worker
+export CGO_ENABLED=1
+go build -race -o ./bin/device-worker-race ./cmd/device-worker
 
 %install
 cd flotta-agent-%{VERSION}
@@ -81,6 +84,9 @@ ln -sf %{_libexecdir}/yggdrasil/device-worker-race %{_libexecdir}/yggdrasil/devi
 systemctl enable --now nftables.service
 
 %changelog
+* Thu Jun 23 2022 Jordi Gil <jgil@redhat.com> 0.1.0-3
+  Added missing '-race' to go build command for race package
+
 * Wed Jun 22 2022 Eloy Coto <eloycoto@acalustra.com> 0.1.0-2
   Changes on systemd config
 
