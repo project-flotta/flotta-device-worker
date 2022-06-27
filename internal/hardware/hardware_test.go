@@ -24,6 +24,7 @@ var _ = Describe("Hardware", func() {
 
 	BeforeEach(func() {
 		depMock = &util.MockIDependencies{}
+
 	})
 	AfterEach(func() {
 		depMock.AssertExpectations(GinkgoT())

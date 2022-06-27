@@ -2,19 +2,14 @@ package hardware
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"reflect"
 
 	"git.sr.ht/~spc/go-log"
+	runc "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/openshift/assisted-installer-agent/src/inventory"
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-operator/models"
-	"golang.org/x/sys/unix"
 )
-
-// errNotADevice means that the file is not a device node.
-var errNotADevice = errors.New("not a device node")
 
 //go:generate mockgen -package=hardware -destination=mock_hardware.go . Hardware
 type Hardware interface {
@@ -111,7 +106,26 @@ func (s *HardwareInfo) GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious m
 }
 
 func (s *HardwareInfo) getHostDevices() ([]*models.HostDevice, error) {
-	return getDevices("/dev")
+	runcDevices, err := runc.HostDevices()
+	if err != nil {
+		return []*models.HostDevice{}, err
+	}
+
+	devices := make([]*models.HostDevice, 0, len(runcDevices))
+	for _, d := range runcDevices {
+		device := models.HostDevice{
+			Path:       d.Path,
+			DeviceType: string(d.Type),
+			Major:      d.Major,
+			Minor:      d.Minor,
+			UID:        int64(d.Uid),
+			Gid:        int64(d.Gid),
+		}
+
+		devices = append(devices, &device)
+	}
+
+	return devices, nil
 }
 
 func GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo, hardwareMutableInfoNew models.HardwareInfo) *models.HardwareInfo {
@@ -124,84 +138,4 @@ func GetMutableHardwareInfoDelta(hardwareMutableInfoPrevious models.HardwareInfo
 	}
 
 	return hardwareInfo
-}
-
-// GetDevices recursively traverses a directory specified by path
-// and returns all devices found there.
-// Shamelessly copied from 	https://github.com/opencontainers/runc/blob/main/libcontainer/devices/device_unix.go
-func getDevices(path string) ([]*models.HostDevice, error) {
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-	var out []*models.HostDevice
-	for _, f := range files {
-		switch {
-		case f.IsDir():
-			switch f.Name() {
-			// ".lxc" & ".lxd-mounts" added to address https://github.com/lxc/lxd/issues/2825
-			// ".udev" added to address https://github.com/opencontainers/runc/issues/2093
-			case "pts", "shm", "fd", "mqueue", ".lxc", ".lxd-mounts", ".udev":
-				continue
-			default:
-				sub, err := getDevices(filepath.Join(path, f.Name()))
-				if err != nil {
-					return nil, err
-				}
-
-				out = append(out, sub...)
-				continue
-			}
-		case f.Name() == "console":
-			continue
-		}
-		device, err := deviceFromPath(filepath.Join(path, f.Name()))
-		if err != nil {
-			if errors.Is(err, errNotADevice) {
-				continue
-			}
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, err
-		}
-		if device.DeviceType == "FifoDevice" {
-			continue
-		}
-		out = append(out, &device)
-	}
-	return out, nil
-}
-
-func deviceFromPath(path string) (models.HostDevice, error) {
-	var (
-		stat   unix.Stat_t
-		device models.HostDevice
-	)
-
-	err := unix.Lstat(path, &stat)
-	if err != nil {
-		return models.HostDevice{}, err
-	}
-
-	devNumber := uint64(stat.Rdev)
-
-	switch stat.Mode & unix.S_IFMT {
-	case unix.S_IFBLK:
-		device.DeviceType = "BlockDevice"
-	case unix.S_IFCHR:
-		device.DeviceType = "CharacterDevice"
-	case unix.S_IFIFO:
-		device.DeviceType = "FifoDevice"
-	default:
-		return models.HostDevice{}, errNotADevice
-	}
-
-	device.Major = int64(unix.Major(devNumber))
-	device.Minor = int64(unix.Minor(devNumber))
-	device.Path = path
-	device.UID = int64(stat.Uid)
-	device.Gid = int64(stat.Gid)
-
-	return device, nil
 }

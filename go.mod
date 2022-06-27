@@ -18,6 +18,7 @@ require (
 	github.com/jaypipes/ghw v0.7.0
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
+	github.com/opencontainers/runc v1.1.3
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
 	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
