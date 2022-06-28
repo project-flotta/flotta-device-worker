@@ -14,7 +14,9 @@ Source0:    %{name}-%{version}.tar.gz
 BuildRequires:  golang
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  bash
-BuildRequires:  btrfs-progs-devel
+%if 0%{?fedora} && ! 0%{?rhel}
+BuildRequires: btrfs-progs-devel
+%endif
 BuildRequires:  device-mapper-devel
 
 %if 0%{?rhel}
@@ -44,6 +46,12 @@ The Flotta agent communicates with the Flotta control plane. It reports the stat
 
 %prep
 tar fx %{SOURCE0}
+
+# RHEL does not support btrfs
+# https://github.com/containers/podman/blob/948c5e915aec709beb4e171a72c7e54504889baf/podman.spec.rpkg#L162-L164
+%if 0%{?rhel}
+rm -rf vendor/github.com/containers/storage/drivers/register/register_btrfs.go
+%endif
 
 %build
 cd flotta-agent-%{VERSION}
