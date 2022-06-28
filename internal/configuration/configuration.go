@@ -113,7 +113,7 @@ func (m *Manager) GetSecrets() models.SecretList {
 func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	m.lock.RLock()
 	configurationEqual := reflect.DeepEqual(message.Configuration, m.deviceConfiguration.Configuration)
-	workloadsEqual := reflect.DeepEqual(message.Workloads, m.deviceConfiguration.Workloads)
+	workloadsEqual := isEqualUnorderedWorkloadLists(message.Workloads, m.deviceConfiguration.Workloads)
 	secretsEqual := isEqualUnorderedSecretLists(message.Secrets, m.deviceConfiguration.Secrets)
 	m.lock.RUnlock()
 
@@ -197,6 +197,24 @@ func isEqualUnorderedSecretLists(x models.SecretList, y models.SecretList) bool 
 	for _, secret := range y {
 		otherSecret, ok := secretsMap[secret.Name]
 		if !ok || !reflect.DeepEqual(secret, otherSecret) {
+			return false
+		}
+	}
+	return true
+}
+
+func isEqualUnorderedWorkloadLists(x models.WorkloadList, y models.WorkloadList) bool {
+	// nil and empty lists are considered equal. it's the contents that we care about
+	if len(x) != len(y) {
+		return false
+	}
+	workloadsMap := map[string]*models.Workload{}
+	for _, workload := range x {
+		workloadsMap[workload.Name] = workload
+	}
+	for _, workload := range y {
+		otherWorkload, ok := workloadsMap[workload.Name]
+		if !ok || !reflect.DeepEqual(workload, otherWorkload) {
 			return false
 		}
 	}
