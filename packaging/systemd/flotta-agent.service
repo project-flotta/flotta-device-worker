@@ -1,0 +1,16 @@
+[Unit]
+Description=Create flotta user
+Before=systemd-logind.service
+Before=podman.service
+Before=yggdrasild.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=bash -c "getent group flotta >/dev/null || groupadd flotta"
+ExecStart=bash -c "getent passwd flotta >/dev/null || useradd -g flotta -s /sbin/nologin -d /var/home/flotta flotta"
+TimeoutSec=90s
+
+[Install]
+WantedBy=sysinit.target
+

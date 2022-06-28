@@ -44,7 +44,6 @@ The Flotta agent communicates with the Flotta control plane. It reports the stat
 
 %prep
 tar fx %{SOURCE0}
-%sysusers_create_compat flotta-agent-%{VERSION}/%{flotta_systemd}/flotta-agent.sysusers
 
 %build
 cd flotta-agent-%{VERSION}
@@ -61,27 +60,31 @@ install ./bin/device-worker %{buildroot}%{_libexecdir}/yggdrasil/device-worker
 install ./bin/device-worker-race %{buildroot}%{_libexecdir}/yggdrasil/device-worker-race
 make install-worker-config USER=%{flotta_user} HOME=/var/home/%{flotta_user} LIBEXECDIR=%{_libexecdir} BUILDROOT=%{buildroot} SYSCONFDIR=%{_sysconfdir}
 
-install -Dpm 644 %{flotta_systemd}/flotta-agent.sysusers %{buildroot}%{_sysusersdir}/%{name}.conf
+install -Dpm 644 %{flotta_systemd}/flotta-agent.service %{buildroot}%{_unitdir}/%{name}.service
 install -Dpm 644 %{flotta_systemd}/flotta.conf %{buildroot}/etc/tmpfiles.d/%{name}.conf
 
 %files
 %{_libexecdir}/yggdrasil/device-worker
 %{_sysconfdir}/yggdrasil/
-%{_sysusersdir}/%{name}.conf
 /etc/tmpfiles.d/%{name}.conf
+%{_unitdir}/%{name}.service
 
 %files race
 %{_libexecdir}/yggdrasil/device-worker-race
 %{_sysconfdir}/yggdrasil/
-%{_sysusersdir}/%{name}.conf
+%{_unitdir}/%{name}.service
 /etc/tmpfiles.d/%{name}.conf
 
 %post
 systemctl enable --now nftables.service
+ln -s -f %{_unitdir}/%{name}.service /etc/systemd/system/multi-user.target.wants/flotta-agent.service
+systemctl start flotta-agent || exit 0 # can fail on rpm-ostree base system
 
 %post race
 ln -sf %{_libexecdir}/yggdrasil/device-worker-race %{_libexecdir}/yggdrasil/device-worker
 systemctl enable --now nftables.service
+ln -s -f %{_unitdir}/%{name}.service /etc/systemd/system/multi-user.target.wants/flotta-agent.service
+systemctl start flotta-agent || exit 0 # can fail on rpm-ostree base system
 
 %changelog
 * Thu Jun 23 2022 Jordi Gil <jgil@redhat.com> 0.1.0-3
