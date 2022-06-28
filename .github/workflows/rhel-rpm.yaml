@@ -1,0 +1,22 @@
+---
+name: RHEL RPM build
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  rpm:
+    name: Build rpm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out proper version of sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Build container
+        run: |
+          docker build -t flotta/ubi -f tools/ubi-Dockerfile .
+          docker run --rm -w /opt/device -v $(pwd):/opt/device flotta/ubi make rpm-build

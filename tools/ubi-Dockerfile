@@ -1,0 +1,3 @@
+FROM registry.access.redhat.com/ubi8/ubi
+
+RUN dnf -y install rpm-build golang device-mapper-devel systemd-rpm-macros bash git make
