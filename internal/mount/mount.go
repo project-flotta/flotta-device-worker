@@ -28,8 +28,8 @@ type Manager struct {
 func New() (*Manager, error) {
 	content, err := os.ReadFile(filesystemsFile)
 	if err != nil {
-		log.Warnf("Cannot list content of '/etc/filesystems': %s", err)
-		return nil, fmt.Errorf("cannot list content of '/etc/filesystems': %s", err)
+		log.Warnf("Cannot list content of '%s': %s", filesystemsFile, err)
+		return nil, fmt.Errorf("cannot list content of '%s': %s", filesystemsFile, err)
 	}
 
 	return &Manager{
@@ -57,7 +57,7 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 
 	for _, mm := range config.Configuration.Mounts {
 		if _, found := alreadyMounted[mm.Directory]; found {
-			log.Warnf("Directory '%s' has already been mounted. Skipping..")
+			log.Warnf("Directory '%s' has already been mounted. Skipping..", mm.Directory)
 			continue
 		}
 
@@ -92,7 +92,7 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 	return nil
 }
 
-// isValid return true if
+// isValid return nil if everything is ok:
 // - device is a block device
 // - directory exists
 // - type of the mount is found in /etc/filesystems
