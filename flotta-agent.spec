@@ -50,7 +50,7 @@ tar fx %{SOURCE0}
 # RHEL does not support btrfs
 # https://github.com/containers/podman/blob/948c5e915aec709beb4e171a72c7e54504889baf/podman.spec.rpkg#L162-L164
 %if 0%{?rhel}
-rm -rf vendor/github.com/containers/storage/drivers/register/register_btrfs.go
+rm -rf flotta-agent-%{VERSION}/vendor/github.com/containers/storage/drivers/register/register_btrfs.go
 %endif
 
 %build
