@@ -20,7 +20,7 @@ jobs:
       - name: Install tooling for source RPM build
         run: |
           dnf -y install @development-tools @rpm-development-tools
-          dnf -y install copr-cli make
+          dnf -y install copr-cli make jq
 
       - name: Check out proper version of sources
         uses: actions/checkout@v3
