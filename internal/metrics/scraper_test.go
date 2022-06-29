@@ -3,12 +3,15 @@ package metrics_test
 import (
 	"compress/gzip"
 	"context"
+	"net/http"
+	"net/http/httptest"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
-	"net/http"
-	"net/http/httptest"
 )
 
 const (
@@ -44,89 +47,134 @@ var (
 )
 
 var _ = Describe("Scraper", func() {
-	It("should scrape metrics", func() {
-		// given
-		server := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
-				_, _ = w.Write([]byte(metricsPayload))
-			}),
-		)
-		defer server.Close()
 
-		scraper, err := metrics.NewHTTPScraper(server.URL)
-		Expect(err).ToNot(HaveOccurred())
+	When("Using an HTTP URL", func() {
 
-		// when
-		samples, err := scraper.Scrape(context.TODO())
+		It("should scrape metrics", func() {
+			// given
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
+					_, _ = w.Write([]byte(metricsPayload))
+				}),
+			)
+			defer server.Close()
 
-		// then
-		Expect(err).ToNot(HaveOccurred())
-		Expect(samples).To(HaveLen(2))
-		Expect(samples).To(ContainElements(expectedSamples))
+			scraper, err := metrics.NewHTTPScraper(server.URL)
+			Expect(err).ToNot(HaveOccurred())
+
+			// when
+			samples, err := scraper.Scrape(context.TODO())
+
+			// then
+			Expect(err).ToNot(HaveOccurred())
+			Expect(samples).To(HaveLen(2))
+			Expect(samples).To(ContainElements(expectedSamples))
+		})
+
+		It("should scrape metrics with gzip encoding", func() {
+			// given
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
+					w.Header().Set("Content-Encoding", "gzip")
+					gzipWriter := gzip.NewWriter(w)
+					_, _ = gzipWriter.Write([]byte(metricsPayload))
+					_ = gzipWriter.Close()
+				}),
+			)
+			defer server.Close()
+
+			scraper, err := metrics.NewHTTPScraper(server.URL)
+			Expect(err).ToNot(HaveOccurred())
+
+			// when
+			samples, err := scraper.Scrape(context.TODO())
+
+			// then
+			Expect(err).ToNot(HaveOccurred())
+			Expect(samples).To(HaveLen(2))
+			Expect(samples).To(ContainElements(expectedSamples))
+		})
+
+		It("should report error on HTTP error", func() {
+			// given
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusInternalServerError)
+				}),
+			)
+			defer server.Close()
+
+			scraper, err := metrics.NewHTTPScraper(server.URL)
+			Expect(err).ToNot(HaveOccurred())
+
+			// when
+			_, err = scraper.Scrape(context.TODO())
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should report error on metrics decoding error", func() {
+			// given
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
+					_, _ = w.Write([]byte("!!!!"))
+				}),
+			)
+			defer server.Close()
+
+			scraper, err := metrics.NewHTTPScraper(server.URL)
+			Expect(err).ToNot(HaveOccurred())
+
+			// when
+			_, err = scraper.Scrape(context.TODO())
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
 	})
 
-	It("should scrape metrics with gzip encoding", func() {
-		// given
-		server := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
-				w.Header().Set("Content-Encoding", "gzip")
-				gzipWriter := gzip.NewWriter(w)
-				_, _ = gzipWriter.Write([]byte(metricsPayload))
-				_ = gzipWriter.Close()
-			}),
+	When("Using a prometheus gatherer", func() {
+		var (
+			registry *prometheus.Registry
+			factory  promauto.Factory
 		)
-		defer server.Close()
 
-		scraper, err := metrics.NewHTTPScraper(server.URL)
-		Expect(err).ToNot(HaveOccurred())
+		It("should scrape metrics", func() {
+			registry = prometheus.NewRegistry()
+			factory = promauto.With(registry)
+			m := factory.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "flotta_agent_datasync_files_transferred_counter",
+					Help: "help",
+				}, []string{"workloadName", "direction"})
+			m2 := factory.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "flotta_agent_datasync_bytes_transferred_counter",
+					Help: "help",
+				}, []string{"workloadName", "direction"})
 
-		// when
-		samples, err := scraper.Scrape(context.TODO())
-
-		// then
-		Expect(err).ToNot(HaveOccurred())
-		Expect(samples).To(HaveLen(2))
-		Expect(samples).To(ContainElements(expectedSamples))
+			m.WithLabelValues("wrk1", "egress").Add(10)
+			m2.WithLabelValues("wrk1", "egress").Add(200)
+			scrapper := metrics.NewObjectScraper(registry)
+			r, err := scrapper.Scrape(context.Background())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(r)).To(Equal(2))
+			Expect(r[0].Metric).To(Equal(model.Metric{model.MetricNameLabel: "flotta_agent_datasync_bytes_transferred_counter",
+				"workloadName": "wrk1", "direction": "egress"}))
+			Expect(r[0].Value).To(Equal(model.SampleValue(200)))
+			Expect(r[0].Timestamp).To(BeNumerically(">", 0))
+			Expect(r[0].Timestamp).To(BeNumerically("<=", model.Now()))
+			//And
+			Expect(r[1].Metric).To(Equal(model.Metric{model.MetricNameLabel: "flotta_agent_datasync_files_transferred_counter",
+				"workloadName": "wrk1", "direction": "egress"}))
+			Expect(r[1].Value).To(Equal(model.SampleValue(10)))
+			Expect(r[1].Timestamp).To(BeNumerically(">", 0))
+			Expect(r[1].Timestamp).To(BeNumerically("<=", model.Now()))
+		})
 	})
 
-	It("should report error on HTTP error", func() {
-		// given
-		server := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusInternalServerError)
-			}),
-		)
-		defer server.Close()
-
-		scraper, err := metrics.NewHTTPScraper(server.URL)
-		Expect(err).ToNot(HaveOccurred())
-
-		// when
-		_, err = scraper.Scrape(context.TODO())
-
-		// then
-		Expect(err).To(HaveOccurred())
-	})
-
-	It("should report error on metrics decoding error", func() {
-		// given
-		server := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
-				_, _ = w.Write([]byte("!!!!"))
-			}),
-		)
-		defer server.Close()
-
-		scraper, err := metrics.NewHTTPScraper(server.URL)
-		Expect(err).ToNot(HaveOccurred())
-
-		// when
-		_, err = scraper.Scrape(context.TODO())
-
-		// then
-		Expect(err).To(HaveOccurred())
-	})
 })

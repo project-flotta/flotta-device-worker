@@ -58,7 +58,7 @@ var _ = Describe("System", func() {
 	It("should add node_exporter endpoint for scraping at init: default configuration", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(defaultFilter)).
 			Times(1)
@@ -77,7 +77,7 @@ var _ = Describe("System", func() {
 	It("should add node_exporter endpoint for scraping at init: custom configuration", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(duration)),
 			gomock.Eq(customFilter))
 		nodeExporterMock.EXPECT().Enable()
@@ -104,7 +104,7 @@ var _ = Describe("System", func() {
 			},
 		}
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(customFilter))
 		nodeExporterMock.EXPECT().Enable()
@@ -123,7 +123,7 @@ var _ = Describe("System", func() {
 	It("should not re-add node_exporter endpoint for scraping when default configuration is used on init and in update", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(defaultFilter)).
 			Times(1)
@@ -145,7 +145,7 @@ var _ = Describe("System", func() {
 	It("should not re-add node_exporter endpoint for scraping when default configuration is used repeatedly in update", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(defaultFilter)).
 			Times(1)
@@ -169,7 +169,7 @@ var _ = Describe("System", func() {
 	It("should not re-add node_exporter endpoint for scraping when same custom configuration is used on init and in update", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(duration)),
 			gomock.Eq(customFilter)).
 			Times(1)
@@ -194,7 +194,7 @@ var _ = Describe("System", func() {
 	It("should not re-add node_exporter endpoint for scraping when same custom configuration is used repeatedly in update", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(duration)),
 			gomock.Eq(customFilter)).
 			Times(1)
@@ -217,13 +217,13 @@ var _ = Describe("System", func() {
 	It("should re-add node_exporter endpoint for scraping when configuration changes from default to custom", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(duration)),
 			gomock.Eq(customFilter)).
 			Times(1).
 			After(
 				daemonMock.EXPECT().AddTarget(gomock.Any(),
-					gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+					gomock.Any(),
 					gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 					gomock.Eq(defaultFilter)).
 					Times(1),
@@ -246,13 +246,13 @@ var _ = Describe("System", func() {
 	It("should re-add node_exporter endpoint for scraping when configuration changes from custom to default", func() {
 		// given
 		daemonMock.EXPECT().AddTarget(gomock.Any(),
-			gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+			gomock.Any(),
 			gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 			gomock.Eq(defaultFilter)).
 			Times(1).
 			After(
 				daemonMock.EXPECT().AddTarget(gomock.Any(),
-					gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+					gomock.Any(),
 					gomock.Eq(time.Second*time.Duration(duration)),
 					gomock.Eq(customFilter)).
 					Times(1),
@@ -377,7 +377,7 @@ var _ = Describe("System", func() {
 		// given
 		daemonMock.EXPECT().DeleteTarget("system").After(
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{metrics.NodeExporterMetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(metrics.DefaultSystemMetricsScrapingInterval)),
 				gomock.Eq(defaultFilter)).
 				Times(1),

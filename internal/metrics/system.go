@@ -66,7 +66,7 @@ func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error 
 		sm.daemon.DeleteTarget(systemTargetName)
 	} else {
 		filter := getSampleFilter(newConfiguration.AllowList)
-		sm.daemon.AddTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
+		sm.daemon.AddTarget(systemTargetName, CreateHTTPScraper([]string{NodeExporterMetricsEndpoint}), time.Duration(newConfiguration.Interval)*time.Second, filter)
 	}
 
 	sm.latestConfig.Store(&newConfiguration)

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"git.sr.ht/~spc/go-log"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 )
 
@@ -18,8 +19,7 @@ const (
 type TargetMetric struct {
 	name             string
 	interval         time.Duration
-	urls             []string
-	scrapers         []*HTTPScraper
+	scrapers         []Scraper
 	ctx              context.Context
 	cancel           context.CancelFunc
 	forcetrigger     chan bool
@@ -29,11 +29,11 @@ type TargetMetric struct {
 	allowList        SampleFilter
 }
 
-func NewTargetMetric(targetName string, interval time.Duration, urls []string, store API, allowList SampleFilter) *TargetMetric {
+func NewTargetMetric(targetName string, interval time.Duration, scrappers []Scraper, store API, allowList SampleFilter) *TargetMetric {
 	return &TargetMetric{
 		name:         targetName,
 		interval:     interval,
-		urls:         urls,
+		scrapers:     scrappers,
 		forcetrigger: make(chan bool),
 		store:        store,
 		allowList:    allowList,
@@ -51,8 +51,7 @@ func (tg *TargetMetric) LatestSuccessRun() time.Time {
 }
 
 func (tg *TargetMetric) Start() {
-	log.Infof("started targetMetric for workload '%v' with urls '%+v'",
-		tg.name, tg.urls)
+	log.Infof("started targetMetric for workload '%v'", tg.name)
 
 	tg.lock.Lock()
 	// if it was started early, stop it
@@ -60,7 +59,6 @@ func (tg *TargetMetric) Start() {
 		tg.cancel()
 	}
 
-	tg.createScraper()
 	tg.ctx, tg.cancel = context.WithCancel(context.Background())
 	ticker := time.NewTicker(tg.interval)
 	tg.lock.Unlock()
@@ -120,16 +118,22 @@ func (tg *TargetMetric) Stop() {
 	tg.cancel = nil
 }
 
-func (tg *TargetMetric) createScraper() {
-	scrapers := []*HTTPScraper{}
-	for _, url := range tg.urls {
+type Scrappers []Scraper
+
+func CreateHTTPScraper(urls []string) Scrappers {
+	scrapers := []Scraper{}
+	for _, url := range urls {
 		scrape, err := NewHTTPScraper(url)
 		if err != nil {
-			log.Errorf("cannot start scraper for %v: %v", url, err)
+			log.Errorf("cannot start HTTP scraper for %v: %v", url, err)
 		}
 		scrapers = append(scrapers, scrape)
 	}
-	tg.scrapers = scrapers
+	return scrapers
+}
+
+func CreateObjectScraper(gather prometheus.Gatherer) Scrapers {
+	return []Scraper{NewObjectScraper(gather)}
 }
 
 func (tg *TargetMetric) Run(ctx context.Context) model.Vector {
@@ -148,7 +152,7 @@ func (tg *TargetMetric) Run(ctx context.Context) model.Vector {
 //go:generate mockgen -package=metrics -destination=mock_daemon.go . MetricsDaemon
 type MetricsDaemon interface {
 	Start()
-	AddTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter)
+	AddTarget(targetName string, scrappers Scrappers, interval time.Duration, allowList SampleFilter)
 	DeleteTarget(targetName string)
 }
 
@@ -191,10 +195,10 @@ func (md *metricsDaemon) startTarget(target *TargetMetric) {
 }
 
 // AddTarget adds a metrics scraping target with filtering
-func (md *metricsDaemon) AddTarget(targetName string, urls []string, interval time.Duration, allowList SampleFilter) {
-	target := NewTargetMetric(targetName, interval, urls, md.store, allowList)
-	log.Debugf("added target '%v' with the following urls: '%+v", targetName, urls)
+func (md *metricsDaemon) AddTarget(targetName string, scrappers Scrappers, interval time.Duration, allowList SampleFilter) {
 
+	log.Debugf("added target '%v' with the following urls: '%+v", targetName, scrappers)
+	target := NewTargetMetric(targetName, interval, scrappers, md.store, allowList)
 	// stop if it is already present.
 	md.DeleteTarget(targetName)
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	"github.com/project-flotta/flotta-operator/models"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -22,11 +23,13 @@ var defaultDataTransferMetricsConfiguration = models.ComponentMetricsConfigurati
 type DataTransferMetrics struct {
 	latestConfig atomic.Value
 	daemon       MetricsDaemon
+	gatherer     prometheus.Gatherer
 }
 
 func NewDataTransferMetrics(daemon MetricsDaemon) *DataTransferMetrics {
 	return &DataTransferMetrics{
-		daemon: daemon,
+		daemon:   daemon,
+		gatherer: datatransfer.GetRegistry(),
 	}
 }
 
@@ -70,7 +73,7 @@ func (dt *DataTransferMetrics) updateTarget(newConfiguration models.ComponentMet
 		dt.daemon.DeleteTarget(dataTransferTargetName)
 	} else {
 		filter := getDataTransferSampleFilter(newConfiguration.AllowList)
-		dt.daemon.AddTarget(dataTransferTargetName, []string{datatransfer.MetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
+		dt.daemon.AddTarget(dataTransferTargetName, CreateObjectScraper(dt.gatherer), time.Duration(newConfiguration.Interval)*time.Second, filter)
 	}
 	dt.latestConfig.Store(&newConfiguration)
 }

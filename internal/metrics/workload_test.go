@@ -110,7 +110,7 @@ var _ = Describe("Workload", func() {
 			// then
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
-				[]string{"http://192.168.1.1:9000/custom_metrics"},
+				gomock.Any(),
 				50*time.Second,
 				&metrics.PermissiveAllowList{}).Times(1)
 
@@ -148,10 +148,9 @@ var _ = Describe("Workload", func() {
 			// then
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
-				[]string{"http://192.168.1.1:8888/c1/"},
+				gomock.Any(),
 				50*time.Second,
 				&metrics.PermissiveAllowList{}).Times(1)
-
 			// when
 			wrk.WorkloadStarted("wrk1", []*podman.PodReport{report})
 		})
@@ -195,7 +194,7 @@ var _ = Describe("Workload", func() {
 			// then
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
-				[]string{"http://192.168.1.1:9000/", "http://192.168.1.2:8888/"},
+				gomock.Any(),
 				50*time.Second,
 				&metrics.PermissiveAllowList{}).Times(1)
 
@@ -242,7 +241,7 @@ var _ = Describe("Workload", func() {
 			// then
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
-				[]string{"http://192.168.1.2:8888/c2/"},
+				gomock.Any(),
 				50*time.Second,
 				&metrics.PermissiveAllowList{}).Times(1)
 
@@ -289,7 +288,7 @@ var _ = Describe("Workload", func() {
 			// then
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
-				[]string{"http://192.168.1.1:8888/c1/", "http://192.168.1.2:9000/custom_metrics", "http://192.168.1.3:8888/c3/"},
+				gomock.Any(),
 				50*time.Second,
 				&metrics.PermissiveAllowList{}).Times(1)
 
@@ -326,7 +325,7 @@ var _ = Describe("Workload", func() {
 			// then
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
-				[]string{"http://192.168.1.1:9000/custom_metrics"},
+				gomock.Any(),
 				50*time.Second,
 				metrics.NewRestrictiveAllowList(allowList)).Times(1)
 
@@ -361,7 +360,7 @@ var _ = Describe("Workload", func() {
 			// then
 			daemonMock.EXPECT().AddTarget(
 				"wrk1",
-				[]string{"http://192.168.1.1:9000/custom_metrics"},
+				gomock.Any(),
 				50*time.Second,
 				metrics.NewRestrictiveAllowList(nil)).Times(1)
 

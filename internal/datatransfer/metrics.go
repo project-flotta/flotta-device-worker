@@ -1,23 +1,16 @@
 package datatransfer
 
 import (
-	"log"
-	"net/http"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-)
-
-const (
-	DataSyncTransferMetricsAddress           = "localhost:9101"
-	DataSyncTransferMetricsPath              = "/metrics"
-	MetricsEndpoint                          = "http://" + DataSyncTransferMetricsAddress + DataSyncTransferMetricsPath
-	egress                         direction = "egress"
-	ingress                        direction = "ingress"
 )
 
 type direction string
+
+const (
+	egress  direction = "egress"
+	ingress direction = "ingress"
+)
 
 var (
 	registry = prometheus.NewRegistry()
@@ -45,12 +38,9 @@ var (
 		}, []string{"workload_name", "direction"})
 )
 
-func StartMetrics() {
-	http.Handle(DataSyncTransferMetricsPath, promhttp.Handler())
-	err := http.ListenAndServe(DataSyncTransferMetricsAddress, nil)
-	if err != nil {
-		log.Fatalf("unable to start data transfer metrics server %s", err)
-	}
+func GetRegistry() prometheus.Gatherer {
+
+	return registry
 }
 
 func reportMetrics(workloadName string, dir direction, bytesTransmitted, filesTransmitted, deletedFiles float64, syncTime int64) {

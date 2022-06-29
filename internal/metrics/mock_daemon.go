@@ -35,7 +35,7 @@ func (m *MockMetricsDaemon) EXPECT() *MockMetricsDaemonMockRecorder {
 }
 
 // AddTarget mocks base method.
-func (m *MockMetricsDaemon) AddTarget(arg0 string, arg1 []string, arg2 time.Duration, arg3 SampleFilter) {
+func (m *MockMetricsDaemon) AddTarget(arg0 string, arg1 Scrappers, arg2 time.Duration, arg3 SampleFilter) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AddTarget", arg0, arg1, arg2, arg3)
 }

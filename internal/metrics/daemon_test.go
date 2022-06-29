@@ -53,7 +53,7 @@ var _ = Describe("Daemon", func() {
 			// given
 
 			store := metrics.NewMockAPI(mockCtrl)
-			target := metrics.NewTargetMetric("wrk1", 1*time.Minute, []string{fmt.Sprintf("%s/metrics", server.URL)}, store, &metrics.PermissiveAllowList{})
+			target := metrics.NewTargetMetric("wrk1", 1*time.Minute, metrics.CreateHTTPScraper([]string{fmt.Sprintf("%s/metrics", server.URL)}), store, &metrics.PermissiveAllowList{})
 
 			started := time.Now()
 			checkExecuting := func() bool {
@@ -88,7 +88,7 @@ var _ = Describe("Daemon", func() {
 			filter := metrics.NewRestrictiveAllowList(&models.MetricsAllowList{
 				Names: []string{"prometheus_samples_queue_capacity"},
 			})
-			target := metrics.NewTargetMetric("wrk1", 1*time.Minute, []string{fmt.Sprintf("%s/metrics", server.URL)}, store, filter)
+			target := metrics.NewTargetMetric("wrk1", 1*time.Minute, metrics.CreateHTTPScraper([]string{fmt.Sprintf("%s/metrics", server.URL)}), store, filter)
 
 			started := time.Now()
 			checkExecuting := func() bool {
@@ -128,7 +128,7 @@ var _ = Describe("Daemon", func() {
 			daemon := metrics.NewMetricsDaemon(metrics.NewMockAPI(mockCtrl))
 
 			// when
-			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
+			daemon.AddTarget("wrk1", metrics.CreateHTTPScraper([]string{"http://192.168.1.1:8080"}), time.Second, &metrics.PermissiveAllowList{})
 
 			// then
 			targets := daemon.GetTargets()
@@ -141,10 +141,10 @@ var _ = Describe("Daemon", func() {
 			// given
 			daemon := metrics.NewMetricsDaemon(metrics.NewMockAPI(mockCtrl))
 
+			daemon.AddTarget("wrk1", metrics.CreateHTTPScraper([]string{"http://192.168.1.1:8080"}), time.Second, &metrics.PermissiveAllowList{})
+			daemon.AddTarget("wrk2", metrics.CreateHTTPScraper([]string{"http://192.168.1.1:8080"}), time.Second, &metrics.PermissiveAllowList{})
+			daemon.AddTarget("wrk3", metrics.CreateHTTPScraper([]string{"http://192.168.1.1:8080"}), time.Second, &metrics.PermissiveAllowList{})
 			// when
-			daemon.AddTarget("wrk1", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
-			daemon.AddTarget("wrk2", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
-			daemon.AddTarget("wrk3", []string{"http://192.168.1.1:8080"}, time.Second, &metrics.PermissiveAllowList{})
 			daemon.DeleteTarget("wrk2")
 
 			// then

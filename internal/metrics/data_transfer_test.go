@@ -6,7 +6,6 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/project-flotta/flotta-device-worker/internal/datatransfer"
 	"github.com/project-flotta/flotta-device-worker/internal/metrics"
 	"github.com/project-flotta/flotta-operator/models"
 )
@@ -57,7 +56,7 @@ var _ = Describe("Data Transfer", func() {
 		It("default configuration", func() {
 			// given
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(metrics.DefaultDataTransferMetricsScrapingInterval)),
 				gomock.Eq(defaultFilter)).
 				Times(1)
@@ -74,7 +73,7 @@ var _ = Describe("Data Transfer", func() {
 		It("custom configuration", func() {
 			// given
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(duration)),
 				gomock.Eq(customFilter))
 			sm := metrics.NewDataTransferMetrics(daemonMock)
@@ -99,9 +98,9 @@ var _ = Describe("Data Transfer", func() {
 				},
 			}
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(metrics.DefaultDataTransferMetricsScrapingInterval)),
-				gomock.Eq(customFilter))
+				gomock.Eq(customFilter)).Times(1)
 
 			sm := metrics.NewDataTransferMetrics(daemonMock)
 
@@ -142,11 +141,11 @@ var _ = Describe("Data Transfer", func() {
 
 		It("should not re-add endpoint for scraping when default configuration is used repeatedly in update", func() {
 			// given
+
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(metrics.DefaultDataTransferMetricsScrapingInterval)),
-				gomock.Eq(defaultFilter)).
-				Times(1)
+				gomock.Eq(defaultFilter)).Times(1)
 
 			dt := metrics.NewDataTransferMetrics(daemonMock)
 			err := dt.Init(noMetricsConfig)
@@ -165,7 +164,7 @@ var _ = Describe("Data Transfer", func() {
 		It("should not re-add endpoint for scraping when same custom configuration is used repeatedly in update", func() {
 			// given
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(duration)),
 				gomock.Eq(customFilter)).
 				Times(1)
@@ -184,13 +183,13 @@ var _ = Describe("Data Transfer", func() {
 		It("should re-add endpoint for scraping when configuration changes from default to custom", func() {
 			// given
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(duration)),
 				gomock.Eq(customFilter)).
 				Times(1).
 				After(
 					daemonMock.EXPECT().AddTarget(gomock.Any(),
-						gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+						gomock.Any(),
 						gomock.Eq(time.Second*time.Duration(metrics.DefaultDataTransferMetricsScrapingInterval)),
 						gomock.Eq(defaultFilter)).
 						Times(1),
@@ -212,13 +211,13 @@ var _ = Describe("Data Transfer", func() {
 		It("should re-add  endpoint for scraping when configuration changes from custom to default", func() {
 			// given
 			daemonMock.EXPECT().AddTarget(gomock.Any(),
-				gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+				gomock.Any(),
 				gomock.Eq(time.Second*time.Duration(metrics.DefaultDataTransferMetricsScrapingInterval)),
 				gomock.Eq(defaultFilter)).
 				Times(1).
 				After(
 					daemonMock.EXPECT().AddTarget(gomock.Any(),
-						gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+						gomock.Any(),
 						gomock.Eq(time.Second*time.Duration(duration)),
 						gomock.Eq(customFilter)).
 						Times(1),
@@ -240,7 +239,7 @@ var _ = Describe("Data Transfer", func() {
 			// given
 			daemonMock.EXPECT().DeleteTarget("data transfer").After(
 				daemonMock.EXPECT().AddTarget(gomock.Any(),
-					gomock.Eq([]string{datatransfer.MetricsEndpoint}),
+					gomock.Any(),
 					gomock.Eq(time.Second*time.Duration(metrics.DefaultDataTransferMetricsScrapingInterval)),
 					gomock.Eq(defaultFilter)).
 					Times(1),
