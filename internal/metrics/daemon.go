@@ -19,7 +19,7 @@ const (
 type TargetMetric struct {
 	name             string
 	interval         time.Duration
-	scrapers         []Scraper
+	scrapers         Scrapers
 	ctx              context.Context
 	cancel           context.CancelFunc
 	forcetrigger     chan bool
@@ -29,11 +29,11 @@ type TargetMetric struct {
 	allowList        SampleFilter
 }
 
-func NewTargetMetric(targetName string, interval time.Duration, scrappers []Scraper, store API, allowList SampleFilter) *TargetMetric {
+func NewTargetMetric(targetName string, interval time.Duration, scrapers Scrapers, store API, allowList SampleFilter) *TargetMetric {
 	return &TargetMetric{
 		name:         targetName,
 		interval:     interval,
-		scrapers:     scrappers,
+		scrapers:     scrapers,
 		forcetrigger: make(chan bool),
 		store:        store,
 		allowList:    allowList,
@@ -118,10 +118,10 @@ func (tg *TargetMetric) Stop() {
 	tg.cancel = nil
 }
 
-type Scrappers []Scraper
+type Scrapers []Scraper
 
-func CreateHTTPScraper(urls []string) Scrappers {
-	scrapers := []Scraper{}
+func CreateHTTPScraper(urls []string) Scrapers {
+	scrapers := Scrapers{}
 	for _, url := range urls {
 		scrape, err := NewHTTPScraper(url)
 		if err != nil {
@@ -152,7 +152,7 @@ func (tg *TargetMetric) Run(ctx context.Context) model.Vector {
 //go:generate mockgen -package=metrics -destination=mock_daemon.go . MetricsDaemon
 type MetricsDaemon interface {
 	Start()
-	AddTarget(targetName string, scrappers Scrappers, interval time.Duration, allowList SampleFilter)
+	AddTarget(targetName string, scrapers Scrapers, interval time.Duration, allowList SampleFilter)
 	DeleteTarget(targetName string)
 }
 
@@ -195,10 +195,10 @@ func (md *metricsDaemon) startTarget(target *TargetMetric) {
 }
 
 // AddTarget adds a metrics scraping target with filtering
-func (md *metricsDaemon) AddTarget(targetName string, scrappers Scrappers, interval time.Duration, allowList SampleFilter) {
+func (md *metricsDaemon) AddTarget(targetName string, scrapers Scrapers, interval time.Duration, allowList SampleFilter) {
 
-	log.Debugf("added target '%v' with the following urls: '%+v", targetName, scrappers)
-	target := NewTargetMetric(targetName, interval, scrappers, md.store, allowList)
+	log.Debugf("added target '%v' with the following urls: '%+v", targetName, scrapers)
+	target := NewTargetMetric(targetName, interval, scrapers, md.store, allowList)
 	// stop if it is already present.
 	md.DeleteTarget(targetName)
 
