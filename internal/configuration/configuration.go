@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -131,8 +132,21 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 		return nil
 	}
 
-	log.Tracef("updating configuration: %v", message)
 	var errors error
+
+	newJson, err := json.Marshal(message)
+	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("cannot marshal new message to JSON: %s", err))
+		return errors
+	}
+
+	oldJson, err := json.Marshal(m.deviceConfiguration)
+	if err != nil {
+		errors = multierror.Append(errors, fmt.Errorf("cannot marshal old configuration to JSON: %s", err))
+		return errors
+	}
+
+	log.Infof("updating configuration. New config: %s\nOld config: %s", newJson, oldJson)
 	for _, observer := range m.observers {
 		err := observer.Update(message)
 		if err != nil {
@@ -140,14 +154,15 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 		}
 	}
 
-	file, err := json.MarshalIndent(message, "", " ")
+	file := bytes.Buffer{}
+	err = json.Indent(&file, newJson, "", " ")
 	if err != nil {
-		errors = multierror.Append(errors, fmt.Errorf("cannot unmarshal message JSON: %s", err))
+		errors = multierror.Append(errors, fmt.Errorf("cannot indent JSON message: %s", err))
 		return errors
 	}
 
-	log.Tracef("writing config to %s: %s", m.deviceConfigFile, file)
-	err = ioutil.WriteFile(m.deviceConfigFile, file, 0600)
+	log.Tracef("writing config to %s: %s", m.deviceConfigFile, file.String())
+	err = ioutil.WriteFile(m.deviceConfigFile, file.Bytes(), 0600)
 	if err != nil {
 		errors = multierror.Append(fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
 		return errors
