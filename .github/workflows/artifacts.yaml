@@ -36,6 +36,8 @@ jobs:
       - name: Submit the build by uploading the source RPM
         run: |
           make rpm-copr-testing
+          # Delete olders builds
+          copr-cli list-builds project-flotta/flotta-testing --output-format json | jq '[.[]|select(.name=="flotta-agent")] | sort_by(.id) | reverse[] | .id' | sed '1d' | xargs copr-cli delete-build
 
   container:
     runs-on: ubuntu-latest
