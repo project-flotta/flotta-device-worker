@@ -101,3 +101,7 @@ func getDataTransferSampleFilter(allowList *models.MetricsAllowList) SampleFilte
 	}
 	return NewRestrictiveAllowList(allowList)
 }
+
+func CreateObjectScraper(gather prometheus.Gatherer) Scrapers {
+	return []Scraper{NewObjectScraper(gather)}
+}

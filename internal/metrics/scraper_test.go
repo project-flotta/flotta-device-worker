@@ -144,6 +144,7 @@ var _ = Describe("Scraper", func() {
 		)
 
 		It("should scrape metrics", func() {
+			//given
 			registry = prometheus.NewRegistry()
 			factory = promauto.With(registry)
 			m := factory.NewCounterVec(
@@ -159,8 +160,10 @@ var _ = Describe("Scraper", func() {
 
 			m.WithLabelValues("wrk1", "egress").Add(10)
 			m2.WithLabelValues("wrk1", "egress").Add(200)
+			//when
 			scrapper := metrics.NewObjectScraper(registry)
 			r, err := scrapper.Scrape(context.Background())
+			//then
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(r)).To(Equal(2))
 			Expect(r[0].Metric).To(Equal(model.Metric{model.MetricNameLabel: "flotta_agent_datasync_bytes_transferred_counter",

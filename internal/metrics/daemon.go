@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"git.sr.ht/~spc/go-log"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 )
 
@@ -130,10 +129,6 @@ func CreateHTTPScraper(urls []string) Scrapers {
 		scrapers = append(scrapers, scrape)
 	}
 	return scrapers
-}
-
-func CreateObjectScraper(gather prometheus.Gatherer) Scrapers {
-	return []Scraper{NewObjectScraper(gather)}
 }
 
 func (tg *TargetMetric) Run(ctx context.Context) model.Vector {
