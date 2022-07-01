@@ -23,6 +23,7 @@ import (
 	"github.com/containers/storage/pkg/system"
 	"github.com/containers/storage/pkg/tarlog"
 	"github.com/containers/storage/pkg/truncindex"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/klauspost/pgzip"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -220,7 +221,16 @@ type LayerStore interface {
 
 	// SetNames replaces the list of names associated with a layer with the
 	// supplied values.
+	// Deprecated: Prone to race conditions, suggested alternatives are `AddNames` and `RemoveNames`.
 	SetNames(id string, names []string) error
+
+	// AddNames adds the supplied values to the list of names associated with the layer with the
+	// specified id.
+	AddNames(id string, names []string) error
+
+	// RemoveNames remove the supplied values from the list of names associated with the layer with the
+	// specified id.
+	RemoveNames(id string, names []string) error
 
 	// Delete deletes a layer with the specified name or ID.
 	Delete(id string) error
@@ -1031,25 +1041,43 @@ func (r *layerStore) removeName(layer *Layer, name string) {
 	layer.Names = stringSliceWithoutValue(layer.Names, name)
 }
 
+// Deprecated: Prone to race conditions, suggested alternatives are `AddNames` and `RemoveNames`.
 func (r *layerStore) SetNames(id string, names []string) error {
+	return r.updateNames(id, names, setNames)
+}
+
+func (r *layerStore) AddNames(id string, names []string) error {
+	return r.updateNames(id, names, addNames)
+}
+
+func (r *layerStore) RemoveNames(id string, names []string) error {
+	return r.updateNames(id, names, removeNames)
+}
+
+func (r *layerStore) updateNames(id string, names []string, op updateNameOperation) error {
 	if !r.IsReadWrite() {
 		return errors.Wrapf(ErrStoreIsReadOnly, "not allowed to change layer name assignments at %q", r.layerspath())
 	}
-	names = dedupeNames(names)
-	if layer, ok := r.lookup(id); ok {
-		for _, name := range layer.Names {
-			delete(r.byname, name)
-		}
-		for _, name := range names {
-			if otherLayer, ok := r.byname[name]; ok {
-				r.removeName(otherLayer, name)
-			}
-			r.byname[name] = layer
-		}
-		layer.Names = names
-		return r.Save()
+	layer, ok := r.lookup(id)
+	if !ok {
+		return ErrLayerUnknown
 	}
-	return ErrLayerUnknown
+	oldNames := layer.Names
+	names, err := applyNameOperation(oldNames, names, op)
+	if err != nil {
+		return err
+	}
+	for _, name := range oldNames {
+		delete(r.byname, name)
+	}
+	for _, name := range names {
+		if otherLayer, ok := r.byname[name]; ok {
+			r.removeName(otherLayer, name)
+		}
+		r.byname[name] = layer
+	}
+	layer.Names = names
+	return r.Save()
 }
 
 func (r *layerStore) datadir(id string) string {
@@ -1463,34 +1491,48 @@ func (r *layerStore) Diff(from, to string, options *DiffOptions) (io.ReadCloser,
 		}
 		return maybeCompressReadCloser(diff)
 	}
-	defer tsfile.Close()
 
 	decompressor, err := pgzip.NewReader(tsfile)
 	if err != nil {
-		return nil, err
-	}
-	defer decompressor.Close()
-
-	tsbytes, err := ioutil.ReadAll(decompressor)
-	if err != nil {
+		if e := tsfile.Close(); e != nil {
+			logrus.Debug(e)
+		}
 		return nil, err
 	}
 
-	metadata = storage.NewJSONUnpacker(bytes.NewBuffer(tsbytes))
+	metadata = storage.NewJSONUnpacker(decompressor)
 
 	fgetter, err := r.newFileGetter(to)
 	if err != nil {
-		return nil, err
+		errs := multierror.Append(nil, errors.Wrapf(err, "creating file-getter"))
+		if err := decompressor.Close(); err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(err, "closing decompressor"))
+		}
+		if err := tsfile.Close(); err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(err, "closing tarstream headers"))
+		}
+		return nil, errs.ErrorOrNil()
 	}
 
 	tarstream := asm.NewOutputTarStream(fgetter, metadata)
 	rc := ioutils.NewReadCloserWrapper(tarstream, func() error {
-		err1 := tarstream.Close()
-		err2 := fgetter.Close()
-		if err2 == nil {
-			return err1
+		var errs *multierror.Error
+		if err := decompressor.Close(); err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(err, "closing decompressor"))
 		}
-		return err2
+		if err := tsfile.Close(); err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(err, "closing tarstream headers"))
+		}
+		if err := tarstream.Close(); err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(err, "closing reconstructed tarstream"))
+		}
+		if err := fgetter.Close(); err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(err, "closing file-getter"))
+		}
+		if errs != nil {
+			return errs.ErrorOrNil()
+		}
+		return nil
 	})
 	return maybeCompressReadCloser(rc)
 }
@@ -1557,7 +1599,7 @@ func (r *layerStore) applyDiffWithOptions(to string, layerOptions *LayerOptions,
 		compressor = pgzip.NewWriter(&tsdata)
 	}
 	if err := compressor.SetConcurrency(1024*1024, 1); err != nil { // 1024*1024 is the hard-coded default; we're not changing that
-		logrus.Infof("error setting compression concurrency threads to 1: %v; ignoring", err)
+		logrus.Infof("Error setting compression concurrency threads to 1: %v; ignoring", err)
 	}
 	metadata := storage.NewJSONPacker(compressor)
 	uncompressed, err := archive.DecompressStream(defragmented)
