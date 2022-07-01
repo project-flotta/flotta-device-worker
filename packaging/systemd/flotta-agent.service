@@ -9,6 +9,7 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=bash -c "getent group flotta >/dev/null || groupadd flotta"
 ExecStart=bash -c "getent passwd flotta >/dev/null || useradd -g flotta -s /sbin/nologin -d /var/home/flotta flotta"
+ExecStartPost=systemd-tmpfiles --create --remove --boot --exclude-prefix=/dev
 TimeoutSec=90s
 
 [Install]
