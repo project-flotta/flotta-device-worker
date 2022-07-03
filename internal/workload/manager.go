@@ -54,12 +54,14 @@ func NewWorkloadManagerWithParams(dataDir string, ww WorkloadWrapper, deviceId s
 
 func NewWorkloadManagerWithParamsAndInterval(dataDir string, ww WorkloadWrapper, monitorInterval uint, deviceId string) (*WorkloadManager, error) {
 	workloadsDir := path.Join(dataDir, "workloads")
-	if err := os.MkdirAll(workloadsDir, 0750); err != nil {
+	/* #nosec */
+	if err := os.MkdirAll(workloadsDir, 0777); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
 	volumesDir := path.Join(dataDir, "volumes")
 
-	if err := os.MkdirAll(volumesDir, 0750); err != nil {
+	/* #nosec */
+	if err := os.MkdirAll(volumesDir, 0777); err != nil {
 		return nil, fmt.Errorf("cannot create directory: %w", err)
 	}
 	manager := WorkloadManager{
