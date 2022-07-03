@@ -17,7 +17,7 @@ const (
 	NodeExporterMetricsEndpoint          = "http://localhost:9100/metrics"
 )
 
-var defaultSystemMetricsConfiguration = models.SystemMetricsConfiguration{Interval: DefaultSystemMetricsScrapingInterval}
+var defaultSystemMetricsConfiguration = models.ComponentMetricsConfiguration{Interval: DefaultSystemMetricsScrapingInterval}
 
 type SystemMetrics struct {
 	latestConfig atomic.Value
@@ -52,7 +52,7 @@ func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error 
 	newConfiguration := expectedConfiguration(config.Configuration)
 	latestConfig := sm.latestConfig.Load()
 	if latestConfig != nil {
-		oldConfiguration := latestConfig.(*models.SystemMetricsConfiguration)
+		oldConfiguration := latestConfig.(*models.ComponentMetricsConfiguration)
 		if oldConfiguration != nil && reflect.DeepEqual(newConfiguration, *oldConfiguration) {
 			return nil
 		}
@@ -66,7 +66,7 @@ func (sm *SystemMetrics) Update(config models.DeviceConfigurationMessage) error 
 		sm.daemon.DeleteTarget(systemTargetName)
 	} else {
 		filter := getSampleFilter(newConfiguration.AllowList)
-		sm.daemon.AddTarget(systemTargetName, []string{NodeExporterMetricsEndpoint}, time.Duration(newConfiguration.Interval)*time.Second, filter)
+		sm.daemon.AddTarget(systemTargetName, CreateHTTPScraper([]string{NodeExporterMetricsEndpoint}), time.Duration(newConfiguration.Interval)*time.Second, filter)
 	}
 
 	sm.latestConfig.Store(&newConfiguration)
@@ -79,7 +79,7 @@ func (sm *SystemMetrics) Deregister() error {
 	return nil
 }
 
-func expectedConfiguration(config *models.DeviceConfiguration) models.SystemMetricsConfiguration {
+func expectedConfiguration(config *models.DeviceConfiguration) models.ComponentMetricsConfiguration {
 	newConfiguration := defaultSystemMetricsConfiguration
 	if config.Metrics != nil && config.Metrics.System != nil {
 		newConfiguration = *config.Metrics.System
@@ -117,7 +117,7 @@ func (sm *SystemMetrics) ensureNodeExporterEnabled() error {
 	return nil
 }
 
-func (sm *SystemMetrics) ensureNodeExporterState(config models.SystemMetricsConfiguration) error {
+func (sm *SystemMetrics) ensureNodeExporterState(config models.ComponentMetricsConfiguration) error {
 	if config.Disabled {
 		return sm.ensureNodeExporterDisabled()
 	}

@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 )
@@ -26,7 +28,7 @@ type HTTPScraper struct {
 	req    *http.Request
 }
 
-func NewHTTPScraper(url string) (*HTTPScraper, error) {
+func NewHTTPScraper(url string) (Scraper, error) {
 	client := http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -72,7 +74,15 @@ func (s *HTTPScraper) Scrape(ctx context.Context) (model.Vector, error) {
 		reader = resp.Body
 	}
 
-	contentType := resp.Header.Get("Content-Type")
+	return decodeSamples(reader, resp.Header.Get("Content-Type"))
+
+}
+
+func (s *HTTPScraper) String() string {
+	return fmt.Sprintf("HTTP scraper for URL: %s", s.req.RequestURI)
+}
+
+func decodeSamples(reader io.Reader, contentType string) (model.Vector, error) {
 	decoder := expfmt.SampleDecoder{
 		Dec:  expfmt.NewDecoder(reader, expfmt.Format(contentType)),
 		Opts: &expfmt.DecodeOptions{Timestamp: model.Now()},
@@ -92,4 +102,34 @@ func (s *HTTPScraper) Scrape(ctx context.Context) (model.Vector, error) {
 	}
 
 	return allSamples, nil
+}
+
+type ObjectScraper struct {
+	gatherer prometheus.Gatherer
+}
+
+func NewObjectScraper(gather prometheus.Gatherer) Scraper {
+	return &ObjectScraper{gatherer: gather}
+}
+
+func (o *ObjectScraper) Scrape(_ context.Context) (model.Vector, error) {
+	metrics, err := o.gatherer.Gather()
+	if err != nil {
+		return nil, err
+	}
+	v := model.Vector{}
+	for _, m := range metrics {
+		metric := model.Metric{model.MetricNameLabel: model.LabelValue(*m.Name)}
+		for _, item := range m.Metric {
+			for _, labels := range item.Label {
+				metric[model.LabelName(*labels.Name)] = model.LabelValue(*labels.Value)
+			}
+			v = append(v, &model.Sample{Metric: metric, Value: model.SampleValue(*item.Counter.Value), Timestamp: model.Now()})
+		}
+	}
+	return v, nil
+}
+
+func (o *ObjectScraper) String() string {
+	return "Prometheus object scraper"
 }

@@ -43,6 +43,18 @@ func DefaultSystemAllowList() SampleFilter {
 	}
 }
 
+func DefaultDataTransferAllowList() SampleFilter {
+	names := map[string]struct{}{
+		"flotta_agent_datasync_files_transferred_counter":         {},
+		"flotta_agent_datasync_bytes_transferred_counter":         {},
+		"flotta_agent_datasync_time_transferred_counter":          {},
+		"flotta_agent_datasync_deleted_files_transferred_counter": {},
+	}
+	return &RestrictiveAllowList{
+		allowedNames: names,
+	}
+}
+
 func NewRestrictiveAllowList(list *models.MetricsAllowList) SampleFilter {
 	names := make(map[string]struct{})
 

@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -80,6 +80,7 @@ func DefaultOptions() *Options {
 		StripeSize:                DefaultStripeSize,
 		HeadChunksWriteBufferSize: chunks.DefaultWriteBufferSize,
 		IsolationDisabled:         defaultIsolationDisabled,
+		HeadChunksWriteQueueSize:  chunks.DefaultWriteQueueSize,
 	}
 }
 
@@ -134,6 +135,9 @@ type Options struct {
 
 	// HeadChunksWriteBufferSize configures the write buffer size used by the head chunks mapper.
 	HeadChunksWriteBufferSize int
+
+	// HeadChunksWriteQueueSize configures the size of the chunk write queue used in the head chunks mapper.
+	HeadChunksWriteQueueSize int
 
 	// SeriesLifecycleCallback specifies a list of callbacks that will be called during a lifecycle of a series.
 	// It is always a no-op in Prometheus and mainly meant for external users who import TSDB.
@@ -307,7 +311,7 @@ func newDBMetrics(db *DB, r prometheus.Registerer) *dbMetrics {
 	return m
 }
 
-// DBStats contains statistics about the DB seperated by component (eg. head).
+// DBStats contains statistics about the DB separated by component (eg. head).
 // They are available before the DB has finished initializing.
 type DBStats struct {
 	Head *HeadStats
@@ -582,6 +586,9 @@ func validateOpts(opts *Options, rngs []int64) (*Options, []int64) {
 	if opts.HeadChunksWriteBufferSize <= 0 {
 		opts.HeadChunksWriteBufferSize = chunks.DefaultWriteBufferSize
 	}
+	if opts.HeadChunksWriteQueueSize < 0 {
+		opts.HeadChunksWriteQueueSize = chunks.DefaultWriteQueueSize
+	}
 	if opts.MaxBlockChunkSegmentSize <= 0 {
 		opts.MaxBlockChunkSegmentSize = chunks.DefaultChunkSegmentSize
 	}
@@ -632,9 +639,11 @@ func open(dir string, l log.Logger, r prometheus.Registerer, opts *Options, rngs
 	if err := MigrateWAL(l, walDir); err != nil {
 		return nil, errors.Wrap(err, "migrate WAL")
 	}
-	// Remove garbage, tmp blocks.
-	if err := removeBestEffortTmpDirs(l, dir); err != nil {
-		return nil, errors.Wrap(err, "remove tmp dirs")
+	for _, tmpDir := range []string{walDir, dir} {
+		// Remove tmp dirs.
+		if err := removeBestEffortTmpDirs(l, tmpDir); err != nil {
+			return nil, errors.Wrap(err, "remove tmp dirs")
+		}
 	}
 
 	db := &DB{
@@ -704,6 +713,7 @@ func open(dir string, l log.Logger, r prometheus.Registerer, opts *Options, rngs
 	headOpts.ChunkDirRoot = dir
 	headOpts.ChunkPool = db.chunkPool
 	headOpts.ChunkWriteBufferSize = opts.HeadChunksWriteBufferSize
+	headOpts.ChunkWriteQueueSize = opts.HeadChunksWriteQueueSize
 	headOpts.StripeSize = opts.StripeSize
 	headOpts.SeriesCallback = opts.SeriesLifecycleCallback
 	headOpts.EnableExemplarStorage = opts.EnableExemplarStorage
@@ -751,17 +761,20 @@ func open(dir string, l log.Logger, r prometheus.Registerer, opts *Options, rngs
 }
 
 func removeBestEffortTmpDirs(l log.Logger, dir string) error {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	for _, fi := range files {
-		if isTmpBlockDir(fi) {
-			if err := os.RemoveAll(filepath.Join(dir, fi.Name())); err != nil {
-				level.Error(l).Log("msg", "failed to delete tmp block dir", "dir", filepath.Join(dir, fi.Name()), "err", err)
+	for _, f := range files {
+		if isTmpDir(f) {
+			if err := os.RemoveAll(filepath.Join(dir, f.Name())); err != nil {
+				level.Error(l).Log("msg", "failed to delete tmp block dir", "dir", filepath.Join(dir, f.Name()), "err", err)
 				continue
 			}
-			level.Info(l).Log("msg", "Found and deleted tmp block dir", "dir", filepath.Join(dir, fi.Name()))
+			level.Info(l).Log("msg", "Found and deleted tmp block dir", "dir", filepath.Join(dir, f.Name()))
 		}
 	}
 	return nil
@@ -1704,7 +1717,7 @@ func (db *DB) CleanTombstones() (err error) {
 	return nil
 }
 
-func isBlockDir(fi os.FileInfo) bool {
+func isBlockDir(fi fs.DirEntry) bool {
 	if !fi.IsDir() {
 		return false
 	}
@@ -1712,8 +1725,8 @@ func isBlockDir(fi os.FileInfo) bool {
 	return err == nil
 }
 
-// isTmpBlockDir returns dir that consists of block dir ULID and tmp extension.
-func isTmpBlockDir(fi os.FileInfo) bool {
+// isTmpDir returns true if the given file-info contains a block ULID or checkpoint prefix and a tmp extension.
+func isTmpDir(fi fs.DirEntry) bool {
 	if !fi.IsDir() {
 		return false
 	}
@@ -1721,6 +1734,9 @@ func isTmpBlockDir(fi os.FileInfo) bool {
 	fn := fi.Name()
 	ext := filepath.Ext(fn)
 	if ext == tmpForDeletionBlockDirSuffix || ext == tmpForCreationBlockDirSuffix || ext == tmpLegacy {
+		if strings.HasPrefix(fn, "checkpoint.") {
+			return true
+		}
 		if _, err := ulid.ParseStrict(fn[:len(fn)-len(ext)]); err == nil {
 			return true
 		}
@@ -1729,22 +1745,22 @@ func isTmpBlockDir(fi os.FileInfo) bool {
 }
 
 func blockDirs(dir string) ([]string, error) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 	var dirs []string
 
-	for _, fi := range files {
-		if isBlockDir(fi) {
-			dirs = append(dirs, filepath.Join(dir, fi.Name()))
+	for _, f := range files {
+		if isBlockDir(f) {
+			dirs = append(dirs, filepath.Join(dir, f.Name()))
 		}
 	}
 	return dirs, nil
 }
 
 func sequenceFiles(dir string) ([]string, error) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -1760,7 +1776,7 @@ func sequenceFiles(dir string) ([]string, error) {
 }
 
 func nextSequenceFile(dir string) (string, int, error) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return "", 0, err
 	}

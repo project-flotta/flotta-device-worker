@@ -9,8 +9,10 @@ import (
 	"git.sr.ht/~spc/go-log"
 	"github.com/hashicorp/go-multierror"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/model"
 	"github.com/project-flotta/flotta-device-worker/internal/datatransfer/s3"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
 	"github.com/project-flotta/flotta-operator/models"
 )
@@ -21,7 +23,7 @@ type Monitor struct {
 	ticker                      *time.Ticker
 	lastSuccessfulSyncTimes     map[string]time.Time
 	lastSuccessfulSyncTimesLock sync.RWMutex
-	fsSync                      FileSync
+	fsSync                      model.FileSync
 	syncMutex                   sync.RWMutex
 }
 
@@ -94,23 +96,20 @@ func (m *Monitor) syncPathsWorkload(workloadName string) {
 		return
 	}
 
-	syncWrapper, err := m.getFsSync()
-	if err != nil {
-		log.Errorf("error while getting s3 synchronizer. DeviceID: %s; err: %v", m.workloads.GetDeviceID(), err)
-		return
-	}
-
-	err = syncWrapper.Connect()
-	if err != nil {
-		log.Errorf("error while creating s3 synchronizer. DeviceID: %s; err : %v", m.workloads.GetDeviceID(), err)
-		return
-	}
-
 	hostPath := m.workloads.GetExportedHostPath(workloadName)
-	err = syncData(syncWrapper, dataConfig, hostPath)
-	if err == nil {
+	var errors error
+	err := m.syncDataPaths(dataConfig.Egress, hostPath, workloadName, egress)
+	if err != nil {
+		errors = multierror.Append(errors, err)
+	}
+	err = m.syncDataPaths(dataConfig.Ingress, hostPath, workloadName, ingress)
+	if err != nil {
+		errors = multierror.Append(errors, err)
+	}
+	if errors == nil {
 		m.storeLastUpdateTime(workloadName)
 	}
+
 }
 
 func (m *Monitor) getDataConfigOfWorkload(workloadName string) *models.DataConfiguration {
@@ -135,13 +134,13 @@ func (m *Monitor) HasStorageDefined() bool {
 	return storage.S3 != nil
 }
 
-func (m *Monitor) SetStorage(fs FileSync) {
+func (m *Monitor) SetStorage(fs model.FileSync) {
 	m.syncMutex.Lock()
 	defer m.syncMutex.Unlock()
 	m.fsSync = fs
 }
 
-func (m *Monitor) getFsSync() (FileSync, error) {
+func (m *Monitor) getFsSync() (model.FileSync, error) {
 	m.syncMutex.Lock()
 	defer m.syncMutex.Unlock()
 	if m.fsSync == nil {
@@ -172,16 +171,6 @@ func (m *Monitor) syncPaths() error {
 		return nil
 	}
 
-	syncWrapper, err := m.getFsSync()
-	if err != nil {
-		return err
-	}
-
-	err = syncWrapper.Connect()
-	if err != nil {
-		return err
-	}
-
 	workloadToDataPaths := make(map[string]*models.DataConfiguration)
 	for _, wd := range m.config.GetWorkloads() {
 		if containsDataPaths(wd.Data) {
@@ -198,15 +187,27 @@ func (m *Monitor) syncPaths() error {
 			log.Infof("workload %s not found in configuration", wd.Name)
 			continue
 		}
-		hostPath := m.workloads.GetExportedHostPath(wd.Name)
-		err := syncData(syncWrapper, dataConfig, hostPath)
+		err := m.processSyncDataPaths(wd, dataConfig)
 		if err != nil {
 			errors = multierror.Append(errors, err)
-			continue
 		}
-		m.storeLastUpdateTime(wd.Name)
 	}
 	return errors
+}
+
+func (m *Monitor) processSyncDataPaths(wd api.WorkloadInfo, dataConfig *models.DataConfiguration) error {
+	hostPath := m.workloads.GetExportedHostPath(wd.Name)
+	err := m.syncDataPaths(dataConfig.Egress, hostPath, wd.Name, egress)
+	if err != nil {
+		return err
+
+	}
+	err = m.syncDataPaths(dataConfig.Ingress, hostPath, wd.Name, ingress)
+	if err != nil {
+		return err
+	}
+	m.storeLastUpdateTime(wd.Name)
+	return nil
 }
 
 func (m *Monitor) storeLastUpdateTime(workloadName string) {
@@ -238,34 +239,48 @@ func containsDataPaths(dc *models.DataConfiguration) bool {
 			dc.Ingress != nil && len(dc.Ingress) > 0)
 }
 
-func syncData(syncWrapper FileSync, dataConfig *models.DataConfiguration, hostPath string) error {
-	var errors error
-	if dataConfig.Egress != nil && len(dataConfig.Egress) > 0 {
-		for _, dp := range dataConfig.Egress {
-			err := syncPath(syncWrapper, path.Join(hostPath, dp.Source), dp.Target)
-			if err != nil {
-				errors = multierror.Append(errors, err)
-			}
-		}
+func (m *Monitor) syncDataPaths(dataPaths []*models.DataPath, hostPath, workloadName string, dir direction) error {
+	syncWrapper, err := m.getFsSync()
+	if err != nil {
+		return err
 	}
+	err = syncWrapper.Connect()
+	if err != nil {
+		return err
+	}
+	// We don't reuse the connection because the metrics need to be reinitialized per sync direcction
+	defer syncWrapper.Disconnect()
+	var errors error
+	// For Ingress
 	// TODO: Identify how much disk space is required for complete ingress sync before pulling remote data onto the device storage.
 	// a simple check of a diff in disk usage between remote and local will suffice.
-	if dataConfig.Ingress != nil && len(dataConfig.Ingress) > 0 {
-		for _, dp := range dataConfig.Ingress {
-			err := syncPath(syncWrapper, dp.Source, path.Join(hostPath, dp.Target))
+	if dataPaths != nil {
+		startSync := time.Now().UnixMilli()
+		for _, dp := range dataPaths {
+			source, target := resolvePaths(dp.Source, dp.Target, hostPath, dir)
+			err := m.syncPath(source, target)
 			if err != nil {
 				errors = multierror.Append(errors, err)
 			}
 		}
+		syncTime := time.Now().UnixMilli() - startSync
+		stats := syncWrapper.GetStatistics()
+		reportMetrics(workloadName, dir, stats.BytesTransmitted, stats.FilesTransmitted, stats.DeletedRemoteFiles, syncTime)
 	}
-
 	return errors
 }
 
-func syncPath(syncWrapper FileSync, source, target string) error {
+func resolvePaths(source, target, hostPath string, dir direction) (string, string) {
+	if dir == egress {
+		return path.Join(hostPath, source), target
+	}
+	return source, path.Join(hostPath, target)
+}
+
+func (m *Monitor) syncPath(source, target string) error {
 	logMessage := fmt.Sprintf("synchronizing [source]%s => [target]%s", source, target)
 	log.Debug(logMessage)
-	err := syncWrapper.SyncPath(source, target)
+	err := m.fsSync.SyncPath(source, target)
 	if err != nil {
 		log.Errorf("error while %s", logMessage)
 		return fmt.Errorf("error while %s", logMessage)
