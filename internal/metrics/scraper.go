@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -78,7 +79,7 @@ func (s *HTTPScraper) Scrape(ctx context.Context) (model.Vector, error) {
 }
 
 func (s *HTTPScraper) String() string {
-	return s.req.RequestURI
+	return fmt.Sprintf("HTTP scraper for URL: %s", s.req.RequestURI)
 }
 
 func decodeSamples(reader io.Reader, contentType string) (model.Vector, error) {
@@ -130,5 +131,5 @@ func (o *ObjectScraper) Scrape(_ context.Context) (model.Vector, error) {
 }
 
 func (o *ObjectScraper) String() string {
-	return "prometheus object scraper"
+	return "Prometheus object scraper"
 }
