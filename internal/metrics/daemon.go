@@ -192,7 +192,7 @@ func (md *metricsDaemon) startTarget(target *TargetMetric) {
 // AddTarget adds a metrics scraping target with filtering
 func (md *metricsDaemon) AddTarget(targetName string, scrapers Scrapers, interval time.Duration, allowList SampleFilter) {
 
-	log.Debugf("added target '%v' with the following urls: '%+v", targetName, scrapers)
+	log.Debugf("added target '%v' with the following urls: '%s'", targetName, scrapers)
 	target := NewTargetMetric(targetName, interval, scrapers, md.store, allowList)
 	// stop if it is already present.
 	md.DeleteTarget(targetName)
