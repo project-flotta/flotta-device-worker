@@ -29,6 +29,10 @@ jobs:
       run: |
         make test
 
+    - name: Test in rootful container
+      run: |
+        make test-docker
+
     - name: Checking generated files are up to date
       run: git diff --quiet internal/ || (echo "There are not committed changes"; git diff internal/| tee; exit 1)
 
