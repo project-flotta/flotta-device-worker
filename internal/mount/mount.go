@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"git.sr.ht/~spc/go-log"
+	"github.com/hashicorp/go-multierror"
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-operator/models"
 	"golang.org/x/sys/unix"
@@ -54,33 +55,45 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 	// holds the directories mounted in the current _Update_ call.
 	// It helps avoiding mounting the same directory twice.
 	alreadyMounted := make(map[string]struct{})
-
+	var merr *multierror.Error
 	for _, mm := range config.Configuration.Mounts {
 		if _, found := alreadyMounted[mm.Directory]; found {
-			log.Warnf("Directory '%s' has already been mounted. Skipping..", mm.Directory)
+			errf := fmt.Errorf("Directory '%s' has already been mounted. Skipping..", mm.Directory)
+			merr = multierror.Append(merr, errf)
+			log.Info(errf)
 			continue
 		}
 
 		if err := m.isValid(mm); err != nil {
-			log.Errorf("Mount configuration '%+v' not valid: %s", mm, err)
+			errf := fmt.Errorf("Mount configuration '%+v' not valid: %s", mm, err)
+			merr = multierror.Append(merr, errf)
+			log.Warn(errf)
 			continue
 		}
 
 		// if the directory is mounted (not in the current call) and the configuration is different
-		// try to umount it first and than mount it with the new configuration.
+		// try to force umount it first and than mount it with the new configuration.
 		if c, found := currentMounts[mm.Directory]; found {
-			if !isEqual(c, mm) {
-				if err := umount(c); err != nil {
-					log.Errorf("Cannot umount '%+s': %+v. New configuration '%+v' will not be mounted", c.Directory, err, mm)
-					continue
-				}
-
-				log.Infof("Device '%s' umounted", c.Directory)
+			if isEqual(c, mm) {
+				log.Debugf("Device %s is already mounted at %s", mm.Device, mm.Directory)
+				alreadyMounted[mm.Directory] = struct{}{}
+				continue
 			}
+
+			if err := umount(c); err != nil {
+				errf := fmt.Errorf("Cannot umount '%+s': %+v. New configuration '%+v' will not be mounted", c.Directory, err, mm)
+				merr = multierror.Append(merr, errf)
+				log.Warn(errf)
+				continue
+			}
+
+			log.Infof("Device '%s' umounted", c.Directory)
 		}
 
 		if err := mount(mm); err != nil {
-			log.Errorf("Cannot mount '%+s' on '%s': %+v", mm.Device, mm.Directory, err)
+			errf := fmt.Errorf("Cannot mount '%+s' on '%s': %+v", mm.Device, mm.Directory, err)
+			merr = multierror.Append(merr, errf)
+			log.Error(errf)
 			continue
 		}
 
@@ -89,7 +102,7 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 		alreadyMounted[mm.Directory] = struct{}{}
 	}
 
-	return nil
+	return merr
 }
 
 // isValid return nil if everything is ok:
@@ -97,7 +110,8 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 // - directory exists
 // - type of the mount is found in /etc/filesystems
 func (m *Manager) isValid(mount *models.Mount) error {
-	if strings.Contains(m.filesystems, mount.Type) {
+
+	if !strings.Contains(m.filesystems, mount.Type) {
 		return fmt.Errorf("mount type not supported")
 	}
 
@@ -135,7 +149,6 @@ func mount(m *models.Mount) error {
 	return unix.Mount(m.Device, m.Directory, m.Type, uintptr(0), m.Options)
 }
 
-// TODO: Question: should we force it?
 func umount(m *models.Mount) error {
-	return unix.Unmount(m.Directory, 0)
+	return unix.Unmount(m.Directory, unix.MNT_FORCE)
 }

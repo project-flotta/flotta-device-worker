@@ -56,13 +56,8 @@ gosec: ## Run gosec locally
 
 test: ## Run unit test on device worker
 test: test-tools
-	$(GINKGO) --race -r $(GINKGO_OPTIONS) ./internal/* ./cmd/*
-
-TEST_IMAGE_NAME ?= device-worker-test
-TEST_IMAGE_TAG ?= latest
-test-docker:
-	$(DOCKER) build tools/ -f Dockerfile_test -t $(TEST_IMAGE_NAME):$(TEST_IMAGE_TAG)
-	$(DOCKER) run -v $(PWD):/device-worker --rm $(TEST_IMAGE_NAME):$(TEST_IMAGE_TAG)
+	$(GINKGO) --race -r $(GINKGO_OPTIONS) --label-filter="!root" ./internal/* ./cmd/*
+	sudo $(GINKGO) --race -r $(GINKGO_OPTIONS) --label-filter="root" ./internal/* ./cmd/*
 
 test-coverage:
 test-coverage: ## Run test and launch coverage tool
