@@ -465,6 +465,7 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	}
 	pod.Kind = "Pod"
 	pod.Name = workload.Name
+	pod.Annotations = workload.Annotations
 	pod.Labels = workload.Labels
 	exportVolume := volumes.HostPathVolume(w.volumesDir, workload.Name)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, exportVolume)
