@@ -15,6 +15,16 @@ const (
 	mountFinder = "(?P<dev>[a-z0-9-\\.\\/_]+)\\s+\\w+\\s+(?P<dst>[a-z0-9-\\.\\/_]+)\\s+\\w+\\s+(?P<type>[a-z0-9-\\._]+).*(?P<opts>\\(.*\\))"
 )
 
+func IsPathMounted(path string) bool {
+	_, res, err := GetMounts(util.NewDependencies("/"))
+	if err != nil {
+		return false
+	}
+
+	_, found := res[path]
+	return found
+}
+
 // GetMounts return a list of all host mounts, a map having the directory as key and error if any.
 // The map is returned to avoid O(n^2) while trying to match new mounts with the existing ones.
 func GetMounts(dep util.IDependencies) ([]*models.Mount, map[string]*models.Mount, error) {

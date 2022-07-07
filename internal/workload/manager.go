@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/project-flotta/flotta-device-worker/internal/mount"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-device-worker/internal/volumes"
 
@@ -138,6 +139,12 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		if err != nil {
 			errors = multierror.Append(errors, fmt.Errorf(
 				"cannot convert workload '%s' to pod. DeviceID: %s; err: %v", workload.Name, err, w.deviceId))
+			continue
+		}
+
+		if PodShouldWaitForMount(pod, configuration.Configuration) {
+			errors = multierror.Append(errors, fmt.Errorf(
+				"Pod '%s' needs to mount blockdevice but it's not in there yet", workload.Name))
 			continue
 		}
 
@@ -501,6 +508,42 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 	}
 
 	return &pod, nil
+}
+
+func PodShouldWaitForMount(pod *v1.Pod, deviceConf *models.DeviceConfiguration) bool {
+	if deviceConf == nil || len(deviceConf.Mounts) == 0 {
+		return false
+	}
+
+	paths := make(map[string]struct{})
+	for _, mountSpec := range deviceConf.Mounts {
+		if mountSpec != nil {
+			paths[mountSpec.Directory] = struct{}{}
+		}
+	}
+
+	if len(pod.Spec.Volumes) == 0 {
+		return false
+	}
+
+	for _, volume := range pod.Spec.Volumes {
+		if volume.HostPath == nil {
+			continue
+		}
+		if volume.HostPath.Type == nil {
+			continue
+		}
+		// CharDevice is not needed at all because are not mounted, only
+		// BlockDevices
+		if *volume.HostPath.Type == v1.HostPathBlockDev {
+			if _, found := paths[volume.HostPath.Path]; found {
+				if !mount.IsPathMounted(volume.HostPath.Path) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func (w *WorkloadManager) podConfigurationModified(manifestPath string, podYaml []byte, authPath string, auth string) bool {

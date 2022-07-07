@@ -438,6 +438,99 @@ var _ = Describe("Manager", func() {
 			// then
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("Works with blockdevices", func() {
+			podSpecWithBlockDevice := `
+containers:
+  - name: alpine
+    image: quay.io/libpod/alpine:latest
+volumes:
+  - name: storage
+    hostPath:
+      path: /invalidTest
+      type: BlockDevice
+`
+			// given
+			workloads := []*models.Workload{}
+
+			workloads = append(workloads, &models.Workload{
+				Data:          &models.DataConfiguration{},
+				Name:          "test",
+				Specification: podSpecWithBlockDevice,
+			})
+
+			cfg := models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{
+					Heartbeat: &models.HeartbeatConfiguration{
+						PeriodSeconds: 1,
+					},
+					Mounts: []*models.Mount{
+						{Device: "/tmp/loop", Directory: "/invalidTest"},
+					},
+				},
+				DeviceID:  "",
+				Version:   "",
+				Workloads: workloads,
+			}
+
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
+			wkwMock.EXPECT().List().AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq("")).AnyTimes()
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Works with chardevices", func() {
+			podSpecWithBlockDevice := `
+containers:
+  - name: alpine
+    image: quay.io/libpod/alpine:latest
+volumes:
+  - name: storage
+    hostPath:
+      path: /invalidTest
+      type: CharDevice
+`
+			// given
+			workloads := []*models.Workload{}
+
+			workloads = append(workloads, &models.Workload{
+				Data:          &models.DataConfiguration{},
+				Name:          "test",
+				Specification: podSpecWithBlockDevice,
+			})
+
+			wkwMock.EXPECT().Remove("test").Times(1)
+			cfg := models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{
+					Heartbeat: &models.HeartbeatConfiguration{
+						PeriodSeconds: 1,
+					},
+					Mounts: []*models.Mount{
+						{Device: "/tmp/loop", Directory: "/invalidTest"},
+					},
+				},
+				DeviceID:  "",
+				Version:   "",
+				Workloads: workloads,
+			}
+
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
+			wkwMock.EXPECT().List().AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq("")).AnyTimes()
+
+			// when
+			err := wkManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			pod := getPodFor(datadir, "test")
+			Expect(pod.Name).To(BeEquivalentTo("test"))
+		})
 	})
 
 	Context("ListWorkloads", func() {
