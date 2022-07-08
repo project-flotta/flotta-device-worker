@@ -3,6 +3,7 @@ package mount
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"strings"
 	"sync"
 
@@ -15,6 +16,8 @@ import (
 
 const (
 	filesystemsFile = "/etc/filesystems"
+	flottaGroup     = "flotta"
+	flottaUser      = "flotta"
 )
 
 type Manager struct {
@@ -23,7 +26,8 @@ type Manager struct {
 
 	// filesystems holds the content of /etc/filesystems
 	// it used to validate the mount type
-	filesystems string
+	filesystems    string
+	defaultOptions string
 }
 
 func New() (*Manager, error) {
@@ -32,10 +36,10 @@ func New() (*Manager, error) {
 		log.Warnf("Cannot list content of '%s': %s", filesystemsFile, err)
 		return nil, fmt.Errorf("cannot list content of '%s': %s", filesystemsFile, err)
 	}
-
 	return &Manager{
-		filesystems: string(content),
-		dep:         util.NewDependencies("/"),
+		filesystems:    string(content),
+		dep:            util.NewDependencies("/"),
+		defaultOptions: getDefaultMountOptions(),
 	}, nil
 }
 
@@ -90,7 +94,7 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 			log.Infof("Device '%s' umounted", c.Directory)
 		}
 
-		if err := mount(mm); err != nil {
+		if err := mount(mm, m.defaultOptions); err != nil {
 			errf := fmt.Errorf("Cannot mount '%+s' on '%s': %+v", mm.Device, mm.Directory, err)
 			merr = multierror.Append(merr, errf)
 			log.Error(errf)
@@ -145,10 +149,26 @@ func isEqual(mount *models.Mount, other *models.Mount) bool {
 }
 
 // TODO Question: what flags should be passed here?
-func mount(m *models.Mount) error {
-	return unix.Mount(m.Device, m.Directory, m.Type, uintptr(0), m.Options)
+func mount(m *models.Mount, defaultOptions string) error {
+	options := defaultOptions
+	if m.Options != "" {
+		options = m.Options
+	}
+	return unix.Mount(m.Device, m.Directory, m.Type, uintptr(0), options)
 }
 
 func umount(m *models.Mount) error {
 	return unix.Unmount(m.Directory, unix.MNT_FORCE)
+}
+
+func getDefaultMountOptions() string {
+	group, err := user.LookupGroup(flottaGroup)
+	if err != nil {
+		return ""
+	}
+	usr, err := user.Lookup(flottaUser)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("gid=%s,uid=%s", group.Gid, usr.Uid)
 }
