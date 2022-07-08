@@ -2,12 +2,14 @@ package hardware
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 
 	"git.sr.ht/~spc/go-log"
 	runc "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/openshift/assisted-installer-agent/src/inventory"
 	"github.com/openshift/assisted-installer-agent/src/util"
+	"github.com/project-flotta/flotta-device-worker/internal/mount"
 	"github.com/project-flotta/flotta-operator/models"
 )
 
@@ -85,6 +87,13 @@ func (s *HardwareInfo) getHardwareMutableInformation(hardwareInfo *models.Hardwa
 		}
 		hardwareInfo.Interfaces = append(hardwareInfo.Interfaces, newInterface)
 	}
+
+	mounts, _, err := mount.GetMounts(s.dependencies)
+	if err != nil {
+		return fmt.Errorf("cannot list mounts: %s", err)
+	}
+
+	hardwareInfo.Mounts = mounts
 
 	return nil
 }

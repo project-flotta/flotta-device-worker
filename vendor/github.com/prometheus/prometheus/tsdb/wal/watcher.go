@@ -16,6 +16,7 @@ package wal
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -44,13 +45,9 @@ const (
 // from the WAL on to somewhere else. Functions will be called concurrently
 // and it is left to the implementer to make sure they are safe.
 type WriteTo interface {
-	// Append and AppendExemplar should block until the samples are fully accepted,
-	// whether enqueued in memory or successfully written to it's final destination.
-	// Once returned, the WAL Watcher will not attempt to pass that data again.
 	Append([]record.RefSample) bool
 	AppendExemplars([]record.RefExemplar) bool
 	StoreSeries([]record.RefSeries, int)
-
 	// Next two methods are intended for garbage-collection: first we call
 	// UpdateSeriesSegment on all current series
 	UpdateSeriesSegment([]record.RefSeries, int)
@@ -304,7 +301,7 @@ func (w *Watcher) firstAndLast() (int, int, error) {
 // Copied from tsdb/wal/wal.go so we do not have to open a WAL.
 // Plan is to move WAL watcher to TSDB and dedupe these implementations.
 func (w *Watcher) segments(dir string) ([]int, error) {
-	files, err := os.ReadDir(dir)
+	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -514,6 +511,7 @@ func (w *Watcher) readSegment(r *LiveReader, segmentNum int, tail bool) error {
 				}
 			}
 			if len(send) > 0 {
+				// Blocks  until the sample is sent to all remote write endpoints or closed (because enqueue blocks).
 				w.writer.Append(send)
 				send = send[:0]
 			}

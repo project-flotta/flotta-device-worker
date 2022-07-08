@@ -16,6 +16,7 @@ package remote
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"sort"
 	"strings"
@@ -51,7 +52,7 @@ func (e HTTPError) Status() int {
 
 // DecodeReadRequest reads a remote.Request from a http.Request.
 func DecodeReadRequest(r *http.Request) (*prompb.ReadRequest, error) {
-	compressed, err := io.ReadAll(io.LimitReader(r.Body, decodeReadLimit))
+	compressed, err := ioutil.ReadAll(io.LimitReader(r.Body, decodeReadLimit))
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +524,7 @@ func metricTypeToMetricTypeProto(t textparse.MetricType) prompb.MetricMetadata_M
 // DecodeWriteRequest from an io.Reader into a prompb.WriteRequest, handling
 // snappy decompression.
 func DecodeWriteRequest(r io.Reader) (*prompb.WriteRequest, error) {
-	compressed, err := io.ReadAll(r)
+	compressed, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}

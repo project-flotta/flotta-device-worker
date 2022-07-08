@@ -375,30 +375,38 @@ func inversePostingsForMatcher(ix IndexReader, m *labels.Matcher) (index.Posting
 }
 
 func labelValuesWithMatchers(r IndexReader, name string, matchers ...*labels.Matcher) ([]string, error) {
-	p, err := PostingsForMatchers(r, matchers...)
+	// We're only interested in metrics which have the label <name>.
+	requireLabel, err := labels.NewMatcher(labels.MatchNotEqual, name, "")
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching postings for matchers")
+		return nil, errors.Wrapf(err, "Failed to instantiate label matcher")
 	}
 
-	allValues, err := r.LabelValues(name)
+	var p index.Postings
+	p, err = PostingsForMatchers(r, append(matchers, requireLabel)...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "fetching values of label %s", name)
+		return nil, err
 	}
-	valuesPostings := make([]index.Postings, len(allValues))
-	for i, value := range allValues {
-		valuesPostings[i], err = r.Postings(name, value)
+
+	dedupe := map[string]interface{}{}
+	for p.Next() {
+		v, err := r.LabelValueFor(p.At(), name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "fetching postings for %s=%q", name, value)
+			if err == storage.ErrNotFound {
+				continue
+			}
+
+			return nil, err
 		}
-	}
-	indexes, err := index.FindIntersectingPostings(p, valuesPostings)
-	if err != nil {
-		return nil, errors.Wrap(err, "intersecting postings")
+		dedupe[v] = nil
 	}
 
-	values := make([]string, 0, len(indexes))
-	for _, idx := range indexes {
-		values = append(values, allValues[idx])
+	if err = p.Err(); err != nil {
+		return nil, err
+	}
+
+	values := make([]string, 0, len(dedupe))
+	for value := range dedupe {
+		values = append(values, value)
 	}
 
 	return values, nil

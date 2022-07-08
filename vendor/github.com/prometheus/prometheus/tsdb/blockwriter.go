@@ -15,6 +15,7 @@ package tsdb
 
 import (
 	"context"
+	"io/ioutil"
 	"math"
 	"os"
 
@@ -63,7 +64,7 @@ func NewBlockWriter(logger log.Logger, dir string, blockSize int64) (*BlockWrite
 
 // initHead creates and initialises a new TSDB head.
 func (w *BlockWriter) initHead() error {
-	chunkDir, err := os.MkdirTemp(os.TempDir(), "head")
+	chunkDir, err := ioutil.TempDir(os.TempDir(), "head")
 	if err != nil {
 		return errors.Wrap(err, "create temp dir")
 	}
