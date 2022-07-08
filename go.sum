@@ -1756,8 +1756,8 @@ github.com/pquerna/ffjson v0.0.0-20190813045741-dac163c6c0a9/go.mod h1:YARuvh7BU
 github.com/prashantv/gostub v1.1.0/go.mod h1:A5zLQHz7ieHGG7is6LLXLz7I8+3LZzsrV0P1IAHhP5U=
 github.com/proglottis/gpgme v0.1.1 h1:72xI0pt/hy7pqsRxk32KExITkXp+RZErRizsA+up/lQ=
 github.com/proglottis/gpgme v0.1.1/go.mod h1:fPbW/EZ0LvwQtH8Hy7eixhp1eF3G39dtx7GUN+0Gmy0=
-github.com/project-flotta/flotta-operator v0.1.1-0.20220621154124-86954e9aad3a h1:hDldH3Tyap3WKbtyY6PUrWJgo0hcLUaVDDf/FrL86uk=
-github.com/project-flotta/flotta-operator v0.1.1-0.20220621154124-86954e9aad3a/go.mod h1:Kz/l0gg1/HyJh9cuWjmLr3/syAt2vpLEOeC+BJxXt74=
+github.com/project-flotta/flotta-operator v0.1.1-0.20220707151739-b925a42628d2 h1:gLJ7bQ3V3yua1dVYEx3nXBCtJiB7c6DFSM3wxAFHsSg=
+github.com/project-flotta/flotta-operator v0.1.1-0.20220707151739-b925a42628d2/go.mod h1:Kz/l0gg1/HyJh9cuWjmLr3/syAt2vpLEOeC+BJxXt74=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.49.0/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
 github.com/prometheus/alertmanager v0.24.0/go.mod h1:r6fy/D7FRuZh5YbnX6J3MBY0eI4Pb5yPYS7/bPSXXqI=
 github.com/prometheus/client_golang v0.0.0-20180209125602-c332b6f63c06/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=

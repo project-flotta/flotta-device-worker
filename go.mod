@@ -22,7 +22,7 @@ require (
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
 	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
-	github.com/project-flotta/flotta-operator v0.1.1-0.20220621154124-86954e9aad3a
+	github.com/project-flotta/flotta-operator v0.1.1-0.20220707151739-b925a42628d2
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/common v0.34.0
 	github.com/prometheus/prometheus v0.36.0

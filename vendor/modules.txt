@@ -622,7 +622,7 @@ github.com/pkg/errors
 github.com/pmezard/go-difflib/difflib
 # github.com/proglottis/gpgme v0.1.1
 github.com/proglottis/gpgme
-# github.com/project-flotta/flotta-operator v0.1.1-0.20220621154124-86954e9aad3a
+# github.com/project-flotta/flotta-operator v0.1.1-0.20220707151739-b925a42628d2
 ## explicit
 github.com/project-flotta/flotta-operator/models
 github.com/project-flotta/flotta-operator/pkg/mtls
