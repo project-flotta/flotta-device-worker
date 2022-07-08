@@ -16,7 +16,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build container
+      - name: Build container rhel 8
         run: |
           docker build -t flotta/ubi -f tools/ubi-Dockerfile .
           docker run --rm -w /opt/device -v $(pwd):/opt/device flotta/ubi make rpm-build
+
+      - name: Build container fedora 35
+        run: |
+          docker build -t flotta/f35 -f tools/f35-Dockerfile .
+          docker run --rm -w /opt/device -v $(pwd):/opt/device flotta/f35 make rpm-build

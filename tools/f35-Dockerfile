@@ -1,0 +1,4 @@
+FROM fedora:35
+
+RUN dnf -y install rpm-build golang device-mapper-devel systemd-rpm-macros bash git make btrfs-progs-devel
+RUN git config --global --add safe.directory /opt/device
