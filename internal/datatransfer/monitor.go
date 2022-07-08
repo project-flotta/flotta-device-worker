@@ -255,7 +255,7 @@ func (m *Monitor) syncDataPaths(dataPaths []*models.DataPath, hostPath, workload
 	// TODO: Identify how much disk space is required for complete ingress sync before pulling remote data onto the device storage.
 	// a simple check of a diff in disk usage between remote and local will suffice.
 	if dataPaths != nil {
-		startSync := time.Now().UnixMilli()
+		startSync := UnixMilli(time.Now())
 		for _, dp := range dataPaths {
 			source, target := resolvePaths(dp.Source, dp.Target, hostPath, dir)
 			err := m.syncPath(source, target)
@@ -263,7 +263,7 @@ func (m *Monitor) syncDataPaths(dataPaths []*models.DataPath, hostPath, workload
 				errors = multierror.Append(errors, err)
 			}
 		}
-		syncTime := time.Now().UnixMilli() - startSync
+		syncTime := UnixMilli(time.Now()) - startSync
 		stats := syncWrapper.GetStatistics()
 		reportMetrics(workloadName, dir, stats.BytesTransmitted, stats.FilesTransmitted, stats.DeletedRemoteFiles, syncTime)
 	}
@@ -286,4 +286,8 @@ func (m *Monitor) syncPath(source, target string) error {
 		return fmt.Errorf("error while %s", logMessage)
 	}
 	return nil
+}
+
+func UnixMilli(timestamp time.Time) int64 {
+	return timestamp.UnixNano() / int64(time.Millisecond)
 }
