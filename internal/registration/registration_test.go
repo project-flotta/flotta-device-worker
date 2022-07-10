@@ -37,7 +37,7 @@ const (
 	deviceID         = "device-id-123"
 )
 
-var _ = Describe("Registration", func() {
+var _ = Describe("Registration", Label("root"), func() {
 
 	var (
 		datadir        string
