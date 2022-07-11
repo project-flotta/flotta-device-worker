@@ -44,7 +44,7 @@ func GetMounts(dep util.IDependencies) ([]*models.Mount, map[string]*models.Moun
 	for _, entry := range entries {
 		m := parse(re, entry)
 		if m == nil {
-			log.Warnf("Cannot parse '%s'", entry)
+			log.Warnf("Cannot parse mount entry '%s'", entry)
 			continue
 		}
 
