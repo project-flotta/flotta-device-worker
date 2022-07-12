@@ -82,7 +82,7 @@ func (m *Manager) RegisterObserver(observer Observer) {
 	// current config.
 	err := observer.Init(*m.deviceConfiguration)
 	if err != nil {
-		log.Error("Running config init observer failed: ", err)
+		log.Errorf("Running config init observer for '%T' failed: %v", observer, err)
 	}
 	m.observers = append(m.observers, observer)
 }
@@ -150,7 +150,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	for _, observer := range m.observers {
 		err := observer.Update(message)
 		if err != nil {
-			errors = multierror.Append(errors, fmt.Errorf("running config observer failed: %s", err))
+			errors = multierror.Append(errors, fmt.Errorf("running update for observer '%T' failed: %s", observer, err))
 		}
 	}
 
