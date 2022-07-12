@@ -70,11 +70,13 @@ make install-worker-config USER=%{flotta_user} HOME=/var/home/%{flotta_user} LIB
 
 install -Dpm 644 %{flotta_systemd}/flotta-agent.service %{buildroot}%{_unitdir}/%{name}.service
 install -Dpm 644 %{flotta_systemd}/flotta.conf %{buildroot}/etc/tmpfiles.d/%{name}.conf
+install -Dpm 644 packaging/file_contexts.subs %{buildroot}/etc/selinux/targeted/contexts/files/file_contexts.subs
 
 %files
 %{_libexecdir}/yggdrasil/device-worker
 %{_sysconfdir}/yggdrasil/
 /etc/tmpfiles.d/%{name}.conf
+/etc/selinux/targeted/contexts/files/file_contexts.subs
 %{_unitdir}/%{name}.service
 
 %files race
@@ -82,17 +84,22 @@ install -Dpm 644 %{flotta_systemd}/flotta.conf %{buildroot}/etc/tmpfiles.d/%{nam
 %{_sysconfdir}/yggdrasil/
 %{_unitdir}/%{name}.service
 /etc/tmpfiles.d/%{name}.conf
+/etc/selinux/targeted/contexts/files/file_contexts.subs
 
 %post
 systemctl enable --now nftables.service
 ln -s -f %{_unitdir}/%{name}.service /etc/systemd/system/multi-user.target.wants/flotta-agent.service
-systemctl start flotta-agent || exit 0 # can fail on rpm-ostree base system
+# can fail on rpm-ostree base system
+systemctl start flotta-agent || exit 0
+restorecon -R -v /var/home || exit 0
 
 %post race
 ln -sf %{_libexecdir}/yggdrasil/device-worker-race %{_libexecdir}/yggdrasil/device-worker
 systemctl enable --now nftables.service
 ln -s -f %{_unitdir}/%{name}.service /etc/systemd/system/multi-user.target.wants/flotta-agent.service
-systemctl start flotta-agent || exit 0 # can fail on rpm-ostree base system
+# can fail on rpm-ostree base system
+systemctl start flotta-agent || exit 0
+restorecon -R -v /var/home || exit 0
 
 %changelog
 * Thu Jun 23 2022 Jordi Gil <jgil@redhat.com> 0.1.0-3
