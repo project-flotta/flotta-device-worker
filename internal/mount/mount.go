@@ -57,26 +57,26 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 	}
 
 	// holds the directories mounted in the current _Update_ call.
-	// It helps avoiding mounting the same directory twice.
+	// It helps to avoid mounting the same directory twice.
 	alreadyMounted := make(map[string]struct{})
-	var merr *multierror.Error
+	var merr error
 	for _, mm := range config.Configuration.Mounts {
 		if _, found := alreadyMounted[mm.Directory]; found {
-			errf := fmt.Errorf("Directory '%s' has already been mounted. Skipping..", mm.Directory)
+			errf := fmt.Errorf("mount path '%s' has already been mounted. Skipping mount path", mm.Directory)
 			merr = multierror.Append(merr, errf)
 			log.Info(errf)
 			continue
 		}
 
 		if err := m.isValid(mm); err != nil {
-			errf := fmt.Errorf("Mount configuration '%+v' not valid: %s", mm, err)
+			errf := fmt.Errorf("mount configuration '%+v' not valid: %s", mm, err)
 			merr = multierror.Append(merr, errf)
 			log.Warn(errf)
 			continue
 		}
 
 		// if the directory is mounted (not in the current call) and the configuration is different
-		// try to force umount it first and than mount it with the new configuration.
+		// try to force umount it first and then mount it with the new configuration.
 		if c, found := currentMounts[mm.Directory]; found {
 			if isEqual(c, mm) {
 				log.Debugf("Device %s is already mounted at %s", mm.Device, mm.Directory)
@@ -85,7 +85,7 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 			}
 
 			if err := umount(c); err != nil {
-				errf := fmt.Errorf("Cannot umount '%+s': %+v. New configuration '%+v' will not be mounted", c.Directory, err, mm)
+				errf := fmt.Errorf("cannot umount '%s': %+v. New configuration '%+v' will not be mounted", c.Directory, err, mm)
 				merr = multierror.Append(merr, errf)
 				log.Warn(errf)
 				continue
@@ -95,17 +95,15 @@ func (m *Manager) Update(config models.DeviceConfigurationMessage) error {
 		}
 
 		if err := mount(mm, m.defaultOptions); err != nil {
-			errf := fmt.Errorf("Cannot mount '%+s' on '%s': %+v", mm.Device, mm.Directory, err)
+			errf := fmt.Errorf("cannot mount '%s' on '%s': %+v", mm.Device, mm.Directory, err)
 			merr = multierror.Append(merr, errf)
 			log.Error(errf)
 			continue
 		}
 
 		log.Infof("Device '%s' mounted on '%s' with type '%s' and options '%s'", mm.Device, mm.Directory, mm.Type, mm.Options)
-
 		alreadyMounted[mm.Directory] = struct{}{}
 	}
-
 	return merr
 }
 
