@@ -3,8 +3,8 @@
 %global flotta_user flotta
 
 Name:       flotta-agent
-Version:    0.1.0
-Release:    3%{?dist}
+Version:    0.2.0
+Release:    1%{?dist}
 Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
 Group:      Flotta
@@ -95,6 +95,10 @@ ln -s -f %{_unitdir}/%{name}.service /etc/systemd/system/multi-user.target.wants
 systemctl start flotta-agent || exit 0 # can fail on rpm-ostree base system
 
 %changelog
+* Thu Jul 14 2022 Moti Asayag <masayag@redhat.com> 0.2.0-1
+- Added support for rootless podman
+- Added support for host devices
+
 * Thu Jun 23 2022 Jordi Gil <jgil@redhat.com> 0.1.0-3
   Added missing '-race' to go build command for race package
 
