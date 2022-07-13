@@ -9,8 +9,8 @@ Type=oneshot
 RemainAfterExit=yes
 # Since home directory is customed, we need to create it manually with specific selinux labels to allow access to it.
 ExecStart=bash -c "mkdir -p /var/home"
-ExecStart=bash -c "semanage fcontext -a -e /home /var/home"
-ExecStart=bash -c "restorecon -R -v /var/home"
+ExecStart=bash -c "semanage fcontext -a -e /home /var/home || true"
+ExecStart=bash -c "restorecon -R -v /var/home || true"
 ExecStart=bash -c "getent group flotta >/dev/null || groupadd flotta"
 ExecStart=bash -c "getent passwd flotta >/dev/null || useradd -m -g flotta -s /sbin/nologin -b /var/home flotta"
 ExecStartPost=systemd-tmpfiles --create --remove --boot --exclude-prefix=/dev --exclude-prefix=/var/lib/dnf
