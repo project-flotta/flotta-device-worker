@@ -35,7 +35,7 @@ type WorkloadWrapper interface {
 	Logs(podID string, res io.Writer) (context.CancelFunc, error)
 	Remove(string) error
 	Stop(string) error
-	Run(*v1.Pod, string, string) error
+	Run(*v1.Pod, string, string, map[string]string) error
 	Start(*v1.Pod) error
 	PersistConfiguration() error
 	RemoveTable() error
@@ -219,11 +219,11 @@ func (ww *Workload) RemoveMappingFile() error {
 	return nil
 }
 
-func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath string) error {
+func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath string, podmanAnnotations map[string]string) error {
 	if err := ww.applyNetworkConfiguration(workload); err != nil {
 		return err
 	}
-	podIds, err := ww.workloads.Run(manifestPath, authFilePath)
+	podIds, err := ww.workloads.Run(manifestPath, authFilePath, podmanAnnotations)
 	if err != nil {
 		return err
 	}

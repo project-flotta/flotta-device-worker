@@ -135,6 +135,9 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 		log.Tracef("deploying workload: %s. DeviceID: %s;", workload.Name, w.deviceId)
 		configuredWorkloadNameSet[workload.Name] = struct{}{}
 
+		// Temporal hack to extract podman annotations from the list of annotation propagated to the pod metadata
+		// This needs to be reimplemented so that the workload contains a field for annotations to the pod and another one to podman
+
 		pod, err := w.toPod(workload)
 		if err != nil {
 			errors = multierror.Append(errors, fmt.Errorf(
@@ -191,7 +194,9 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 			errors = multierror.Append(errors, fmt.Errorf("error removing workload %s: %s", workload.Name, err))
 			continue
 		}
-		err = w.workloads.Run(pod, manifestPath, authFilePath)
+
+		// TODO: extract podman specific annotations from the workload.
+		err = w.workloads.Run(pod, manifestPath, authFilePath, workload.Annotations)
 		if err != nil {
 			log.Errorf("cannot run workload. DeviceID: %s; err: %v", w.deviceId, err)
 			w.eventsQueue = append(w.eventsQueue, &models.EventInfo{
@@ -487,7 +492,6 @@ func (w *WorkloadManager) toPod(workload *models.Workload) (*v1.Pod, error) {
 		containers = append(containers, container)
 	}
 	pod.Spec.Containers = containers
-
 	if pod.Labels == nil {
 		pod.Labels = map[string]string{}
 	}

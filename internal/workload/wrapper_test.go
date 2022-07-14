@@ -54,7 +54,7 @@ var _ = Describe("Workload management", func() {
 			// given
 			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
 
-			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
+			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
 
 			svc.EXPECT().Add().Return(nil)
@@ -66,7 +66,7 @@ var _ = Describe("Workload management", func() {
 			mappingRepository.EXPECT().Add("pod1", "id1")
 
 			// when
-			err := wk.Run(pod, manifestPath, authFilePath)
+			err := wk.Run(pod, manifestPath, authFilePath, nil)
 
 			// then
 			Expect(err).To(BeNil())
@@ -79,13 +79,13 @@ var _ = Describe("Workload management", func() {
 
 			mappingRepository.EXPECT().Add("pod1", "id1")
 
-			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
+			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
 
 			svc.EXPECT().Add().Return(fmt.Errorf("Failed to add service"))
 
 			// when
-			err := wk.Run(pod, manifestPath, authFilePath)
+			err := wk.Run(pod, manifestPath, authFilePath, nil)
 
 			// then
 			Expect(err).NotTo(BeNil())
@@ -98,14 +98,14 @@ var _ = Describe("Workload management", func() {
 
 			mappingRepository.EXPECT().Add("pod1", "id1")
 
-			newPodman.EXPECT().Run(manifestPath, authFilePath).Return([]*podman.PodReport{{Id: "id1"}}, nil)
+			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
 
 			svc.EXPECT().Add().Return(nil)
 			svc.EXPECT().Enable().Return(fmt.Errorf("Failed to add service"))
 
 			// when
-			err := wk.Run(pod, manifestPath, authFilePath)
+			err := wk.Run(pod, manifestPath, authFilePath, nil)
 
 			// then
 			Expect(err).NotTo(BeNil())

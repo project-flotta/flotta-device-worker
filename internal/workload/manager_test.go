@@ -1,6 +1,7 @@
 package workload_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 
 	"github.com/golang/mock/gomock"
@@ -29,6 +31,10 @@ const (
 	cmSpec = `kind: ConfigMap
 metadata:
   name: mycm
+  annotations:
+  - annotationKey = annotationValue
+  labels:
+  - labelKey = labelValue
 data:
   key1: data
 `
@@ -86,7 +92,7 @@ var _ = Describe("Events", func() {
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{
 				{Id: "stale", Name: "stale", Status: "created"},
 			}, nil).AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed to start container"))
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed to start container"))
 			wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("failed to start container")).AnyTimes()
 
@@ -181,7 +187,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq("")).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(""), nil).AnyTimes()
 
 			// when
 			err := wkManager.Update(cfg)
@@ -207,6 +213,47 @@ var _ = Describe("Manager", func() {
 			}
 		})
 
+		It("correctly attaches the annotations and the labels from the workload object", func() {
+
+			// given
+			workloads := []*models.Workload{}
+			spec := v1.PodSpec{}
+			metadata := metav1.ObjectMeta{Labels: map[string]string{"labelKey": "labelValue"}, Annotations: map[string]string{"annotationKey": "annotationValue"}}
+			bspec, err := json.Marshal(&spec)
+			Expect(err).NotTo(HaveOccurred())
+			workloads = append(workloads, &models.Workload{
+				Data:          &models.DataConfiguration{},
+				Annotations:   map[string]string{"annotationKey": "annotationValue"},
+				Labels:        map[string]string{"labelKey": "labelValue"},
+				Name:          "test",
+				Specification: string(bspec),
+			})
+			wkwMock.EXPECT().Remove("test").Times(1)
+
+			cfg := models.DeviceConfigurationMessage{
+				Configuration: &models.DeviceConfiguration{Heartbeat: &models.HeartbeatConfiguration{PeriodSeconds: 1}},
+				DeviceID:      "",
+				Version:       "",
+				Workloads:     workloads,
+			}
+
+			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
+			wkwMock.EXPECT().List().AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(""), map[string]string{"annotationKey": "annotationValue"}).Times(1)
+
+			// when
+			err = wkManager.Update(cfg)
+
+			// then
+			Expect(err).NotTo(HaveOccurred())
+			pod := getPodFor(datadir, "test")
+			Expect(pod.Name).To(BeEquivalentTo("test"))
+
+			Expect(pod.ObjectMeta.Annotations).To(BeEquivalentTo(metadata.Annotations))
+			Expect(pod.ObjectMeta.Labels).To(BeEquivalentTo(metadata.Labels))
+
+		})
+
 		It("Runs workloads with custom auth file", func() {
 
 			// given
@@ -220,7 +267,7 @@ var _ = Describe("Manager", func() {
 					ImageRegistries: &models.ImageRegistries{AuthFile: "authFile-" + wkName},
 				})
 				wkwMock.EXPECT().Remove(wkName).Times(1)
-				wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(getAuthPath(datadir, wkName))).Times(1)
+				wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(getAuthPath(datadir, wkName)), gomock.Any()).Times(1)
 			}
 
 			cfg := models.DeviceConfigurationMessage{
@@ -259,7 +306,7 @@ var _ = Describe("Manager", func() {
 				Configmaps:    models.ConfigmapList{cmSpec},
 			})
 			wkwMock.EXPECT().Remove(wkName).Times(1)
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 
 			cfg := models.DeviceConfigurationMessage{
 				Workloads: workloads,
@@ -299,7 +346,7 @@ var _ = Describe("Manager", func() {
 			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -326,7 +373,7 @@ var _ = Describe("Manager", func() {
 			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").Return(fmt.Errorf("cannot run workload")).Times(1)
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 			err := wkManager.Update(cfg)
 			merr, _ := err.(*multierror.Error)
@@ -362,10 +409,10 @@ var _ = Describe("Manager", func() {
 			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
 			wkwMock.EXPECT().Remove("test").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifestPath(datadir, "test"), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifestPath(datadir, "test"), gomock.Any(), gomock.Any()).Return(fmt.Errorf("cannot run workload")).Times(1)
 
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), getManifestPath(datadir, "testB"), gomock.Any()).Return(nil).Times(1)
+			wkwMock.EXPECT().Run(gomock.Any(), getManifestPath(datadir, "testB"), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 			// when
 			err := wkManager.Update(cfg)
@@ -404,7 +451,7 @@ var _ = Describe("Manager", func() {
 
 			wkwMock.EXPECT().Remove("test").AnyTimes()
 			wkwMock.EXPECT().Remove("testB").AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 			wkwMock.EXPECT().Remove("stale").Times(1)
 
@@ -475,7 +522,7 @@ volumes:
 
 			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq("")).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(""), gomock.Any()).AnyTimes()
 
 			// when
 			err := wkManager.Update(cfg)
@@ -521,7 +568,7 @@ volumes:
 
 			wkwMock.EXPECT().ListSecrets().Return(nil, nil).AnyTimes()
 			wkwMock.EXPECT().List().AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq("")).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Eq(""), gomock.Any()).AnyTimes()
 
 			// when
 			err := wkManager.Update(cfg)

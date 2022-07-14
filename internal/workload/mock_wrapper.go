@@ -207,17 +207,17 @@ func (mr *MockWorkloadWrapperMockRecorder) RemoveTable() *gomock.Call {
 }
 
 // Run mocks base method.
-func (m *MockWorkloadWrapper) Run(arg0 *v1.Pod, arg1, arg2 string) error {
+func (m *MockWorkloadWrapper) Run(arg0 *v1.Pod, arg1, arg2 string, arg3 map[string]string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Run", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Run", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Run indicates an expected call of Run.
-func (mr *MockWorkloadWrapperMockRecorder) Run(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockWorkloadWrapperMockRecorder) Run(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockWorkloadWrapper)(nil).Run), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockWorkloadWrapper)(nil).Run), arg0, arg1, arg2, arg3)
 }
 
 // Start mocks base method.
