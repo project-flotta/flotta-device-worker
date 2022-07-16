@@ -272,14 +272,6 @@ func canDedupFileWithHardLink(file *internal.FileMetadata, fd int, s os.FileInfo
 	return canDedupMetadataWithHardLink(file, &otherFile)
 }
 
-func getFileDigest(f *os.File, buf []byte) (digest.Digest, error) {
-	digester := digest.Canonical.Digester()
-	if _, err := io.CopyBuffer(digester.Hash(), f, buf); err != nil {
-		return "", err
-	}
-	return digester.Digest(), nil
-}
-
 // findFileInOSTreeRepos checks whether the requested file already exist in one of the OSTree repo and copies the file content from there if possible.
 // file is the file to look for.
 // ostreeRepos is a list of OSTree repos.
@@ -328,75 +320,6 @@ func findFileInOSTreeRepos(file *internal.FileMetadata, ostreeRepos []string, di
 	}
 
 	return false, nil, 0, nil
-}
-
-// findFileOnTheHost checks whether the requested file already exist on the host and copies the file content from there if possible.
-// It is currently implemented to look only at the file with the same path.  Ideally it can detect the same content also at different
-// paths.
-// file is the file to look for.
-// dirfd is an open fd to the destination checkout.
-// useHardLinks defines whether the deduplication can be performed using hard links.
-func findFileOnTheHost(file *internal.FileMetadata, dirfd int, useHardLinks bool, buf []byte) (bool, *os.File, int64, error) {
-	sourceFile := filepath.Clean(filepath.Join("/", file.Name))
-	if !strings.HasPrefix(sourceFile, "/usr/") {
-		// limit host deduplication to files under /usr.
-		return false, nil, 0, nil
-	}
-
-	st, err := os.Stat(sourceFile)
-	if err != nil || !st.Mode().IsRegular() {
-		return false, nil, 0, nil
-	}
-
-	if st.Size() != file.Size {
-		return false, nil, 0, nil
-	}
-
-	fd, err := unix.Open(sourceFile, unix.O_RDONLY|unix.O_NONBLOCK, 0)
-	if err != nil {
-		return false, nil, 0, nil
-	}
-
-	f := os.NewFile(uintptr(fd), "fd")
-	defer f.Close()
-
-	manifestChecksum, err := digest.Parse(file.Digest)
-	if err != nil {
-		return false, nil, 0, err
-	}
-
-	checksum, err := getFileDigest(f, buf)
-	if err != nil {
-		return false, nil, 0, err
-	}
-
-	if checksum != manifestChecksum {
-		return false, nil, 0, nil
-	}
-
-	// check if the open file can be deduplicated with hard links
-	useHardLinks = useHardLinks && canDedupFileWithHardLink(file, fd, st)
-
-	dstFile, written, err := copyFileContent(fd, file.Name, dirfd, 0, useHardLinks)
-	if err != nil {
-		return false, nil, 0, nil
-	}
-
-	// calculate the checksum again to make sure the file wasn't modified while it was copied
-	if _, err := f.Seek(0, 0); err != nil {
-		dstFile.Close()
-		return false, nil, 0, err
-	}
-	checksum, err = getFileDigest(f, buf)
-	if err != nil {
-		dstFile.Close()
-		return false, nil, 0, err
-	}
-	if checksum != manifestChecksum {
-		dstFile.Close()
-		return false, nil, 0, nil
-	}
-	return true, dstFile, written, nil
 }
 
 // findFileInOtherLayers finds the specified file in other layers.
@@ -918,6 +841,9 @@ func (c *chunkedDiffer) storeMissingFiles(streams chan io.ReadCloser, errs chan 
 			case p := <-streams:
 				part = p
 			case err := <-errs:
+				if err == nil {
+					return errors.New("not enough data returned from the server")
+				}
 				return err
 			}
 			if part == nil {
@@ -1081,11 +1007,17 @@ func mergeMissingChunks(missingParts []missingPart, target int) []missingPart {
 
 func (c *chunkedDiffer) retrieveMissingFiles(dest string, dirfd int, missingParts []missingPart, options *archive.TarOptions) error {
 	var chunksToRequest []ImageSourceChunk
-	for _, c := range missingParts {
-		if c.OriginFile == nil && !c.Hole {
-			chunksToRequest = append(chunksToRequest, *c.SourceChunk)
+
+	calculateChunksToRequest := func() {
+		chunksToRequest = []ImageSourceChunk{}
+		for _, c := range missingParts {
+			if c.OriginFile == nil && !c.Hole {
+				chunksToRequest = append(chunksToRequest, *c.SourceChunk)
+			}
 		}
 	}
+
+	calculateChunksToRequest()
 
 	// There are some missing files.  Prepare a multirange request for the missing chunks.
 	var streams chan io.ReadCloser
@@ -1106,6 +1038,7 @@ func (c *chunkedDiffer) retrieveMissingFiles(dest string, dirfd int, missingPart
 
 			// Merge more chunks to request
 			missingParts = mergeMissingChunks(missingParts, requested/2)
+			calculateChunksToRequest()
 			continue
 		}
 		return err
@@ -1248,7 +1181,7 @@ func (d whiteoutHandler) Mknod(path string, mode uint32, dev int) error {
 
 func checkChownErr(err error, name string, uid, gid int) error {
 	if errors.Is(err, syscall.EINVAL) {
-		return fmt.Errorf("potentially insufficient UIDs or GIDs available in user namespace (requested %d:%d for %s): Check /etc/subuid and /etc/subgid if configured locally: %w", uid, gid, name, err)
+		return fmt.Errorf("potentially insufficient UIDs or GIDs available in user namespace (requested %d:%d for %s): Check /etc/subuid and /etc/subgid if configured locally and run podman-system-migrate: %w", uid, gid, name, err)
 	}
 	return err
 }
@@ -1287,10 +1220,9 @@ func parseBooleanPullOption(storeOpts *storage.StoreOptions, name string, def bo
 }
 
 type findAndCopyFileOptions struct {
-	useHardLinks    bool
-	enableHostDedup bool
-	ostreeRepos     []string
-	options         *archive.TarOptions
+	useHardLinks bool
+	ostreeRepos  []string
+	options      *archive.TarOptions
 }
 
 func (c *chunkedDiffer) findAndCopyFile(dirfd int, r *internal.FileMetadata, copyOptions *findAndCopyFileOptions, mode os.FileMode) (bool, error) {
@@ -1326,18 +1258,6 @@ func (c *chunkedDiffer) findAndCopyFile(dirfd int, r *internal.FileMetadata, cop
 		return true, nil
 	}
 
-	if copyOptions.enableHostDedup {
-		found, dstFile, _, err = findFileOnTheHost(r, dirfd, copyOptions.useHardLinks, c.copyBuffer)
-		if err != nil {
-			return false, err
-		}
-		if found {
-			if err := finalizeFile(dstFile); err != nil {
-				return false, err
-			}
-			return true, nil
-		}
-	}
 	return false, nil
 }
 
@@ -1365,8 +1285,6 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions) (gra
 	if !parseBooleanPullOption(&storeOpts, "enable_partial_images", false) {
 		return output, errors.New("enable_partial_images not configured")
 	}
-
-	enableHostDedup := parseBooleanPullOption(&storeOpts, "enable_host_deduplication", false)
 
 	// When the hard links deduplication is used, file attributes are ignored because setting them
 	// modifies the source file as well.
@@ -1416,10 +1334,9 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions) (gra
 	missingPartsSize, totalChunksSize := int64(0), int64(0)
 
 	copyOptions := findAndCopyFileOptions{
-		useHardLinks:    useHardLinks,
-		enableHostDedup: enableHostDedup,
-		ostreeRepos:     ostreeRepos,
-		options:         options,
+		useHardLinks: useHardLinks,
+		ostreeRepos:  ostreeRepos,
+		options:      options,
 	}
 
 	type copyFileJob struct {
@@ -1575,6 +1492,8 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions) (gra
 	wg.Wait()
 
 	for _, res := range copyResults[:filesToWaitFor] {
+		r := &mergedEntries[res.index]
+
 		if res.err != nil {
 			return output, res.err
 		}
@@ -1583,8 +1502,6 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions) (gra
 		if res.found {
 			continue
 		}
-
-		r := &mergedEntries[res.index]
 
 		missingPartsSize += r.Size
 

@@ -14,7 +14,7 @@ import (
 
 // ValidateVolumeOpts validates a volume's options
 func ValidateVolumeOpts(options []string) ([]string, error) {
-	var foundRootPropagation, foundRWRO, foundLabelChange, bindType, foundExec, foundDev, foundSuid, foundChown, foundUpperDir, foundWorkDir int
+	var foundRootPropagation, foundRWRO, foundLabelChange, bindType, foundExec, foundDev, foundSuid, foundChown, foundUpperDir, foundWorkDir, foundCopy int
 	finalOpts := make([]string, 0, len(options))
 	for _, opt := range options {
 		// support advanced options like upperdir=/path, workdir=/path
@@ -31,6 +31,10 @@ func ValidateVolumeOpts(options []string) ([]string, error) {
 			if foundWorkDir > 1 {
 				return nil, errors.Errorf("invalid options %q, can only specify 1 workdir per overlay", strings.Join(options, ", "))
 			}
+			finalOpts = append(finalOpts, opt)
+			continue
+		}
+		if strings.HasPrefix(opt, "idmap") {
 			finalOpts = append(finalOpts, opt)
 			continue
 		}
@@ -84,7 +88,11 @@ func ValidateVolumeOpts(options []string) ([]string, error) {
 			// are intended to be always safe to use, even not on OS
 			// X).
 			continue
-		case "idmap":
+		case "copy", "nocopy":
+			foundCopy++
+			if foundCopy > 1 {
+				return nil, errors.Errorf("invalid options %q, can only specify 1 'copy' or 'nocopy' option", strings.Join(options, ", "))
+			}
 		default:
 			return nil, errors.Errorf("invalid option type %q", opt)
 		}
@@ -138,7 +146,7 @@ func Device(device string) (src, dest, permissions string, err error) {
 // isValidDeviceMode checks if the mode for device is valid or not.
 // isValid mode is a composition of r (read), w (write), and m (mknod).
 func isValidDeviceMode(mode string) bool {
-	var legalDeviceMode = map[rune]bool{
+	legalDeviceMode := map[rune]bool{
 		'r': true,
 		'w': true,
 		'm': true,

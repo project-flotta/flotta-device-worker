@@ -1,7 +1,7 @@
 package reports
 
 type PruneReport struct {
-	Id   string `json:"Id"` //nolint
+	Id   string `json:"Id"` //nolint:revive,stylecheck
 	Err  error  `json:"Err,omitempty"`
 	Size uint64 `json:"Size"`
 }
@@ -34,7 +34,7 @@ func PruneReportsSize(r []*PruneReport) uint64 {
 		if v == nil {
 			continue
 		}
-		size = size + v.Size
+		size += v.Size
 	}
 	return size
 }

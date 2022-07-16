@@ -1,3 +1,6 @@
+//go:build !linux
+// +build !linux
+
 package cgroups
 
 import (
@@ -12,8 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type blkioHandler struct {
-}
+type blkioHandler struct{}
 
 func getBlkioHandler() *blkioHandler {
 	return &blkioHandler{}

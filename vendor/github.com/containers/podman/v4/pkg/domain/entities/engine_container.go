@@ -19,6 +19,7 @@ type ContainerEngine interface {
 	ContainerAttach(ctx context.Context, nameOrID string, options AttachOptions) error
 	ContainerCheckpoint(ctx context.Context, namesOrIds []string, options CheckpointOptions) ([]*CheckpointReport, error)
 	ContainerCleanup(ctx context.Context, namesOrIds []string, options ContainerCleanupOptions) ([]*ContainerCleanupReport, error)
+	ContainerClone(ctx context.Context, ctrClone ContainerCloneOptions) (*ContainerCreateReport, error)
 	ContainerCommit(ctx context.Context, nameOrID string, options CommitOptions) (*CommitReport, error)
 	ContainerCopyFromArchive(ctx context.Context, nameOrID, path string, reader io.Reader, options CopyOptions) (ContainerCopyFunc, error)
 	ContainerCopyToArchive(ctx context.Context, nameOrID string, path string, writer io.Writer) (ContainerCopyFunc, error)
@@ -70,6 +71,7 @@ type ContainerEngine interface {
 	PlayKube(ctx context.Context, body io.Reader, opts PlayKubeOptions) (*PlayKubeReport, error)
 	PlayKubeDown(ctx context.Context, body io.Reader, opts PlayKubeDownOptions) (*PlayKubeReport, error)
 	PodCreate(ctx context.Context, specg PodSpec) (*PodCreateReport, error)
+	PodClone(ctx context.Context, podClone PodCloneOptions) (*PodCloneReport, error)
 	PodExists(ctx context.Context, nameOrID string) (*BoolReport, error)
 	PodInspect(ctx context.Context, options PodInspectOptions) (*PodInspectReport, error)
 	PodKill(ctx context.Context, namesOrIds []string, options PodKillOptions) ([]*PodKillReport, error)
@@ -98,6 +100,9 @@ type ContainerEngine interface {
 	VolumeMounted(ctx context.Context, namesOrID string) (*BoolReport, error)
 	VolumeInspect(ctx context.Context, namesOrIds []string, opts InspectOptions) ([]*VolumeInspectReport, []error, error)
 	VolumeList(ctx context.Context, opts VolumeListOptions) ([]*VolumeListReport, error)
+	VolumeMount(ctx context.Context, namesOrIds []string) ([]*VolumeMountReport, error)
 	VolumePrune(ctx context.Context, options VolumePruneOptions) ([]*reports.PruneReport, error)
 	VolumeRm(ctx context.Context, namesOrIds []string, opts VolumeRmOptions) ([]*VolumeRmReport, error)
+	VolumeUnmount(ctx context.Context, namesOrIds []string) ([]*VolumeUnmountReport, error)
+	VolumeReload(ctx context.Context) (*VolumeReloadReport, error)
 }

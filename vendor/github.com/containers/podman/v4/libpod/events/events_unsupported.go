@@ -1,8 +1,9 @@
+//go:build !linux
 // +build !linux
 
 package events
 
-import "github.com/pkg/errors"
+import "errors"
 
 // NewEventer creates an eventer based on the eventer type
 func NewEventer(options EventerOptions) (Eventer, error) {

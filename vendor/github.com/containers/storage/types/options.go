@@ -3,14 +3,12 @@ package types
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/containers/storage/drivers/overlay"
 	cfg "github.com/containers/storage/pkg/config"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/sirupsen/logrus"
@@ -19,39 +17,32 @@ import (
 // TOML-friendly explicit tables used for conversions.
 type TomlConfig struct {
 	Storage struct {
-		Driver              string            `toml:"driver"`
-		RunRoot             string            `toml:"runroot"`
-		GraphRoot           string            `toml:"graphroot"`
-		RootlessStoragePath string            `toml:"rootless_storage_path"`
-		Options             cfg.OptionsConfig `toml:"options"`
+		Driver              string            `toml:"driver,omitempty"`
+		RunRoot             string            `toml:"runroot,omitempty"`
+		GraphRoot           string            `toml:"graphroot,omitempty"`
+		RootlessStoragePath string            `toml:"rootless_storage_path,omitempty"`
+		Options             cfg.OptionsConfig `toml:"options,omitempty"`
 	} `toml:"storage"`
 }
 
 const (
-	// these are default path for run and graph root for rootful users
-	// for rootless path is constructed via getRootlessStorageOpts
-	defaultRunRoot   string = "/run/containers/storage"
-	defaultGraphRoot string = "/var/lib/containers/storage"
+	overlayDriver  = "overlay"
+	overlay2       = "overlay2"
+	storageConfEnv = "CONTAINERS_STORAGE_CONF"
 )
 
-// defaultConfigFile path to the system wide storage.conf file
 var (
-	defaultConfigFile         = "/usr/share/containers/storage.conf"
-	defaultOverrideConfigFile = "/etc/containers/storage.conf"
-	defaultConfigFileSet      = false
-	// DefaultStoreOptions is a reasonable default set of options.
-	defaultStoreOptions StoreOptions
+	defaultStoreOptionsOnce sync.Once
 )
 
-const (
-	overlayDriver = "overlay"
-	overlay2      = "overlay2"
-)
-
-func init() {
+func loaddefaultStoreOptions() {
 	defaultStoreOptions.RunRoot = defaultRunRoot
 	defaultStoreOptions.GraphRoot = defaultGraphRoot
 	defaultStoreOptions.GraphDriverName = ""
+
+	if path, ok := os.LookupEnv(storageConfEnv); ok {
+		defaultOverrideConfigFile = path
+	}
 
 	if _, err := os.Stat(defaultOverrideConfigFile); err == nil {
 		// The DefaultConfigFile(rootless) function returns the path
@@ -82,6 +73,7 @@ func defaultStoreOptionsIsolated(rootless bool, rootlessUID int, storageConf str
 		defaultRootlessGraphRoot string
 		err                      error
 	)
+	defaultStoreOptionsOnce.Do(loaddefaultStoreOptions)
 	storageOpts := defaultStoreOptions
 	if rootless && rootlessUID != 0 {
 		storageOpts, err = getRootlessStorageOpts(rootlessUID, storageOpts)
@@ -205,6 +197,7 @@ func getRootlessStorageOpts(rootlessUID int, systemOpts StoreOptions) (StoreOpti
 		return opts, err
 	}
 	opts.RunRoot = rootlessRuntime
+	opts.PullOptions = systemOpts.PullOptions
 	if systemOpts.RootlessStoragePath != "" {
 		opts.GraphRoot, err = expandEnvPath(systemOpts.RootlessStoragePath, rootlessUID)
 		if err != nil {
@@ -221,29 +214,15 @@ func getRootlessStorageOpts(rootlessUID int, systemOpts StoreOptions) (StoreOpti
 		opts.GraphDriverName = driver
 	}
 	if opts.GraphDriverName == overlay2 {
-		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver.")
+		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver")
 		opts.GraphDriverName = overlayDriver
 	}
 
-	if opts.GraphDriverName == "" || opts.GraphDriverName == overlayDriver {
-		supported, err := overlay.SupportsNativeOverlay(opts.GraphRoot, rootlessRuntime)
-		if err != nil {
-			return opts, err
-		}
-		if supported {
-			opts.GraphDriverName = overlayDriver
-		} else {
-			if path, err := exec.LookPath("fuse-overlayfs"); err == nil {
-				opts.GraphDriverName = overlayDriver
-				opts.GraphDriverOptions = []string{fmt.Sprintf("overlay.mount_program=%s", path)}
-			}
-		}
-		if opts.GraphDriverName == overlayDriver {
-			for _, o := range systemOpts.GraphDriverOptions {
-				if strings.Contains(o, "ignore_chown_errors") {
-					opts.GraphDriverOptions = append(opts.GraphDriverOptions, o)
-					break
-				}
+	if opts.GraphDriverName == overlayDriver {
+		for _, o := range systemOpts.GraphDriverOptions {
+			if strings.Contains(o, "ignore_chown_errors") {
+				opts.GraphDriverOptions = append(opts.GraphDriverOptions, o)
+				break
 			}
 		}
 	}
@@ -312,7 +291,7 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 	if err == nil {
 		keys := meta.Undecoded()
 		if len(keys) > 0 {
-			logrus.Warningf("Failed to decode the keys %q from %q.", keys, configFile)
+			logrus.Warningf("Failed to decode the keys %q from %q", keys, configFile)
 		}
 	} else {
 		if !os.IsNotExist(err) {
@@ -331,11 +310,11 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 		storeOptions.GraphDriverName = config.Storage.Driver
 	}
 	if storeOptions.GraphDriverName == overlay2 {
-		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver.")
+		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver")
 		storeOptions.GraphDriverName = overlayDriver
 	}
 	if storeOptions.GraphDriverName == "" {
-		logrus.Errorf("The storage 'driver' option must be set in %s, guarantee proper operation.", configFile)
+		logrus.Errorf("The storage 'driver' option must be set in %s to guarantee proper operation", configFile)
 	}
 	if config.Storage.RunRoot != "" {
 		storeOptions.RunRoot = config.Storage.RunRoot
@@ -422,6 +401,7 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 }
 
 func Options() StoreOptions {
+	defaultStoreOptionsOnce.Do(loaddefaultStoreOptions)
 	return defaultStoreOptions
 }
 
@@ -431,11 +411,12 @@ func Save(conf TomlConfig, rootless bool) error {
 	if err != nil {
 		return err
 	}
-	if err = os.Remove(configFile); !os.IsNotExist(err) {
+
+	if err = os.Remove(configFile); !os.IsNotExist(err) && err != nil {
 		return err
 	}
 
-	f, err := os.Open(configFile)
+	f, err := os.Create(configFile)
 	if err != nil {
 		return err
 	}
