@@ -1,3 +1,4 @@
+//go:build linux && apparmor
 // +build linux,apparmor
 
 package apparmor
@@ -232,7 +233,6 @@ func parseAAParserVersion(output string) (int, error) {
 	// major*10^5 + minor*10^3 + patch*10^0
 	numericVersion := majorVersion*1e5 + minorVersion*1e3 + patchLevel
 	return numericVersion, nil
-
 }
 
 // CheckProfileAndLoadDefault checks if the specified profile is loaded and
@@ -251,19 +251,17 @@ func CheckProfileAndLoadDefault(name string) (string, error) {
 	if unshare.IsRootless() {
 		if name != "" {
 			return "", errors.Wrapf(ErrApparmorRootless, "cannot load AppArmor profile %q", name)
-		} else {
-			logrus.Debug("Skipping loading default AppArmor profile (rootless mode)")
-			return "", nil
 		}
+		logrus.Debug("Skipping loading default AppArmor profile (rootless mode)")
+		return "", nil
 	}
 
 	// Check if AppArmor is disabled and error out if a profile is to be set.
 	if !runcaa.IsEnabled() {
 		if name == "" {
 			return "", nil
-		} else {
-			return "", errors.Errorf("profile %q specified but AppArmor is disabled on the host", name)
 		}
+		return "", errors.Errorf("profile %q specified but AppArmor is disabled on the host", name)
 	}
 
 	if name == "" {

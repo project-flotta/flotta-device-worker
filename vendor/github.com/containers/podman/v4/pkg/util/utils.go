@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"math"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/common/pkg/config"
+	"github.com/containers/common/pkg/util"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/podman/v4/pkg/errorhandling"
 	"github.com/containers/podman/v4/pkg/namespaces"
@@ -26,9 +28,8 @@ import (
 	stypes "github.com/containers/storage/types"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 var containerConfig *config.Config
@@ -65,9 +66,9 @@ func ParseRegistryCreds(creds string) (*types.DockerAuthConfig, error) {
 	}
 	if password == "" {
 		fmt.Print("Password: ")
-		termPassword, err := terminal.ReadPassword(0)
+		termPassword, err := term.ReadPassword(0)
 		if err != nil {
-			return nil, errors.Wrapf(err, "could not read password from terminal")
+			return nil, fmt.Errorf("could not read password from terminal: %w", err)
 		}
 		password = string(termPassword)
 	}
@@ -78,14 +79,9 @@ func ParseRegistryCreds(creds string) (*types.DockerAuthConfig, error) {
 	}, nil
 }
 
-// StringInSlice determines if a string is in a string slice, returns bool
+// StringInSlice is deprecated, use containers/common/pkg/util/StringInSlice
 func StringInSlice(s string, sl []string) bool {
-	for _, i := range sl {
-		if i == s {
-			return true
-		}
-	}
-	return false
+	return util.StringInSlice(s, sl)
 }
 
 // StringMatchRegexSlice determines if a given string matches one of the given regexes, returns bool
@@ -133,7 +129,7 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 		if len(split) != 2 {
 			split = strings.SplitN(change, "=", 2)
 			if len(split) != 2 {
-				return ImageConfig{}, errors.Errorf("invalid change %q - must be formatted as KEY VALUE", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - must be formatted as KEY VALUE", change)
 			}
 		}
 
@@ -143,7 +139,7 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 		case "USER":
 			// Assume literal contents are the user.
 			if value == "" {
-				return ImageConfig{}, errors.Errorf("invalid change %q - must provide a value to USER", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - must provide a value to USER", change)
 			}
 			config.User = value
 		case "EXPOSE":
@@ -152,14 +148,14 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 			// Protocol must be "tcp" or "udp"
 			splitPort := strings.Split(value, "/")
 			if len(splitPort) > 2 {
-				return ImageConfig{}, errors.Errorf("invalid change %q - EXPOSE port must be formatted as PORT[/PROTO]", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - EXPOSE port must be formatted as PORT[/PROTO]", change)
 			}
 			portNum, err := strconv.Atoi(splitPort[0])
 			if err != nil {
-				return ImageConfig{}, errors.Wrapf(err, "invalid change %q - EXPOSE port must be an integer", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - EXPOSE port must be an integer: %w", change, err)
 			}
 			if portNum > 65535 || portNum <= 0 {
-				return ImageConfig{}, errors.Errorf("invalid change %q - EXPOSE port must be a valid port number", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - EXPOSE port must be a valid port number", change)
 			}
 			proto := "tcp"
 			if len(splitPort) > 1 {
@@ -168,7 +164,7 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 				case "tcp", "udp":
 					proto = testProto
 				default:
-					return ImageConfig{}, errors.Errorf("invalid change %q - EXPOSE protocol must be TCP or UDP", change)
+					return ImageConfig{}, fmt.Errorf("invalid change %q - EXPOSE protocol must be TCP or UDP", change)
 				}
 			}
 			if config.ExposedPorts == nil {
@@ -192,7 +188,7 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 			key = splitEnv[0]
 			// We do need a key
 			if key == "" {
-				return ImageConfig{}, errors.Errorf("invalid change %q - ENV must have at least one argument", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - ENV must have at least one argument", change)
 			}
 			// Perfectly valid to not have a value
 			if len(splitEnv) == 2 {
@@ -254,11 +250,11 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 				testUnmarshal = strings.Split(value, " ")
 			}
 			if len(testUnmarshal) == 0 {
-				return ImageConfig{}, errors.Errorf("invalid change %q - must provide at least one argument to VOLUME", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - must provide at least one argument to VOLUME", change)
 			}
 			for _, vol := range testUnmarshal {
 				if vol == "" {
-					return ImageConfig{}, errors.Errorf("invalid change %q - VOLUME paths must not be empty", change)
+					return ImageConfig{}, fmt.Errorf("invalid change %q - VOLUME paths must not be empty", change)
 				}
 				if config.Volumes == nil {
 					config.Volumes = make(map[string]struct{})
@@ -272,7 +268,7 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 			// WORKDIR c results in /A/b/c
 			// Just need to check it's not empty...
 			if value == "" {
-				return ImageConfig{}, errors.Errorf("invalid change %q - must provide a non-empty WORKDIR", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - must provide a non-empty WORKDIR", change)
 			}
 			config.WorkingDir = filepath.Join(config.WorkingDir, value)
 		case "LABEL":
@@ -289,7 +285,7 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 			splitLabel := strings.SplitN(value, "=", 2)
 			// Unlike ENV, LABEL must have a value
 			if len(splitLabel) != 2 {
-				return ImageConfig{}, errors.Errorf("invalid change %q - LABEL must be formatted key=value", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - LABEL must be formatted key=value", change)
 			}
 			key = splitLabel[0]
 			val = splitLabel[1]
@@ -302,7 +298,7 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 			}
 			// Check key after we strip quotations
 			if key == "" {
-				return ImageConfig{}, errors.Errorf("invalid change %q - LABEL must have a non-empty key", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - LABEL must have a non-empty key", change)
 			}
 			if config.Labels == nil {
 				config.Labels = make(map[string]string)
@@ -312,17 +308,17 @@ func GetImageConfig(changes []string) (ImageConfig, error) {
 			// Check the provided signal for validity.
 			killSignal, err := ParseSignal(value)
 			if err != nil {
-				return ImageConfig{}, errors.Wrapf(err, "invalid change %q - KILLSIGNAL must be given a valid signal", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - KILLSIGNAL must be given a valid signal: %w", change, err)
 			}
 			config.StopSignal = fmt.Sprintf("%d", killSignal)
 		case "ONBUILD":
 			// Onbuild always appends.
 			if value == "" {
-				return ImageConfig{}, errors.Errorf("invalid change %q - ONBUILD must be given an argument", change)
+				return ImageConfig{}, fmt.Errorf("invalid change %q - ONBUILD must be given an argument", change)
 			}
 			config.OnBuild = append(config.OnBuild, value)
 		default:
-			return ImageConfig{}, errors.Errorf("invalid change %q - invalid instruction %s", change, outerKey)
+			return ImageConfig{}, fmt.Errorf("invalid change %q - invalid instruction %s", change, outerKey)
 		}
 	}
 
@@ -340,60 +336,89 @@ func ParseSignal(rawSignal string) (syscall.Signal, error) {
 	}
 	// 64 is SIGRTMAX; wish we could get this from a standard Go library
 	if sig < 1 || sig > 64 {
-		return -1, errors.Errorf("valid signals are 1 through 64")
+		return -1, errors.New("valid signals are 1 through 64")
 	}
 	return sig, nil
 }
 
 // GetKeepIDMapping returns the mappings and the user to use when keep-id is used
 func GetKeepIDMapping() (*stypes.IDMappingOptions, int, int, error) {
+	if !rootless.IsRootless() {
+		return nil, -1, -1, errors.New("keep-id is only supported in rootless mode")
+	}
 	options := stypes.IDMappingOptions{
-		HostUIDMapping: true,
-		HostGIDMapping: true,
+		HostUIDMapping: false,
+		HostGIDMapping: false,
 	}
-	uid, gid := 0, 0
-	if rootless.IsRootless() {
-		min := func(a, b int) int {
-			if a < b {
-				return a
-			}
-			return b
+	min := func(a, b int) int {
+		if a < b {
+			return a
 		}
-
-		uid = rootless.GetRootlessUID()
-		gid = rootless.GetRootlessGID()
-
-		uids, gids, err := rootless.GetConfiguredMappings()
-		if err != nil {
-			return nil, -1, -1, errors.Wrapf(err, "cannot read mappings")
-		}
-		maxUID, maxGID := 0, 0
-		for _, u := range uids {
-			maxUID += u.Size
-		}
-		for _, g := range gids {
-			maxGID += g.Size
-		}
-
-		options.UIDMap, options.GIDMap = nil, nil
-
-		options.UIDMap = append(options.UIDMap, idtools.IDMap{ContainerID: 0, HostID: 1, Size: min(uid, maxUID)})
-		options.UIDMap = append(options.UIDMap, idtools.IDMap{ContainerID: uid, HostID: 0, Size: 1})
-		if maxUID > uid {
-			options.UIDMap = append(options.UIDMap, idtools.IDMap{ContainerID: uid + 1, HostID: uid + 1, Size: maxUID - uid})
-		}
-
-		options.GIDMap = append(options.GIDMap, idtools.IDMap{ContainerID: 0, HostID: 1, Size: min(gid, maxGID)})
-		options.GIDMap = append(options.GIDMap, idtools.IDMap{ContainerID: gid, HostID: 0, Size: 1})
-		if maxGID > gid {
-			options.GIDMap = append(options.GIDMap, idtools.IDMap{ContainerID: gid + 1, HostID: gid + 1, Size: maxGID - gid})
-		}
-
-		options.HostUIDMapping = false
-		options.HostGIDMapping = false
+		return b
 	}
-	// Simply ignore the setting and do not setup an inner namespace for root as it is a no-op
+
+	uid := rootless.GetRootlessUID()
+	gid := rootless.GetRootlessGID()
+
+	uids, gids, err := rootless.GetConfiguredMappings()
+	if err != nil {
+		return nil, -1, -1, fmt.Errorf("cannot read mappings: %w", err)
+	}
+	if len(uids) == 0 || len(gids) == 0 {
+		return nil, -1, -1, fmt.Errorf("keep-id requires additional UIDs or GIDs defined in /etc/subuid and /etc/subgid to function correctly: %w", err)
+	}
+	maxUID, maxGID := 0, 0
+	for _, u := range uids {
+		maxUID += u.Size
+	}
+	for _, g := range gids {
+		maxGID += g.Size
+	}
+
+	options.UIDMap, options.GIDMap = nil, nil
+
+	options.UIDMap = append(options.UIDMap, idtools.IDMap{ContainerID: 0, HostID: 1, Size: min(uid, maxUID)})
+	options.UIDMap = append(options.UIDMap, idtools.IDMap{ContainerID: uid, HostID: 0, Size: 1})
+	if maxUID > uid {
+		options.UIDMap = append(options.UIDMap, idtools.IDMap{ContainerID: uid + 1, HostID: uid + 1, Size: maxUID - uid})
+	}
+
+	options.GIDMap = append(options.GIDMap, idtools.IDMap{ContainerID: 0, HostID: 1, Size: min(gid, maxGID)})
+	options.GIDMap = append(options.GIDMap, idtools.IDMap{ContainerID: gid, HostID: 0, Size: 1})
+	if maxGID > gid {
+		options.GIDMap = append(options.GIDMap, idtools.IDMap{ContainerID: gid + 1, HostID: gid + 1, Size: maxGID - gid})
+	}
+
 	return &options, uid, gid, nil
+}
+
+// GetNoMapMapping returns the mappings and the user to use when nomap is used
+func GetNoMapMapping() (*stypes.IDMappingOptions, int, int, error) {
+	if !rootless.IsRootless() {
+		return nil, -1, -1, errors.New("nomap is only supported in rootless mode")
+	}
+	options := stypes.IDMappingOptions{
+		HostUIDMapping: false,
+		HostGIDMapping: false,
+	}
+	uids, gids, err := rootless.GetConfiguredMappings()
+	if err != nil {
+		return nil, -1, -1, fmt.Errorf("cannot read mappings: %w", err)
+	}
+	if len(uids) == 0 || len(gids) == 0 {
+		return nil, -1, -1, fmt.Errorf("nomap requires additional UIDs or GIDs defined in /etc/subuid and /etc/subgid to function correctly: %w", err)
+	}
+	options.UIDMap, options.GIDMap = nil, nil
+	uid, gid := 0, 0
+	for _, u := range uids {
+		options.UIDMap = append(options.UIDMap, idtools.IDMap{ContainerID: uid, HostID: uid + 1, Size: u.Size})
+		uid += u.Size
+	}
+	for _, g := range gids {
+		options.GIDMap = append(options.GIDMap, idtools.IDMap{ContainerID: gid, HostID: gid + 1, Size: g.Size})
+		gid += g.Size
+	}
+	return &options, 0, 0, nil
 }
 
 // ParseIDMapping takes idmappings and subuid and subgid maps and returns a storage mapping
@@ -415,7 +440,7 @@ func ParseIDMapping(mode namespaces.UsernsMode, uidMapSlice, gidMapSlice []strin
 		options.AutoUserNsOpts = *opts
 		return &options, nil
 	}
-	if mode.IsKeepID() {
+	if mode.IsKeepID() || mode.IsNoMap() {
 		options.HostUIDMapping = false
 		options.HostGIDMapping = false
 		return &options, nil
@@ -541,7 +566,7 @@ func ParseInputTime(inputTime string, since bool) (time.Time, error) {
 	// input might be a duration
 	duration, err := time.ParseDuration(inputTime)
 	if err != nil {
-		return time.Time{}, errors.Errorf("unable to interpret time value")
+		return time.Time{}, errors.New("unable to interpret time value")
 	}
 	if since {
 		return time.Now().Add(-duration), nil
@@ -582,7 +607,7 @@ func HomeDir() (string, error) {
 	if home == "" {
 		usr, err := user.LookupId(fmt.Sprintf("%d", rootless.GetRootlessUID()))
 		if err != nil {
-			return "", errors.Wrapf(err, "unable to resolve HOME directory")
+			return "", fmt.Errorf("unable to resolve HOME directory: %w", err)
 		}
 		home = usr.HomeDir
 	}
@@ -620,12 +645,12 @@ func ValidateSysctls(strSlice []string) (map[string]string, error) {
 		foundMatch := false
 		arr := strings.Split(val, "=")
 		if len(arr) < 2 {
-			return nil, errors.Errorf("%s is invalid, sysctl values must be in the form of KEY=VALUE", val)
+			return nil, fmt.Errorf("%s is invalid, sysctl values must be in the form of KEY=VALUE", val)
 		}
 
 		trimmed := fmt.Sprintf("%s=%s", strings.TrimSpace(arr[0]), strings.TrimSpace(arr[1]))
 		if trimmed != val {
-			return nil, errors.Errorf("'%s' is invalid, extra spaces found", val)
+			return nil, fmt.Errorf("'%s' is invalid, extra spaces found", val)
 		}
 
 		if validSysctlMap[arr[0]] {
@@ -641,7 +666,7 @@ func ValidateSysctls(strSlice []string) (map[string]string, error) {
 			}
 		}
 		if !foundMatch {
-			return nil, errors.Errorf("sysctl '%s' is not allowed", arr[0])
+			return nil, fmt.Errorf("sysctl '%s' is not allowed", arr[0])
 		}
 	}
 	return sysctl, nil
@@ -655,9 +680,9 @@ func CreateCidFile(cidfile string, id string) error {
 	cidFile, err := OpenExclusiveFile(cidfile)
 	if err != nil {
 		if os.IsExist(err) {
-			return errors.Errorf("container id file exists. Ensure another container is not using it or delete %s", cidfile)
+			return fmt.Errorf("container id file exists. Ensure another container is not using it or delete %s", cidfile)
 		}
-		return errors.Errorf("error opening cidfile %s", cidfile)
+		return fmt.Errorf("opening cidfile %s", cidfile)
 	}
 	if _, err = cidFile.WriteString(id); err != nil {
 		logrus.Error(err)
@@ -702,33 +727,10 @@ func IDtoolsToRuntimeSpec(idMaps []idtools.IDMap) (convertedIDMap []specs.LinuxI
 	return convertedIDMap
 }
 
-var socketPath string
-
-func SetSocketPath(path string) {
-	socketPath = path
-}
-
-func SocketPath() (string, error) {
-	if socketPath != "" {
-		return socketPath, nil
-	}
-	xdg, err := GetRuntimeDir()
-	if err != nil {
-		return "", err
-	}
-	if len(xdg) == 0 {
-		// If no xdg is returned, assume root socket
-		xdg = "/run"
-	}
-
-	// Glue the socket path together
-	return filepath.Join(xdg, "podman", "podman.sock"), nil
-}
-
 func LookupUser(name string) (*user.User, error) {
 	// Assume UID look up first, if it fails lookup by username
 	if u, err := user.LookupId(name); err == nil {
-		return u, err
+		return u, nil
 	}
 	return user.Lookup(name)
 }

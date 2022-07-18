@@ -72,7 +72,7 @@ type AutoUpdateUnit struct {
 type Podman interface {
 	List() ([]api2.WorkloadInfo, error)
 	Remove(workloadId string) error
-	Run(manifestPath, authFilePath string) ([]*PodReport, error)
+	Run(manifestPath, authFilePath string, annotations map[string]string) ([]*PodReport, error)
 	Start(workloadId string) error
 	Stop(workloadId string) error
 	ListSecrets() (map[string]struct{}, error)
@@ -291,11 +291,12 @@ func (p *podman) Stop(workloadId string) error {
 	return nil
 }
 
-func (p *podman) Run(manifestPath, authFilePath string) ([]*PodReport, error) {
+func (p *podman) Run(manifestPath, authFilePath string, annotations map[string]string) ([]*PodReport, error) {
 	network := []string{DefaultNetworkName}
 	options := play.KubeOptions{
-		Authfile: &authFilePath,
-		Network:  &network,
+		Authfile:    &authFilePath,
+		Network:     &network,
+		Annotations: annotations,
 	}
 	report, err := play.Kube(p.podmanConnection, manifestPath, &options)
 	if err != nil {

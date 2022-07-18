@@ -2,6 +2,8 @@ package signal
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
@@ -17,7 +19,7 @@ func ParseSignal(rawSignal string) (syscall.Signal, error) {
 		}
 		return syscall.Signal(s), nil
 	}
-	sig, ok := signalMap[strings.TrimPrefix(strings.ToUpper(rawSignal), "SIG")]
+	sig, ok := SignalMap[strings.TrimPrefix(strings.ToUpper(rawSignal), "SIG")]
 	if !ok {
 		return -1, fmt.Errorf("invalid signal: %s", rawSignal)
 	}
@@ -25,17 +27,32 @@ func ParseSignal(rawSignal string) (syscall.Signal, error) {
 }
 
 // ParseSignalNameOrNumber translates a string to a valid syscall signal.  Input
-// can be a name or number representation i.e. "KILL" "9"
+// can be a name or number representation i.e. "KILL" "9".
 func ParseSignalNameOrNumber(rawSignal string) (syscall.Signal, error) {
 	basename := strings.TrimPrefix(rawSignal, "-")
 	s, err := ParseSignal(basename)
 	if err == nil {
 		return s, nil
 	}
-	for k, v := range signalMap {
+	for k, v := range SignalMap {
 		if k == strings.ToUpper(basename) {
 			return v, nil
 		}
 	}
 	return -1, fmt.Errorf("invalid signal: %s", basename)
+}
+
+// CatchAll catches all signals and relays them to the specified channel.
+func CatchAll(sigc chan os.Signal) {
+	handledSigs := make([]os.Signal, 0, len(SignalMap))
+	for _, s := range SignalMap {
+		handledSigs = append(handledSigs, s)
+	}
+	signal.Notify(sigc, handledSigs...)
+}
+
+// StopCatch stops catching the signals and closes the specified channel.
+func StopCatch(sigc chan os.Signal) {
+	signal.Stop(sigc)
+	close(sigc)
 }

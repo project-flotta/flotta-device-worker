@@ -139,7 +139,7 @@ type CopyOptions struct {
 // copier is an internal helper to conveniently copy images.
 type copier struct {
 	imageCopyOptions copy.Options
-	retryOptions     retry.RetryOptions
+	retryOptions     retry.Options
 	systemContext    *types.SystemContext
 	policyContext    *signature.PolicyContext
 
@@ -147,15 +147,13 @@ type copier struct {
 	destinationLookup LookupReferenceFunc
 }
 
-var (
-	// storageAllowedPolicyScopes overrides the policy for local storage
-	// to ensure that we can read images from it.
-	storageAllowedPolicyScopes = signature.PolicyTransportScopes{
-		"": []signature.PolicyRequirement{
-			signature.NewPRInsecureAcceptAnything(),
-		},
-	}
-)
+// storageAllowedPolicyScopes overrides the policy for local storage
+// to ensure that we can read images from it.
+var storageAllowedPolicyScopes = signature.PolicyTransportScopes{
+	"": []signature.PolicyRequirement{
+		signature.NewPRInsecureAcceptAnything(),
+	},
+}
 
 // getDockerAuthConfig extracts a docker auth config from the CopyOptions.  Returns
 // nil if no credentials are set.
@@ -372,7 +370,7 @@ func (c *copier) copy(ctx context.Context, source, destination types.ImageRefere
 		}
 		return err
 	}
-	return returnManifest, retry.RetryIfNecessary(ctx, f, &c.retryOptions)
+	return returnManifest, retry.IfNecessary(ctx, f, &c.retryOptions)
 }
 
 // checkRegistrySourcesAllows checks the $BUILD_REGISTRY_SOURCES environment

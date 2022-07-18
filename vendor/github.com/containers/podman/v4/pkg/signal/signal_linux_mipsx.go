@@ -1,3 +1,4 @@
+//go:build linux && (mips || mipsle || mips64 || mips64le)
 // +build linux
 // +build mips mipsle mips64 mips64le
 
@@ -9,8 +10,6 @@ package signal
 // NOTE: this package has originally been copied from github.com/docker/docker.
 
 import (
-	"os"
-	"os/signal"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -23,8 +22,8 @@ const (
 	SIGWINCH = syscall.SIGWINCH
 )
 
-// signalMap is a map of Linux signals.
-var signalMap = map[string]syscall.Signal{
+// SignalMap is a map of Linux signals.
+var SignalMap = map[string]syscall.Signal{
 	"ABRT":     unix.SIGABRT,
 	"ALRM":     unix.SIGALRM,
 	"BUS":      unix.SIGBUS,
@@ -90,19 +89,4 @@ var signalMap = map[string]syscall.Signal{
 	"RTMAX-2":  sigrtmax - 2,
 	"RTMAX-1":  sigrtmax - 1,
 	"RTMAX":    sigrtmax,
-}
-
-// CatchAll catches all signals and relays them to the specified channel.
-func CatchAll(sigc chan os.Signal) {
-	handledSigs := make([]os.Signal, 0, len(signalMap))
-	for _, s := range signalMap {
-		handledSigs = append(handledSigs, s)
-	}
-	signal.Notify(sigc, handledSigs...)
-}
-
-// StopCatch stops catching the signals and closes the specified channel.
-func StopCatch(sigc chan os.Signal) {
-	signal.Stop(sigc)
-	close(sigc)
 }

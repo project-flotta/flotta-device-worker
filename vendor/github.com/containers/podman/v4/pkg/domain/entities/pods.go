@@ -20,15 +20,15 @@ type PodKillOptions struct {
 
 type PodKillReport struct {
 	Errs []error
-	Id   string //nolint
+	Id   string //nolint:revive,stylecheck
 }
 
 type ListPodsReport struct {
 	Cgroup     string
 	Containers []*ListPodContainer
 	Created    time.Time
-	Id         string //nolint
-	InfraId    string //nolint
+	Id         string //nolint:revive,stylecheck
+	InfraId    string //nolint:revive,stylecheck
 	Name       string
 	Namespace  string
 	// Network names connected to infra container
@@ -38,7 +38,7 @@ type ListPodsReport struct {
 }
 
 type ListPodContainer struct {
-	Id     string //nolint
+	Id     string //nolint:revive,stylecheck
 	Names  string
 	Status string
 }
@@ -50,7 +50,7 @@ type PodPauseOptions struct {
 
 type PodPauseReport struct {
 	Errs []error
-	Id   string //nolint
+	Id   string //nolint:revive,stylecheck
 }
 
 type PodunpauseOptions struct {
@@ -60,7 +60,7 @@ type PodunpauseOptions struct {
 
 type PodUnpauseReport struct {
 	Errs []error
-	Id   string //nolint
+	Id   string //nolint:revive,stylecheck
 }
 
 type PodStopOptions struct {
@@ -72,7 +72,7 @@ type PodStopOptions struct {
 
 type PodStopReport struct {
 	Errs []error
-	Id   string //nolint
+	Id   string //nolint:revive,stylecheck
 }
 
 type PodRestartOptions struct {
@@ -82,7 +82,7 @@ type PodRestartOptions struct {
 
 type PodRestartReport struct {
 	Errs []error
-	Id   string //nolint
+	Id   string //nolint:revive,stylecheck
 }
 
 type PodStartOptions struct {
@@ -92,7 +92,7 @@ type PodStartOptions struct {
 
 type PodStartReport struct {
 	Errs []error
-	Id   string //nolint
+	Id   string //nolint:revive,stylecheck
 }
 
 type PodRmOptions struct {
@@ -105,7 +105,7 @@ type PodRmOptions struct {
 
 type PodRmReport struct {
 	Err error
-	Id  string //nolint
+	Id  string //nolint:revive,stylecheck
 }
 
 // PddSpec is an abstracted version of PodSpecGen designed to eventually accept options
@@ -122,6 +122,7 @@ type PodCreateOptions struct {
 	CreateCommand      []string          `json:"create_command,omitempty"`
 	Devices            []string          `json:"devices,omitempty"`
 	DeviceReadBPs      []string          `json:"device_read_bps,omitempty"`
+	ExitPolicy         string            `json:"exit_policy,omitempty"`
 	Hostname           string            `json:"hostname,omitempty"`
 	Infra              bool              `json:"infra,omitempty"`
 	InfraImage         string            `json:"infra_image,omitempty"`
@@ -149,6 +150,18 @@ type PodLogsOptions struct {
 	ContainerLogsOptions
 	// If specified will only fetch the logs of specified container
 	ContainerName string
+	// Show different colors in the logs.
+	Color bool
+}
+
+// PodCloneOptions contains options for cloning an existing pod
+type PodCloneOptions struct {
+	ID                  string
+	Destroy             bool
+	CreateOpts          PodCreateOptions
+	InfraOptions        ContainerCreateOptions
+	PerContainerOptions ContainerCreateOptions
+	Start               bool
 }
 
 type ContainerCreateOptions struct {
@@ -210,7 +223,7 @@ type ContainerCreateOptions struct {
 	Name              string `json:"container_name"`
 	NoHealthCheck     bool
 	OOMKillDisable    bool
-	OOMScoreAdj       int
+	OOMScoreAdj       *int
 	Arch              string
 	OS                string
 	Variant           string
@@ -263,11 +276,15 @@ type ContainerCreateOptions struct {
 	Workdir           string
 	SeccompPolicy     string
 	PidFile           string
+	ChrootDirs        []string
 	IsInfra           bool
+	IsClone           bool
 
 	Net *NetOptions `json:"net,omitempty"`
 
 	CgroupConf []string
+
+	PasswdEntry string
 }
 
 func NewInfraContainerCreateOptions() ContainerCreateOptions {
@@ -280,7 +297,11 @@ func NewInfraContainerCreateOptions() ContainerCreateOptions {
 }
 
 type PodCreateReport struct {
-	Id string //nolint
+	Id string //nolint:revive,stylecheck
+}
+
+type PodCloneReport struct {
+	Id string //nolint:revive,stylecheck
 }
 
 func (p *PodCreateOptions) CPULimits() *specs.LinuxCPU {
@@ -313,6 +334,7 @@ func ToPodSpecGen(s specgen.PodSpecGenerator, p *PodCreateOptions) (*specgen.Pod
 	}
 	s.Pid = out
 	s.Hostname = p.Hostname
+	s.ExitPolicy = p.ExitPolicy
 	s.Labels = p.Labels
 	s.Devices = p.Devices
 	s.SecurityOpt = p.SecurityOpt
@@ -381,7 +403,7 @@ type PodPruneOptions struct {
 
 type PodPruneReport struct {
 	Err error
-	Id  string //nolint
+	Id  string //nolint:revive,stylecheck
 }
 
 type PodTopOptions struct {
@@ -429,16 +451,33 @@ type PodStatsOptions struct {
 
 // PodStatsReport includes pod-resource statistics data.
 type PodStatsReport struct {
-	CPU           string
-	MemUsage      string
+	// Percentage of CPU utilized by pod
+	// example: 75.5%
+	CPU string
+	// Humanized Memory usage and maximum
+	// example: 12mb / 24mb
+	MemUsage string
+	// Memory usage and maximum in bytes
+	// example: 1,000,000 / 4,000,000
 	MemUsageBytes string
-	Mem           string
-	NetIO         string
-	BlockIO       string
-	PIDS          string
-	Pod           string
-	CID           string
-	Name          string
+	// Percentage of Memory utilized by pod
+	// example: 50.5%
+	Mem string
+	// Network usage inbound + outbound
+	NetIO string
+	// Humanized disk usage read + write
+	BlockIO string
+	// Container PID
+	PIDS string
+	// Pod ID
+	// example: 62310217a19e
+	Pod string
+	// Container ID
+	// example: e43534f89a7d
+	CID string
+	// Pod Name
+	// example: elastic_pascal
+	Name string
 }
 
 // ValidatePodStatsOptions validates the specified slice and options. Allows
@@ -467,7 +506,7 @@ func ValidatePodStatsOptions(args []string, options *PodStatsOptions) error {
 	}
 }
 
-// Converts PodLogOptions to ContainerLogOptions
+// PodLogsOptionsToContainerLogsOptions converts PodLogOptions to ContainerLogOptions
 func PodLogsOptionsToContainerLogsOptions(options PodLogsOptions) ContainerLogsOptions {
 	// PodLogsOptions are similar but contains few extra fields like ctrName
 	// So cast other values as is so we can re-use the code
@@ -480,6 +519,7 @@ func PodLogsOptionsToContainerLogsOptions(options PodLogsOptions) ContainerLogsO
 		Until:        options.Until,
 		Tail:         options.Tail,
 		Timestamps:   options.Timestamps,
+		Colors:       options.Colors,
 		StdoutWriter: options.StdoutWriter,
 		StderrWriter: options.StderrWriter,
 	}

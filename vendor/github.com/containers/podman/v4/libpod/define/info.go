@@ -1,6 +1,8 @@
 package define
 
-import "github.com/containers/storage/pkg/idtools"
+import (
+	"github.com/containers/storage/pkg/idtools"
+)
 
 // Info is the overall struct that describes the host system
 // running libpod/podman
@@ -12,7 +14,7 @@ type Info struct {
 	Version    Version                `json:"version"`
 }
 
-//HostInfo describes the libpod host
+// SecurityInfo describes the libpod host
 type SecurityInfo struct {
 	AppArmorEnabled     bool   `json:"apparmorEnabled"`
 	DefaultCapabilities string `json:"capabilities"`
@@ -31,6 +33,7 @@ type HostInfo struct {
 	CgroupControllers []string         `json:"cgroupControllers"`
 	Conmon            *ConmonInfo      `json:"conmon"`
 	CPUs              int              `json:"cpus"`
+	CPUUtilization    *CPUUsage        `json:"cpuUtilization"`
 	Distribution      DistributionInfo `json:"distribution"`
 	EventLogger       string           `json:"eventLogger"`
 	Hostname          string           `json:"hostname"`
@@ -61,8 +64,7 @@ type RemoteSocket struct {
 	Exists bool   `json:"exists,omitempty"`
 }
 
-// SlirpInfo describes the slirp executable that
-// is being being used.
+// SlirpInfo describes the slirp executable that is being used
 type SlirpInfo struct {
 	Executable string `json:"executable"`
 	Package    string `json:"package"`
@@ -75,8 +77,7 @@ type IDMappings struct {
 	UIDMap []idtools.IDMap `json:"uidmap"`
 }
 
-// DistributionInfo describes the host distribution
-// for libpod
+// DistributionInfo describes the host distribution for libpod
 type DistributionInfo struct {
 	Distribution string `json:"distribution"`
 	Variant      string `json:"variant,omitempty"`
@@ -108,11 +109,15 @@ type StoreInfo struct {
 	GraphDriverName string                 `json:"graphDriverName"`
 	GraphOptions    map[string]interface{} `json:"graphOptions"`
 	GraphRoot       string                 `json:"graphRoot"`
-	GraphStatus     map[string]string      `json:"graphStatus"`
-	ImageCopyTmpDir string                 `json:"imageCopyTmpDir"`
-	ImageStore      ImageStore             `json:"imageStore"`
-	RunRoot         string                 `json:"runRoot"`
-	VolumePath      string                 `json:"volumePath"`
+	// GraphRootAllocated is how much space the graphroot has in bytes
+	GraphRootAllocated uint64 `json:"graphRootAllocated"`
+	// GraphRootUsed is how much of graphroot is used in bytes
+	GraphRootUsed   uint64            `json:"graphRootUsed"`
+	GraphStatus     map[string]string `json:"graphStatus"`
+	ImageCopyTmpDir string            `json:"imageCopyTmpDir"`
+	ImageStore      ImageStore        `json:"imageStore"`
+	RunRoot         string            `json:"runRoot"`
+	VolumePath      string            `json:"volumePath"`
 }
 
 // ImageStore describes the image store.  Right now only the number
@@ -134,6 +139,12 @@ type Plugins struct {
 	Volume  []string `json:"volume"`
 	Network []string `json:"network"`
 	Log     []string `json:"log"`
-	// FIXME what should we do with Authorization, docker seems to return nothing by default
-	// Authorization []string `json:"authorization"`
+	// Authorization is provided for compatibility, will always be nil as Podman has no daemon
+	Authorization []string `json:"authorization"`
+}
+
+type CPUUsage struct {
+	UserPercent   float64 `json:"userPercent"`
+	SystemPercent float64 `json:"systemPercent"`
+	IdlePercent   float64 `json:"idlePercent"`
 }

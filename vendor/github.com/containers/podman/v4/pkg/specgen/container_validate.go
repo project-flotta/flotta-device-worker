@@ -1,14 +1,15 @@
 package specgen
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/containers/common/pkg/util"
 	"github.com/containers/podman/v4/libpod/define"
 	"github.com/containers/podman/v4/pkg/rootless"
-	"github.com/containers/podman/v4/pkg/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -23,7 +24,7 @@ var (
 )
 
 func exclusiveOptions(opt1, opt2 string) error {
-	return errors.Errorf("%s and %s are mutually exclusive options", opt1, opt2)
+	return fmt.Errorf("%s and %s are mutually exclusive options", opt1, opt2)
 }
 
 // Validate verifies that the given SpecGenerator is valid and satisfies required
@@ -33,11 +34,18 @@ func (s *SpecGenerator) Validate() error {
 	// associated with them because those should be on the infra container.
 	if len(s.Pod) > 0 && s.NetNS.NSMode == FromPod {
 		if len(s.Networks) > 0 {
-			return errors.Wrap(define.ErrNetworkOnPodContainer, "networks must be defined when the pod is created")
+			return fmt.Errorf("networks must be defined when the pod is created: %w", define.ErrNetworkOnPodContainer)
 		}
 		if len(s.PortMappings) > 0 || s.PublishExposedPorts {
-			return errors.Wrap(define.ErrNetworkOnPodContainer, "published or exposed ports must be defined when the pod is created")
+			return fmt.Errorf("published or exposed ports must be defined when the pod is created: %w", define.ErrNetworkOnPodContainer)
 		}
+		if len(s.HostAdd) > 0 {
+			return fmt.Errorf("extra host entries must be specified on the pod: %w", define.ErrNetworkOnPodContainer)
+		}
+	}
+
+	if s.NetNS.IsContainer() && len(s.HostAdd) > 0 {
+		return fmt.Errorf("cannot set extra host entries when the container is joined to another containers network namespace: %w", ErrInvalidSpecConfig)
 	}
 
 	//
@@ -45,22 +53,23 @@ func (s *SpecGenerator) Validate() error {
 	//
 	// Rootfs and Image cannot both populated
 	if len(s.ContainerStorageConfig.Image) > 0 && len(s.ContainerStorageConfig.Rootfs) > 0 {
-		return errors.Wrap(ErrInvalidSpecConfig, "both image and rootfs cannot be simultaneously")
+		return fmt.Errorf("both image and rootfs cannot be simultaneously: %w", ErrInvalidSpecConfig)
 	}
 	// Cannot set hostname and utsns
 	if len(s.ContainerBasicConfig.Hostname) > 0 && !s.ContainerBasicConfig.UtsNS.IsPrivate() {
 		if s.ContainerBasicConfig.UtsNS.IsPod() {
-			return errors.Wrap(ErrInvalidSpecConfig, "cannot set hostname when joining the pod UTS namespace")
+			return fmt.Errorf("cannot set hostname when joining the pod UTS namespace: %w", ErrInvalidSpecConfig)
 		}
-		return errors.Wrap(ErrInvalidSpecConfig, "cannot set hostname when running in the host UTS namespace")
+
+		return fmt.Errorf("cannot set hostname when running in the host UTS namespace: %w", ErrInvalidSpecConfig)
 	}
 	// systemd values must be true, false, or always
 	if len(s.ContainerBasicConfig.Systemd) > 0 && !util.StringInSlice(strings.ToLower(s.ContainerBasicConfig.Systemd), SystemDValues) {
-		return errors.Wrapf(ErrInvalidSpecConfig, "--systemd values must be one of %q", strings.Join(SystemDValues, ", "))
+		return fmt.Errorf("--systemd values must be one of %q: %w", strings.Join(SystemDValues, ", "), ErrInvalidSpecConfig)
 	}
 	// sdnotify values must be container, conmon, or ignore
 	if len(s.ContainerBasicConfig.SdNotifyMode) > 0 && !util.StringInSlice(strings.ToLower(s.ContainerBasicConfig.SdNotifyMode), SdNotifyModeValues) {
-		return errors.Wrapf(ErrInvalidSpecConfig, "--sdnotify values must be one of %q", strings.Join(SdNotifyModeValues, ", "))
+		return fmt.Errorf("--sdnotify values must be one of %q: %w", strings.Join(SdNotifyModeValues, ", "), ErrInvalidSpecConfig)
 	}
 
 	//
@@ -72,24 +81,20 @@ func (s *SpecGenerator) Validate() error {
 	}
 	// imagevolumemode must be one of ignore, tmpfs, or anonymous if given
 	if len(s.ContainerStorageConfig.ImageVolumeMode) > 0 && !util.StringInSlice(strings.ToLower(s.ContainerStorageConfig.ImageVolumeMode), ImageVolumeModeValues) {
-		return errors.Errorf("invalid ImageVolumeMode %q, value must be one of %s",
+		return fmt.Errorf("invalid ImageVolumeMode %q, value must be one of %s",
 			s.ContainerStorageConfig.ImageVolumeMode, strings.Join(ImageVolumeModeValues, ","))
 	}
 	// shmsize conflicts with IPC namespace
-	if s.ContainerStorageConfig.ShmSize != nil && !s.ContainerStorageConfig.IpcNS.IsPrivate() {
-		return errors.New("cannot set shmsize when running in the host IPC Namespace")
+	if s.ContainerStorageConfig.ShmSize != nil && (s.ContainerStorageConfig.IpcNS.IsHost() || s.ContainerStorageConfig.IpcNS.IsNone()) {
+		return fmt.Errorf("cannot set shmsize when running in the %s IPC Namespace", s.ContainerStorageConfig.IpcNS)
 	}
 
 	//
 	// ContainerSecurityConfig
 	//
-	// capadd and privileged are exclusive
-	if len(s.CapAdd) > 0 && s.Privileged {
-		return exclusiveOptions("CapAdd", "privileged")
-	}
 	// userns and idmappings conflict
 	if s.UserNS.IsPrivate() && s.IDMappings == nil {
-		return errors.Wrap(ErrInvalidSpecConfig, "IDMappings are required when not creating a User namespace")
+		return fmt.Errorf("IDMappings are required when not creating a User namespace: %w", ErrInvalidSpecConfig)
 	}
 
 	//
@@ -119,19 +124,19 @@ func (s *SpecGenerator) Validate() error {
 	}
 
 	// TODO the specgen does not appear to handle this?  Should it
-	//switch config.Cgroup.Cgroups {
-	//case "disabled":
+	// switch config.Cgroup.Cgroups {
+	// case "disabled":
 	//	if addedResources {
 	//		return errors.New("cannot specify resource limits when cgroups are disabled is specified")
 	//	}
 	//	configSpec.Linux.Resources = &spec.LinuxResources{}
-	//case "enabled", "no-conmon", "":
+	// case "enabled", "no-conmon", "":
 	//	// Do nothing
-	//default:
+	// default:
 	//	return errors.New("unrecognized option for cgroups; supported are 'default', 'disabled', 'no-conmon'")
-	//}
+	// }
 	invalidUlimitFormatError := errors.New("invalid default ulimit definition must be form of type=soft:hard")
-	//set ulimits if not rootless
+	// set ulimits if not rootless
 	if len(s.ContainerResourceConfig.Rlimits) < 1 && !rootless.IsRootless() {
 		// Containers common defines this as something like nproc=4194304:4194304
 		tmpnproc := containerConfig.Ulimits()
@@ -139,11 +144,11 @@ func (s *SpecGenerator) Validate() error {
 		for _, limit := range tmpnproc {
 			limitSplit := strings.SplitN(limit, "=", 2)
 			if len(limitSplit) < 2 {
-				return errors.Wrapf(invalidUlimitFormatError, "missing = in %s", limit)
+				return fmt.Errorf("missing = in %s: %w", limit, invalidUlimitFormatError)
 			}
 			valueSplit := strings.SplitN(limitSplit[1], ":", 2)
 			if len(valueSplit) < 2 {
-				return errors.Wrapf(invalidUlimitFormatError, "missing : in %s", limit)
+				return fmt.Errorf("missing : in %s: %w", limit, invalidUlimitFormatError)
 			}
 			hard, err := strconv.Atoi(valueSplit[0])
 			if err != nil {
@@ -166,7 +171,7 @@ func (s *SpecGenerator) Validate() error {
 	if err := s.UtsNS.validate(); err != nil {
 		return err
 	}
-	if err := s.IpcNS.validate(); err != nil {
+	if err := validateIPCNS(&s.IpcNS); err != nil {
 		return err
 	}
 	if err := s.PidNS.validate(); err != nil {
@@ -180,10 +185,12 @@ func (s *SpecGenerator) Validate() error {
 	}
 
 	// Set defaults if network info is not provided
-	if s.NetNS.NSMode == "" {
-		s.NetNS.NSMode = Bridge
+	// when we are rootless we default to slirp4netns
+	if s.NetNS.IsPrivate() || s.NetNS.IsDefault() {
 		if rootless.IsRootless() {
 			s.NetNS.NSMode = Slirp
+		} else {
+			s.NetNS.NSMode = Bridge
 		}
 	}
 	if err := validateNetNS(&s.NetNS); err != nil {
@@ -191,7 +198,7 @@ func (s *SpecGenerator) Validate() error {
 	}
 	if s.NetNS.NSMode != Bridge && len(s.Networks) > 0 {
 		// Note that we also get the ip and mac in the networks map
-		return errors.New("Networks and static ip/mac address can only be used with Bridge mode networking")
+		return errors.New("networks and static ip/mac address can only be used with Bridge mode networking")
 	}
 
 	return nil

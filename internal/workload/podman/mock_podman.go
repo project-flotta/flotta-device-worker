@@ -156,18 +156,18 @@ func (mr *MockPodmanMockRecorder) RemoveSecret(arg0 interface{}) *gomock.Call {
 }
 
 // Run mocks base method.
-func (m *MockPodman) Run(arg0, arg1 string) ([]*PodReport, error) {
+func (m *MockPodman) Run(arg0, arg1 string, arg2 map[string]string) ([]*PodReport, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Run", arg0, arg1)
+	ret := m.ctrl.Call(m, "Run", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*PodReport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Run indicates an expected call of Run.
-func (mr *MockPodmanMockRecorder) Run(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockPodmanMockRecorder) Run(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockPodman)(nil).Run), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockPodman)(nil).Run), arg0, arg1, arg2)
 }
 
 // Start mocks base method.

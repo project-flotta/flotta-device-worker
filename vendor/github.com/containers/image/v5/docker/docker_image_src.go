@@ -4,19 +4,19 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/internal/iolimits"
-	internalTypes "github.com/containers/image/v5/internal/types"
+	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	"github.com/containers/image/v5/types"
@@ -147,6 +147,11 @@ func (s *dockerImageSource) Close() error {
 	return nil
 }
 
+// SupportsGetBlobAt() returns true if GetBlobAt (BlobChunkAccessor) is supported.
+func (s *dockerImageSource) SupportsGetBlobAt() bool {
+	return true
+}
+
 // LayerInfosForCopy returns either nil (meaning the values in the manifest are fine), or updated values for the layer
 // blobsums that are listed in the image's manifest.  If values are returned, they should be used when using GetBlob()
 // to read the image's layers.
@@ -248,13 +253,14 @@ func (s *dockerImageSource) getExternalBlob(ctx context.Context, urls []string) 
 		return nil, 0, errors.New("internal error: getExternalBlob called with no URLs")
 	}
 	for _, u := range urls {
-		if u, err := url.Parse(u); err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		url, err := url.Parse(u)
+		if err != nil || (url.Scheme != "http" && url.Scheme != "https") {
 			continue // unsupported url. skip this url.
 		}
 		// NOTE: we must not authenticate on additional URLs as those
 		//       can be abused to leak credentials or tokens.  Please
 		//       refer to CVE-2020-15157 for more information.
-		resp, err = s.c.makeRequestToResolvedURL(ctx, http.MethodGet, u, nil, nil, -1, noAuth, nil)
+		resp, err = s.c.makeRequestToResolvedURL(ctx, http.MethodGet, url, nil, nil, -1, noAuth, nil)
 		if err == nil {
 			if resp.StatusCode != http.StatusOK {
 				err = errors.Errorf("error fetching external blob from %q: %d (%s)", u, resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -288,7 +294,7 @@ func (s *dockerImageSource) HasThreadSafeGetBlob() bool {
 }
 
 // splitHTTP200ResponseToPartial splits a 200 response in multiple streams as specified by the chunks
-func splitHTTP200ResponseToPartial(streams chan io.ReadCloser, errs chan error, body io.ReadCloser, chunks []internalTypes.ImageSourceChunk) {
+func splitHTTP200ResponseToPartial(streams chan io.ReadCloser, errs chan error, body io.ReadCloser, chunks []private.ImageSourceChunk) {
 	defer close(streams)
 	defer close(errs)
 	currentOffset := uint64(0)
@@ -302,7 +308,7 @@ func splitHTTP200ResponseToPartial(streams chan io.ReadCloser, errs chan error, 
 				break
 			}
 			toSkip := c.Offset - currentOffset
-			if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, int64(toSkip))); err != nil {
+			if _, err := io.Copy(io.Discard, io.LimitReader(body, int64(toSkip))); err != nil {
 				errs <- err
 				break
 			}
@@ -310,7 +316,7 @@ func splitHTTP200ResponseToPartial(streams chan io.ReadCloser, errs chan error, 
 		}
 		s := signalCloseReader{
 			closed:        make(chan interface{}),
-			stream:        ioutil.NopCloser(io.LimitReader(body, int64(c.Length))),
+			stream:        io.NopCloser(io.LimitReader(body, int64(c.Length))),
 			consumeStream: true,
 		}
 		streams <- s
@@ -322,7 +328,7 @@ func splitHTTP200ResponseToPartial(streams chan io.ReadCloser, errs chan error, 
 }
 
 // handle206Response reads a 206 response and send each part as a separate ReadCloser to the streams chan.
-func handle206Response(streams chan io.ReadCloser, errs chan error, body io.ReadCloser, chunks []internalTypes.ImageSourceChunk, mediaType string, params map[string]string) {
+func handle206Response(streams chan io.ReadCloser, errs chan error, body io.ReadCloser, chunks []private.ImageSourceChunk, mediaType string, params map[string]string) {
 	defer close(streams)
 	defer close(errs)
 	if !strings.HasPrefix(mediaType, "multipart/") {
@@ -338,11 +344,15 @@ func handle206Response(streams chan io.ReadCloser, errs chan error, body io.Read
 	buffered := makeBufferedNetworkReader(body, 64, 16384)
 	defer buffered.Close()
 	mr := multipart.NewReader(buffered, boundary)
+	parts := 0
 	for {
 		p, err := mr.NextPart()
 		if err != nil {
 			if err != io.EOF {
 				errs <- err
+			}
+			if parts != len(chunks) {
+				errs <- errors.Errorf("invalid number of chunks returned by the server")
 			}
 			return
 		}
@@ -354,12 +364,40 @@ func handle206Response(streams chan io.ReadCloser, errs chan error, body io.Read
 		// NextPart() cannot be called while the current part
 		// is being read, so wait until it is closed
 		<-s.closed
+		parts++
 	}
 }
 
-// GetBlobAt returns a stream for the specified blob.
+var multipartByteRangesRe = regexp.MustCompile("multipart/byteranges; boundary=([A-Za-z-0-9:]+)")
+
+func parseMediaType(contentType string) (string, map[string]string, error) {
+	mediaType, params, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		if err == mime.ErrInvalidMediaParameter {
+			// CloudFront returns an invalid MIME type, that contains an unquoted ":" in the boundary
+			// param, let's handle it here.
+			matches := multipartByteRangesRe.FindStringSubmatch(contentType)
+			if len(matches) == 2 {
+				mediaType = "multipart/byteranges"
+				params = map[string]string{
+					"boundary": matches[1],
+				}
+				err = nil
+			}
+		}
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	return mediaType, params, err
+}
+
+// GetBlobAt returns a sequential channel of readers that contain data for the requested
+// blob chunks, and a channel that might get a single error value.
 // The specified chunks must be not overlapping and sorted by their offset.
-func (s *dockerImageSource) GetBlobAt(ctx context.Context, info types.BlobInfo, chunks []internalTypes.ImageSourceChunk) (chan io.ReadCloser, chan error, error) {
+// The readers must be fully consumed, in the order they are returned, before blocking
+// to read the next chunk.
+func (s *dockerImageSource) GetBlobAt(ctx context.Context, info types.BlobInfo, chunks []private.ImageSourceChunk) (chan io.ReadCloser, chan error, error) {
 	headers := make(map[string][]string)
 
 	var rangeVals []string
@@ -389,7 +427,7 @@ func (s *dockerImageSource) GetBlobAt(ctx context.Context, info types.BlobInfo, 
 		go splitHTTP200ResponseToPartial(streams, errs, res.Body, chunks)
 		return streams, errs, nil
 	case http.StatusPartialContent:
-		mediaType, params, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
+		mediaType, params, err := parseMediaType(res.Header.Get("Content-Type"))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -401,7 +439,7 @@ func (s *dockerImageSource) GetBlobAt(ctx context.Context, info types.BlobInfo, 
 		return streams, errs, nil
 	case http.StatusBadRequest:
 		res.Body.Close()
-		return nil, nil, internalTypes.BadPartialRequestError{Status: res.Status}
+		return nil, nil, private.BadPartialRequestError{Status: res.Status}
 	default:
 		err := httpResponseToError(res, "Error fetching partial blob")
 		if err == nil {
@@ -506,7 +544,7 @@ func (s *dockerImageSource) getOneSignature(ctx context.Context, url *url.URL) (
 	switch url.Scheme {
 	case "file":
 		logrus.Debugf("Reading %s", url.Path)
-		sig, err := ioutil.ReadFile(url.Path)
+		sig, err := os.ReadFile(url.Path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil, true, nil
@@ -516,7 +554,7 @@ func (s *dockerImageSource) getOneSignature(ctx context.Context, url *url.URL) (
 		return sig, false, nil
 
 	case "http", "https":
-		logrus.Debugf("GET %s", url)
+		logrus.Debugf("GET %s", url.Redacted())
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
 		if err != nil {
 			return nil, false, err
@@ -529,7 +567,7 @@ func (s *dockerImageSource) getOneSignature(ctx context.Context, url *url.URL) (
 		if res.StatusCode == http.StatusNotFound {
 			return nil, true, nil
 		} else if res.StatusCode != http.StatusOK {
-			return nil, false, errors.Errorf("Error reading signature from %s: status %d (%s)", url.String(), res.StatusCode, http.StatusText(res.StatusCode))
+			return nil, false, errors.Errorf("Error reading signature from %s: status %d (%s)", url.Redacted(), res.StatusCode, http.StatusText(res.StatusCode))
 		}
 		sig, err := iolimits.ReadAtMost(res.Body, iolimits.MaxSignatureBodySize)
 		if err != nil {
@@ -538,7 +576,7 @@ func (s *dockerImageSource) getOneSignature(ctx context.Context, url *url.URL) (
 		return sig, false, nil
 
 	default:
-		return nil, false, errors.Errorf("Unsupported scheme when reading signature from %s", url.String())
+		return nil, false, errors.Errorf("Unsupported scheme when reading signature from %s", url.Redacted())
 	}
 }
 
@@ -602,8 +640,11 @@ func deleteImage(ctx context.Context, sys *types.SystemContext, ref dockerRefere
 		return errors.Errorf("Failed to delete %v: %s (%v)", ref.ref, manifestBody, get.Status)
 	}
 
-	digest := get.Header.Get("Docker-Content-Digest")
-	deletePath := fmt.Sprintf(manifestPath, reference.Path(ref.ref), digest)
+	manifestDigest, err := manifest.Digest(manifestBody)
+	if err != nil {
+		return fmt.Errorf("computing manifest digest: %w", err)
+	}
+	deletePath := fmt.Sprintf(manifestPath, reference.Path(ref.ref), manifestDigest)
 
 	// When retrieving the digest from a registry >= 2.3 use the following header:
 	//   "Accept": "application/vnd.docker.distribution.manifest.v2+json"
@@ -619,11 +660,6 @@ func deleteImage(ctx context.Context, sys *types.SystemContext, ref dockerRefere
 	}
 	if delete.StatusCode != http.StatusAccepted {
 		return errors.Errorf("Failed to delete %v: %s (%v)", deletePath, string(body), delete.Status)
-	}
-
-	manifestDigest, err := manifest.Digest(manifestBody)
-	if err != nil {
-		return err
 	}
 
 	for i := 0; ; i++ {
@@ -756,7 +792,7 @@ func (s signalCloseReader) Read(p []byte) (int, error) {
 func (s signalCloseReader) Close() error {
 	defer close(s.closed)
 	if s.consumeStream {
-		if _, err := io.Copy(ioutil.Discard, s.stream); err != nil {
+		if _, err := io.Copy(io.Discard, s.stream); err != nil {
 			s.stream.Close()
 			return err
 		}

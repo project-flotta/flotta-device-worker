@@ -7,6 +7,8 @@ import (
 //go:generate go run ../generator/generator.go KubeOptions
 // KubeOptions are optional options for replaying kube YAML files
 type KubeOptions struct {
+	// Annotations - Annotations to add to Pods
+	Annotations map[string]string
 	// Authfile - path to an authentication file.
 	Authfile *string
 	// CertDir - to a directory containing TLS certifications and keys.
@@ -41,4 +43,6 @@ type KubeOptions struct {
 	LogOptions *[]string
 	// Start - don't start the pod if false
 	Start *bool
+	// Userns - define the user namespace to use.
+	Userns *string
 }
