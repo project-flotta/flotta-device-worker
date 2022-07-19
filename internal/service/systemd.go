@@ -282,5 +282,5 @@ func (s *systemd) Disable() error {
 }
 
 func DefaultServiceName(serviceName string) string {
-	return serviceName + ServiceSuffix
+	return "pod-" + serviceName + ServiceSuffix
 }
