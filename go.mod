@@ -11,6 +11,7 @@ require (
 	github.com/apenella/go-ansible v1.1.5
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/aws/aws-sdk-go v1.44.37
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/chzyer/readline v1.5.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20211130200136-a8f946100490 // indirect
 	github.com/containers/podman/v4 v4.2.0-rc1.0.20220711193303-c57b5c9b8316

@@ -1,4 +1,6 @@
-FROM quay.io/podman/stable:v4.1.0
+# FROM quay.io/podman/stable:v4.2.0
+# Hack until 4.2 is released
+FROM quay.io/podman/testing:ae7690c42379
 
 WORKDIR /project
 RUN dnf install -y 'dnf-command(copr)'
