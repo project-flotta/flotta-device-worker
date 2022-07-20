@@ -275,10 +275,10 @@ func (ww *Workload) removeService(workloadName string) error {
 
 func (ww *Workload) createService(svc service.Service) error {
 	if err := svc.Add(); err != nil {
-		return err
+		return fmt.Errorf("cannot add systemd service '%s': %v", svc.GetName(), err)
 	}
 	if err := svc.Enable(); err != nil {
-		return err
+		return fmt.Errorf("cannot enable systemd service '%s': %v", svc.GetName(), err)
 	}
 
 	_ = svc.Start()
