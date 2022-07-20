@@ -12,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/go-openapi/swag"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
@@ -118,11 +119,16 @@ func NewPodman() (*podman, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &podman{
+	p := &podman{
 		podmanConnection:   podmanConnection,
 		timeoutForStopping: DefaultTimeoutForStoppingInSeconds,
-	}, nil
+	}
+	err = p.MinVersion()
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
 }
 
 func podmanConnection() (context.Context, error) {
@@ -132,6 +138,21 @@ func podmanConnection() (context.Context, error) {
 	}
 
 	return podmanConnection, err
+}
+
+func (p *podman) MinVersion() error {
+	version, err := system.Info(p.podmanConnection, nil)
+	if err != nil {
+		return fmt.Errorf("cannot get podman version: %v", err)
+	}
+	v := semver.MustParse(string(version.Version.Version))
+	if v.Major > 4 {
+		return nil
+	}
+	if v.Major == 4 && v.Minor >= 2 {
+		return nil
+	}
+	return fmt.Errorf("podman version '%s' is not supported, needs >= v4.2", version.Version.Version)
 }
 
 func (p *podman) List() ([]api2.WorkloadInfo, error) {
