@@ -187,11 +187,17 @@ func NewSystemdRootless(name string, units map[string]string, rootless bool) (Se
 }
 
 func (s *systemd) Add() error {
+	if len(s.UnitsContent) == 0 {
+		log.Infof("calling systemd add service for '%s' with no units available", s.Name)
+	}
+
 	for unit, content := range s.UnitsContent {
-		err := os.WriteFile(path.Join(DefaultUnitsPath, DefaultServiceName(unit)), []byte(content), 0644) //#nosec
+		targetPath := path.Join(DefaultUnitsPath, DefaultServiceName(unit))
+		err := os.WriteFile(targetPath, []byte(content), 0644) //#nosec
 		if err != nil {
 			return err
 		}
+		log.Infof("writing new systemd file for '%s' on '%s'", unit, targetPath)
 	}
 	return s.reload()
 }
