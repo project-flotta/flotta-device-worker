@@ -1,6 +1,6 @@
 # FROM quay.io/podman/stable:v4.2.0
 # Hack until 4.2 is released
-FROM quay.io/podman/testing:ae7690c42379
+FROM quay.io/project-flotta/podman:v4.2.0-dev
 
 WORKDIR /project
 RUN dnf install -y 'dnf-command(copr)'
