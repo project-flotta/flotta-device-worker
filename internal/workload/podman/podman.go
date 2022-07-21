@@ -61,6 +61,7 @@ WantedBy=default.target
 var (
 	logTailLines = "1"
 	boolTrue     = true
+	boolFalse    = false
 )
 
 type AutoUpdateUnit struct {
@@ -318,6 +319,7 @@ func (p *podman) Run(manifestPath, authFilePath string, annotations map[string]s
 		Authfile:    &authFilePath,
 		Network:     &network,
 		Annotations: annotations,
+		Start:       &boolFalse,
 	}
 	report, err := play.Kube(p.podmanConnection, manifestPath, &options)
 	if err != nil {
