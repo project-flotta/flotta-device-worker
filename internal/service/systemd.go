@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,6 +20,7 @@ const (
 	DefaultRestartTimeout = 15
 	TimerSuffix           = ".timer"
 	ServiceSuffix         = ".service"
+	DefaultNameSeparator  = "-"
 )
 
 var (
@@ -43,6 +45,7 @@ type systemd struct {
 	UnitsContent   map[string]string `json:"-"`
 	dbusConnection *dbus.Conn        `json:"-"`
 	Rootless       bool              `json:"rootless"`
+	eventCh        chan Event        `json:"-"`
 }
 
 //go:generate mockgen -package=service -destination=mock_systemd_manager.go . SystemdManager
@@ -54,12 +57,13 @@ type SystemdManager interface {
 }
 
 type systemdManager struct {
-	svcFilePath string
-	lock        sync.RWMutex
-	services    map[string]Service
+	svcFilePath   string
+	lock          sync.RWMutex
+	services      map[string]Service
+	eventListener *EventListener
 }
 
-func NewSystemdManager(configDir string) (SystemdManager, error) {
+func NewSystemdManager(configDir string, observerCh chan *Event) (SystemdManager, error) {
 	services := make(map[string]*systemd)
 	servicePath := path.Join(configDir, "services.json")
 	servicesJson, err := os.ReadFile(servicePath) //#nosec
@@ -74,8 +78,16 @@ func NewSystemdManager(configDir string) (SystemdManager, error) {
 	for k, v := range services {
 		systemdSVC[k] = v
 	}
-
-	return &systemdManager{svcFilePath: servicePath, services: systemdSVC, lock: sync.RWMutex{}}, nil
+	listener := NewEventListener(observerCh)
+	err = listener.Connect()
+	if err != nil {
+		return nil, err
+	}
+	for name := range services {
+		listener.Add(name)
+	}
+	listener.Listen()
+	return &systemdManager{svcFilePath: servicePath, services: systemdSVC, lock: sync.RWMutex{}, eventListener: listener}, nil
 }
 
 func (mgr *systemdManager) RemoveServicesFile() error {
@@ -97,8 +109,12 @@ func (mgr *systemdManager) Add(svc Service) error {
 	defer mgr.lock.Unlock()
 
 	mgr.services[svc.GetName()] = svc
-
-	return mgr.write()
+	err := mgr.write()
+	if err != nil {
+		return err
+	}
+	mgr.eventListener.Add(svc.GetName())
+	return nil
 }
 
 func (mgr *systemdManager) Get(name string) Service {
@@ -111,10 +127,13 @@ func (mgr *systemdManager) Get(name string) Service {
 func (mgr *systemdManager) Remove(svc Service) error {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
-
+	err := mgr.write()
+	if err != nil {
+		return err
+	}
 	delete(mgr.services, svc.GetName())
-
-	return mgr.write()
+	mgr.eventListener.Remove(svc.GetName())
+	return nil
 }
 
 func (mgr *systemdManager) write() error {
@@ -122,15 +141,11 @@ func (mgr *systemdManager) write() error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
-	if err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
 }
 
-func NewSystemd(name string, units map[string]string) (Service, error) {
-	return NewSystemdRootless(name, units, true)
+func NewSystemd(name string, units map[string]string, eventCh chan Event) (Service, error) {
+	return NewSystemdRootless(name, units, true, eventCh)
 }
 
 func newDbusConnection(rootless bool) (*dbus.Conn, error) {
@@ -161,7 +176,7 @@ func newDbusConnection(rootless bool) (*dbus.Conn, error) {
 	}
 }
 
-func NewSystemdRootless(name string, units map[string]string, rootless bool) (Service, error) {
+func NewSystemdRootless(name string, units map[string]string, rootless bool, eventCh chan Event) (Service, error) {
 	var err error
 	var conn *dbus.Conn
 
@@ -182,6 +197,7 @@ func NewSystemdRootless(name string, units map[string]string, rootless bool) (Se
 		Units:          unitNames,
 		Rootless:       rootless,
 		UnitsContent:   units,
+		eventCh:        eventCh,
 	}, nil
 }
 
@@ -208,7 +224,7 @@ func (s *systemd) Remove() error {
 			return err
 		}
 	}
-
+	s.eventCh <- Event{WorkloadName: s.Name, Type: EventStopped}
 	return s.reload()
 }
 

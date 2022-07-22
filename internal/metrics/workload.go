@@ -48,7 +48,7 @@ func (wrkM *WorkloadMetrics) Update(config models.DeviceConfigurationMessage) er
 }
 
 func (wrkM *WorkloadMetrics) WorkloadRemoved(workloadName string) {
-	log.Infof("removing target metrics for workload '%v'", workloadName)
+	log.Infof("Removing target metrics for workload '%v'", workloadName)
 	wrkM.daemon.DeleteTarget(workloadName)
 }
 
