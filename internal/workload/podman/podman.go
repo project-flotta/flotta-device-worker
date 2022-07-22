@@ -15,9 +15,9 @@ import (
 	"github.com/blang/semver"
 	"github.com/go-openapi/swag"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
+	api "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 
 	"git.sr.ht/~spc/go-log"
-	podmanEvents "github.com/containers/podman/v4/libpod/events"
 	"github.com/containers/podman/v4/pkg/bindings"
 	"github.com/containers/podman/v4/pkg/bindings/containers"
 	"github.com/containers/podman/v4/pkg/bindings/generate"
@@ -26,7 +26,6 @@ import (
 	"github.com/containers/podman/v4/pkg/bindings/secrets"
 	"github.com/containers/podman/v4/pkg/bindings/system"
 	"github.com/containers/podman/v4/pkg/domain/entities"
-	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -35,10 +34,6 @@ const (
 	StartedContainer = "startedContainer"
 
 	DefaultNetworkName = "podman"
-
-	podmanStart  = string(podmanEvents.Start)
-	podmanRemove = string(podmanEvents.Remove)
-	podmanStop   = string(podmanEvents.Stop)
 
 	podmanBinary                  = "/usr/bin/podman"
 	autoUpdateServiceUnitTemplate = `[Unit]
@@ -72,7 +67,7 @@ type AutoUpdateUnit struct {
 
 //go:generate mockgen -package=podman -destination=mock_podman.go . Podman
 type Podman interface {
-	List() ([]api2.WorkloadInfo, error)
+	List() ([]api.WorkloadInfo, error)
 	Remove(workloadId string) error
 	Run(manifestPath, authFilePath string, annotations map[string]string) ([]*PodReport, error)
 	Start(workloadId string) error
@@ -84,7 +79,7 @@ type Podman interface {
 	Exists(workloadId string) (bool, error)
 	GenerateSystemdService(workload *v1.Pod, manifestPath string, monitoringInterval uint) (service.Service, error)
 	Logs(podID string, res io.Writer) (context.CancelFunc, error)
-	GetPodReportForId(podID string) (*PodReport, error)
+	GetPodReportForPodName(podName string) (*PodReport, error)
 }
 
 type PodmanEvent struct {
@@ -114,6 +109,8 @@ const DefaultTimeoutForStoppingInSeconds int = 5
 type podman struct {
 	podmanConnection   context.Context
 	timeoutForStopping int
+	eventCh            chan service.Event
+	cancel             chan bool
 }
 
 func NewPodman() (*podman, error) {
@@ -124,6 +121,8 @@ func NewPodman() (*podman, error) {
 	p := &podman{
 		podmanConnection:   podmanConnection,
 		timeoutForStopping: DefaultTimeoutForStoppingInSeconds,
+		eventCh:            make(chan service.Event, 1000),
+		cancel:             make(chan bool),
 	}
 	err = p.MinVersion()
 	if err != nil {
@@ -157,14 +156,14 @@ func (p *podman) MinVersion() error {
 	return fmt.Errorf("podman version '%s' is not supported, needs >= v4.2", version.Version.Version)
 }
 
-func (p *podman) List() ([]api2.WorkloadInfo, error) {
+func (p *podman) List() ([]api.WorkloadInfo, error) {
 	podList, err := pods.List(p.podmanConnection, nil)
 	if err != nil {
 		return nil, err
 	}
-	var workloads []api2.WorkloadInfo
+	var workloads []api.WorkloadInfo
 	for _, pod := range podList {
-		wi := api2.WorkloadInfo{
+		wi := api.WorkloadInfo{
 			Id:     pod.Id,
 			Name:   pod.Name,
 			Status: pod.Status,
@@ -216,73 +215,7 @@ func (p *podman) getContainerDetails(containerId string) (*ContainerReport, erro
 	}, nil
 }
 
-func (p *podman) Events(events chan *PodmanEvent) {
-	evchan := make(chan entities.Event, 1000)
-	cancel := make(chan bool)
-	booltrue := true
-
-	workloads, err := p.List()
-	if err != nil {
-		log.Errorf("Cannot get the list of running pods: %v", err)
-	}
-
-	for _, wrk := range workloads {
-		report, err := p.GetPodReportForId(wrk.Id)
-		if err != nil {
-			log.Errorf("Cannot get pod report for pod '%v', err: %v ", wrk.Name, err)
-			continue
-		}
-		event := &PodmanEvent{
-			WorkloadName: wrk.Name,
-			Event:        StartedContainer,
-			Report:       report,
-		}
-		go func() { events <- event }()
-	}
-
-	// subroutine that reads the event chan and sending proper messages to the
-	// wrapper
-	go func() {
-		for {
-			msg := <-evchan
-			event := &PodmanEvent{
-				WorkloadName: msg.Actor.Attributes["name"],
-			}
-			switch msg.Action {
-			// create event is avoided because containers are not yet created and
-			// the flow is created->started
-			case podmanStart:
-				event.Event = StartedContainer
-				report, err := p.GetPodReportForId(msg.ID)
-				if err != nil {
-					log.Error("cannot get current pod information on event: ", err)
-					continue
-				}
-				event.Report = report
-			case podmanRemove, podmanStop:
-				event.Event = StoppedContainer
-			default:
-				continue
-			}
-			events <- event
-		}
-	}()
-
-	// subroutine to track events
-	go func() {
-		err := system.Events(p.podmanConnection, evchan, cancel, &system.EventsOptions{
-			Filters: map[string][]string{
-				"type": {"pod"},
-			},
-			Stream: &booltrue,
-		})
-		if err != nil {
-			log.Error("Cannot get podman events, err: ", err)
-		}
-	}()
-}
-
-func (p *podman) GetPodReportForId(podID string) (*PodReport, error) {
+func (p *podman) GetPodReportForPodName(podID string) (*PodReport, error) {
 	podInfo, err := pods.Inspect(p.podmanConnection, podID, nil)
 	if err != nil {
 		return nil, err
@@ -408,7 +341,7 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 
-		svc, err = service.NewSystemd(podName, report.Units)
+		svc, err = service.NewSystemd(podName, report.Units, p.eventCh)
 		if err != nil {
 			return nil, err
 		}
@@ -425,7 +358,7 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 		units := map[string]string{podName: unit.String()}
-		svc, err = service.NewSystemd(podName, units)
+		svc, err = service.NewSystemd(podName, units, p.eventCh)
 		if err != nil {
 			return nil, err
 		}

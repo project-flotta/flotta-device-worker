@@ -147,7 +147,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 
 		if PodShouldWaitForMount(pod, configuration.Configuration) {
 			errors = multierror.Append(errors, fmt.Errorf(
-				"Pod '%s' needs to mount blockdevice but it's not in there yet", workload.Name))
+				"pod '%s' needs to mount blockdevice but it's not in there yet", workload.Name))
 			continue
 		}
 

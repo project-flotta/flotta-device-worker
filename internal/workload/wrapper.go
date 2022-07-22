@@ -11,7 +11,6 @@ import (
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
-	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/network"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
@@ -83,7 +82,8 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 		return nil, fmt.Errorf("workload cannot initialize mapping repository: %w", err)
 	}
 
-	serviceManager, err := service.NewSystemdManager(configDir)
+	eventCh := make(chan *service.Event)
+	serviceManager, err := service.NewSystemdManager(configDir, eventCh)
 	if err != nil {
 		return nil, fmt.Errorf("workload cannot initialize systemd manager: %w", err)
 	}
@@ -97,26 +97,30 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 		events:             make(chan *podman.PodmanEvent),
 	}
 
-	newPodman.Events(ww.events)
-
 	go func() {
 		for {
-			msg := <-ww.events
-			switch msg.Event {
-			case podman.StartedContainer:
-				ww.lock.Lock()
-				observers := ww.observers
-				ww.lock.Unlock()
-				for _, observer := range observers {
-					observer.WorkloadStarted(msg.WorkloadName, []*podman.PodReport{msg.Report})
+			event := <-eventCh
+			log.Debugf("Event received %s", string(event.Type))
+			ww.lock.Lock()
+			observers := ww.observers
+			ww.lock.Unlock()
+			switch event.Type {
+			case service.EventStarted:
+				log.Infof("Service for workload %s started", event.WorkloadName)
+				report, err := newPodman.GetPodReportForPodName(event.WorkloadName)
+				if err != nil {
+					log.Errorf("unable to get pod report for workload %s:%v", event.WorkloadName, err)
 				}
-			case podman.StoppedContainer:
-				ww.lock.Lock()
-				observers := ww.observers
-				ww.lock.Unlock()
 				for _, observer := range observers {
-					observer.WorkloadRemoved(msg.WorkloadName)
+					observer.WorkloadStarted(event.WorkloadName, []*podman.PodReport{report})
 				}
+			case service.EventStopped:
+				log.Infof("Service for workload %s stopped", event.WorkloadName)
+				for _, observer := range observers {
+					observer.WorkloadRemoved(event.WorkloadName)
+				}
+			default:
+				log.Errorf("unknown event %s", event.Type)
 			}
 		}
 	}()
@@ -131,7 +135,7 @@ func (ww *Workload) RegisterObserver(observer Observer) {
 
 func (ww *Workload) Init() error {
 	// Enable auto-update podman timer:
-	svc, err := service.NewSystemdRootless("podman-auto-update", nil, false)
+	svc, err := service.NewSystemdRootless("podman-auto-update", nil, false, nil)
 	if err != nil {
 		return err
 	}
@@ -143,7 +147,7 @@ func (ww *Workload) Init() error {
 	return ww.netfilter.AddTable(nfTableName)
 }
 
-func (ww *Workload) List() ([]api2.WorkloadInfo, error) {
+func (ww *Workload) List() ([]api.WorkloadInfo, error) {
 	infos, err := ww.workloads.List()
 	if err != nil {
 		return nil, err
@@ -240,29 +244,16 @@ func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath stri
 		return fmt.Errorf("error while generating systemd service: %v", err)
 	}
 
+	log.Infof("Creating service for %s", workload.Name)
 	err = ww.createService(svc)
 	if err != nil {
 		return fmt.Errorf("error while starting service: %v", err)
 	}
+	log.Infof("Adding service for listener for %s", workload.Name)
 	err = ww.serviceManager.Add(svc)
 	if err != nil {
 		return fmt.Errorf("error while updating service manager: %v", err)
 	}
-
-	podReport, err := ww.workloads.GetPodReportForId(workload.Name)
-	if err != nil {
-		return fmt.Errorf("error while sending started events: %v", err)
-	}
-
-	// When pod started by systemd the event is not sent to the channel, so we send
-	// it manually here to notify workloadStarted observer.
-	go func() {
-		ww.events <- &podman.PodmanEvent{
-			Event:        podman.StartedContainer,
-			WorkloadName: workload.Name,
-			Report:       podReport,
-		}
-	}()
 	return nil
 }
 
@@ -285,11 +276,10 @@ func (ww *Workload) removeService(workloadName string) error {
 		return fmt.Errorf("Cannot remove systemd service for '%s': %s", workloadName, err)
 	}
 
-	err := ww.serviceManager.Remove(svc)
+	err = ww.serviceManager.Remove(svc)
 	if err != nil {
-		return nil
+		log.Errorf("unable to remove service from serviceManager %s:%s", workloadName, err)
 	}
-
 	return nil
 }
 
