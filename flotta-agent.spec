@@ -4,7 +4,7 @@
 
 Name:       flotta-agent
 Version:    0.2.0
-Release:    2%{?dist}
+Release:    1%{?dist}
 Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
 Group:      Flotta
@@ -95,9 +95,6 @@ ln -s -f %{_unitdir}/%{name}.service /etc/systemd/system/multi-user.target.wants
 systemctl start flotta-agent || exit 0 # can fail on rpm-ostree base system
 
 %changelog
-* Thu Jul 21 2022 Jordi Gil <jgil@redhat.com> 0.2.0-2
-- Fix systemd service PID not owned by root at startup
-
 * Thu Jul 14 2022 Moti Asayag <masayag@redhat.com> 0.2.0-1
 - Added support for rootless podman
 - Added support for host devices
