@@ -236,19 +236,22 @@ func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath stri
 	// Create the system service to manage the pod:
 	svc, err := ww.workloads.GenerateSystemdService(workload, manifestPath, ww.monitoringInterval)
 	if err != nil {
-		return fmt.Errorf("Error while generating systemd service: %v", err)
+		return fmt.Errorf("error while generating systemd service: %v", err)
 	}
 
 	err = ww.createService(svc)
 	if err != nil {
-		return fmt.Errorf("Error while creating service: %v", err)
+		return fmt.Errorf("error while starting service: %v", err)
 	}
 	err = ww.serviceManager.Add(svc)
 	if err != nil {
-		return fmt.Errorf("Error while updating service manager: %v", err)
+		return fmt.Errorf("error while updating service manager: %v", err)
 	}
-
-	return nil
+	// Hack to trigger the event notification in podman of pod start. It does not get triggered with systemd starting the service
+	// because it starts individual containers. This call won't have any impact on the running containers.
+	// Probably the correct approach is to check the pod status for every container start event and trigger the `pod started` event when the
+	// pod status is Running
+	return ww.workloads.Start(workload.Name)
 }
 
 func (ww *Workload) removeService(workloadName string) error {
