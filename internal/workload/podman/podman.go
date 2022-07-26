@@ -84,6 +84,7 @@ type Podman interface {
 	Exists(workloadId string) (bool, error)
 	GenerateSystemdService(workload *v1.Pod, manifestPath string, monitoringInterval uint) (service.Service, error)
 	Logs(podID string, res io.Writer) (context.CancelFunc, error)
+	GetPodReportForId(podID string) (*PodReport, error)
 }
 
 type PodmanEvent struct {
@@ -226,7 +227,7 @@ func (p *podman) Events(events chan *PodmanEvent) {
 	}
 
 	for _, wrk := range workloads {
-		report, err := p.getPodReportforId(wrk.Id)
+		report, err := p.GetPodReportForId(wrk.Id)
 		if err != nil {
 			log.Errorf("Cannot get pod report for pod '%v', err: %v ", wrk.Name, err)
 			continue
@@ -252,7 +253,7 @@ func (p *podman) Events(events chan *PodmanEvent) {
 			// the flow is created->started
 			case podmanStart:
 				event.Event = StartedContainer
-				report, err := p.getPodReportforId(msg.ID)
+				report, err := p.GetPodReportForId(msg.ID)
 				if err != nil {
 					log.Error("cannot get current pod information on event: ", err)
 					continue
@@ -281,7 +282,7 @@ func (p *podman) Events(events chan *PodmanEvent) {
 	}()
 }
 
-func (p *podman) getPodReportforId(podID string) (*PodReport, error) {
+func (p *podman) GetPodReportForId(podID string) (*PodReport, error) {
 	podInfo, err := pods.Inspect(p.podmanConnection, podID, nil)
 	if err != nil {
 		return nil, err

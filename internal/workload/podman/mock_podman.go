@@ -82,6 +82,21 @@ func (mr *MockPodmanMockRecorder) GenerateSystemdService(arg0, arg1, arg2 interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSystemdService", reflect.TypeOf((*MockPodman)(nil).GenerateSystemdService), arg0, arg1, arg2)
 }
 
+// GetPodReportForId mocks base method.
+func (m *MockPodman) GetPodReportForId(arg0 string) (*PodReport, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPodReportForId", arg0)
+	ret0, _ := ret[0].(*PodReport)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPodReportForId indicates an expected call of GetPodReportForId.
+func (mr *MockPodmanMockRecorder) GetPodReportForId(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodReportForId", reflect.TypeOf((*MockPodman)(nil).GetPodReportForId), arg0)
+}
+
 // List mocks base method.
 func (m *MockPodman) List() ([]api.WorkloadInfo, error) {
 	m.ctrl.T.Helper()

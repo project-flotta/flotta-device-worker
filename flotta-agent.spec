@@ -4,7 +4,7 @@
 
 Name:       flotta-agent
 Version:    0.2.0
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    Agent application for the Flotta Edge Management solution
 ExclusiveArch: %{go_arches}
 Group:      Flotta
@@ -95,6 +95,10 @@ ln -s -f %{_unitdir}/%{name}.service /etc/systemd/system/multi-user.target.wants
 systemctl start flotta-agent || exit 0 # can fail on rpm-ostree base system
 
 %changelog
+
+* Tue Jul 26 2022 Eloy Coto <eloycoto@acalustra.com> 0.2.0-3
+- Fix containers startup on systemd
+
 * Tue Jul 26 2022 Moti Asayag <masayag@redhat.com> 0.2.0-2
 - Start containers by systemd to be owned by flotta user
 - Propogate annotations to to podman's kube struct

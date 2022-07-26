@@ -55,6 +55,7 @@ type Workload struct {
 	observers          []Observer
 	serviceManager     service.SystemdManager
 	monitoringInterval uint
+	events             chan *podman.PodmanEvent
 	lock               sync.RWMutex
 }
 
@@ -93,14 +94,14 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 		mappingRepository:  mappingRepository,
 		serviceManager:     serviceManager,
 		monitoringInterval: monitoringInterval,
+		events:             make(chan *podman.PodmanEvent),
 	}
 
-	events := make(chan *podman.PodmanEvent)
-	newPodman.Events(events)
+	newPodman.Events(ww.events)
 
 	go func() {
 		for {
-			msg := <-events
+			msg := <-ww.events
 			switch msg.Event {
 			case podman.StartedContainer:
 				ww.lock.Lock()
@@ -247,11 +248,22 @@ func (ww *Workload) Run(workload *v1.Pod, manifestPath string, authFilePath stri
 	if err != nil {
 		return fmt.Errorf("error while updating service manager: %v", err)
 	}
-	// Hack to trigger the event notification in podman of pod start. It does not get triggered with systemd starting the service
-	// because it starts individual containers. This call won't have any impact on the running containers.
-	// Probably the correct approach is to check the pod status for every container start event and trigger the `pod started` event when the
-	// pod status is Running
-	return ww.workloads.Start(workload.Name)
+
+	podReport, err := ww.workloads.GetPodReportForId(workload.Name)
+	if err != nil {
+		return fmt.Errorf("error while sending started events: %v", err)
+	}
+
+	// When pod started by systemd the event is not sent to the channel, so we send
+	// it manually here to notify workloadStarted observer.
+	go func() {
+		ww.events <- &podman.PodmanEvent{
+			Event:        podman.StartedContainer,
+			WorkloadName: workload.Name,
+			Report:       podReport,
+		}
+	}()
+	return nil
 }
 
 func (ww *Workload) removeService(workloadName string) error {
