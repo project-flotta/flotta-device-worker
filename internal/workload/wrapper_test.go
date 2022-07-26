@@ -56,7 +56,8 @@ var _ = Describe("Workload management", func() {
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
-			newPodman.EXPECT().Start(pod.ObjectMeta.Name).Times(1)
+			newPodman.EXPECT().GetPodReportForId("pod1").Return(nil, nil)
+
 			svc.EXPECT().Add().Return(nil)
 			svc.EXPECT().Enable().Return(nil)
 			svc.EXPECT().Start().Return(nil)
