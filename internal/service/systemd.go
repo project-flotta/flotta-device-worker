@@ -27,6 +27,13 @@ var (
 	DefaultUnitsPath = path.Join(os.Getenv("HOME"), ".config/systemd/user/")
 )
 
+type BusType string
+
+const (
+	UserBus   BusType = "user"
+	SystemBus BusType = "system"
+)
+
 //go:generate mockgen -package=service -destination=mock_systemd.go . Service
 type Service interface {
 	GetName() string
@@ -44,7 +51,7 @@ type systemd struct {
 	Units          []string          `json:"units"`
 	UnitsContent   map[string]string `json:"-"`
 	dbusConnection *dbus.Conn        `json:"-"`
-	Rootless       bool              `json:"rootless"`
+	BusType        BusType           `json:"busType"`
 	eventCh        chan Event        `json:"-"`
 }
 
@@ -144,12 +151,8 @@ func (mgr *systemdManager) write() error {
 	return ioutil.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
 }
 
-func NewSystemd(name string, units map[string]string, eventCh chan Event) (Service, error) {
-	return NewSystemdRootless(name, units, true, eventCh)
-}
-
-func newDbusConnection(rootless bool) (*dbus.Conn, error) {
-	if rootless {
+func newDbusConnection(busType BusType) (*dbus.Conn, error) {
+	if busType == UserBus {
 		return dbus.NewConnection(func() (*godbus.Conn, error) {
 			uid := path.Base(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"))
 			path := filepath.Join(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"), "systemd/private")
@@ -176,11 +179,11 @@ func newDbusConnection(rootless bool) (*dbus.Conn, error) {
 	}
 }
 
-func NewSystemdRootless(name string, units map[string]string, rootless bool, eventCh chan Event) (Service, error) {
+func NewSystemd(name string, units map[string]string, busType BusType, eventCh chan Event) (Service, error) {
 	var err error
 	var conn *dbus.Conn
 
-	conn, err = newDbusConnection(rootless)
+	conn, err = newDbusConnection(busType)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +198,7 @@ func NewSystemdRootless(name string, units map[string]string, rootless bool, eve
 		RestartSec:     DefaultRestartTimeout,
 		dbusConnection: conn,
 		Units:          unitNames,
-		Rootless:       rootless,
+		BusType:        busType,
 		UnitsContent:   units,
 		eventCh:        eventCh,
 	}, nil
@@ -233,7 +236,7 @@ func (s *systemd) GetName() string {
 }
 
 func (s *systemd) reload() error {
-	conn, err := newDbusConnection(s.Rootless)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -242,7 +245,7 @@ func (s *systemd) reload() error {
 }
 
 func (s *systemd) Start() error {
-	conn, err := newDbusConnection(s.Rootless)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -262,7 +265,7 @@ func (s *systemd) Start() error {
 }
 
 func (s *systemd) Stop() error {
-	conn, err := newDbusConnection(s.Rootless)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -282,7 +285,7 @@ func (s *systemd) Stop() error {
 }
 
 func (s *systemd) Enable() error {
-	conn, err := newDbusConnection(s.Rootless)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -293,7 +296,7 @@ func (s *systemd) Enable() error {
 }
 
 func (s *systemd) Disable() error {
-	conn, err := newDbusConnection(s.Rootless)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}

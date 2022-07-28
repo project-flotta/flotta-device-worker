@@ -135,7 +135,7 @@ func (ww *Workload) RegisterObserver(observer Observer) {
 
 func (ww *Workload) Init() error {
 	// Enable auto-update podman timer:
-	svc, err := service.NewSystemdRootless("podman-auto-update", nil, false, nil)
+	svc, err := service.NewSystemd("podman-auto-update", nil, service.SystemBus, nil)
 	if err != nil {
 		return err
 	}

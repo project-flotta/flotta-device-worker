@@ -55,7 +55,7 @@ func NewEventListener(observerCh chan *Event) *EventListener {
 }
 
 func (e *EventListener) Connect() error {
-	conn, err := newDbusConnection(true)
+	conn, err := newDbusConnection(UserBus)
 	if err != nil {
 		return err
 	}

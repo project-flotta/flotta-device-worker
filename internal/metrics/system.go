@@ -26,7 +26,7 @@ type SystemMetrics struct {
 }
 
 func NewSystemMetrics(daemon MetricsDaemon) (*SystemMetrics, error) {
-	nodeExporter, err := service.NewSystemdRootless("node_exporter", nil, false, nil)
+	nodeExporter, err := service.NewSystemd("node_exporter", nil, service.SystemBus, nil)
 	if err != nil {
 		return nil, err
 	}
