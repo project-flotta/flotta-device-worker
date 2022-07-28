@@ -341,7 +341,7 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 
-		svc, err = service.NewSystemd(podName, report.Units, p.eventCh)
+		svc, err = service.NewSystemd(podName, report.Units, service.UserBus, p.eventCh)
 		if err != nil {
 			return nil, err
 		}
@@ -358,7 +358,7 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 		units := map[string]string{podName: unit.String()}
-		svc, err = service.NewSystemd(podName, units, p.eventCh)
+		svc, err = service.NewSystemd(podName, units, service.UserBus, p.eventCh)
 		if err != nil {
 			return nil, err
 		}
