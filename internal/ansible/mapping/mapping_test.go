@@ -24,7 +24,8 @@ var _ = Describe("Mapping", func() {
 		repo, err = mapping.NewMappingRepository(dir)
 		Expect(err).ToNot(HaveOccurred())
 
-		sha256Test = repo.GetSha256([]byte("test"))
+		sha256Test, err = repo.GetSha256([]byte("test"))
+		Expect(err).ToNot(HaveOccurred())
 		filePathTest = path.Join(configDir, sha256Test)
 	})
 	AfterEach(func() {
@@ -32,8 +33,10 @@ var _ = Describe("Mapping", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 	It("sha256 Generation", func() {
-		s1 := repo.GetSha256([]byte("AAA"))
-		s2 := repo.GetSha256([]byte("AAA"))
+		s1, err := repo.GetSha256([]byte("AAA"))
+		Expect(err).ToNot(HaveOccurred())
+		s2, err := repo.GetSha256([]byte("AAA"))
+		Expect(err).ToNot(HaveOccurred())
 		Expect(s1).To(Equal(s2))
 	})
 	It("Should be created empty", func() {
@@ -87,12 +90,17 @@ var _ = Describe("Mapping", func() {
 
 	It("Should persist mappings", func() {
 		// given
-		filePath1 := path.Join(configDir, repo.GetSha256([]byte("test-one")))
-		filePath2 := path.Join(configDir, repo.GetSha256([]byte("test-two")))
+		sha, err := repo.GetSha256([]byte("test-one"))
+		Expect(err).ToNot(HaveOccurred())
+		filePath1 := path.Join(configDir, sha)
+		Expect(err).ToNot(HaveOccurred())
+		sha, err = repo.GetSha256([]byte("test-two"))
+		filePath2 := path.Join(configDir, sha)
+		Expect(err).ToNot(HaveOccurred())
 		modTime1 := time.Now()
 		modTime2 := modTime1.Add(1 * time.Minute)
 
-		err := repo.Add([]byte("test-one"), modTime1)
+		err = repo.Add([]byte("test-one"), modTime1)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(repo.GetModTime(filePath1)).To(Equal(modTime1.UnixNano()))
 		Expect(repo.GetFilePath(modTime1)).To(Equal(filePath1))
