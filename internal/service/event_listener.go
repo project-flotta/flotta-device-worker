@@ -50,44 +50,44 @@ type EventListener struct {
 	dbusErrCh  <-chan error
 }
 
-func NewEventListener(observerCh chan *Event) *EventListener {
-	return &EventListener{observerCh: observerCh}
+func NewEventListener() *EventListener {
+	return &EventListener{}
 }
 
-func (e *EventListener) Connect() error {
+func (e *EventListener) Connect() (chan *Event, error) {
 	conn, err := newDbusConnection(UserBus)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	e.set = conn.NewSubscriptionSet()
-	return nil
+	e.observerCh = make(chan *Event)
+	return e.observerCh, nil
 }
 
-func (e *EventListener) Listen() {
+func (e *EventListener) Listen() chan *Event {
 	e.dbusCh, e.dbusErrCh = e.set.Subscribe()
-	go func() {
-		for {
-			select {
-			case msg := <-e.dbusCh:
-				for name, unit := range msg {
-					log.Debugf("Captured event for %s: %v+", name, unit)
-					n := extractWorkloadName(name)
-					state := translateUnitSubStatus(unit)
-					log.Infof("Service %s for workload transitioned to sub state %s\n", n, state)
-					switch state {
-					case running:
-						e.observerCh <- &Event{WorkloadName: n, Type: EventStarted}
-					case removed, stop, dead, failed, start:
-						e.observerCh <- &Event{WorkloadName: n, Type: EventStopped}
-					default:
-						log.Infof("Ignoring unit sub state for service %s: %s", name, unit.SubState)
-					}
+	for {
+		select {
+		case msg := <-e.dbusCh:
+			for name, unit := range msg {
+				log.Debugf("Captured event for %s: %v+", name, unit)
+				n := extractWorkloadName(name)
+				state := translateUnitSubStatus(unit)
+				log.Debugf("Systemd service for workload %s transitioned to sub state %s\n", n, state)
+				switch state {
+				case running:
+					e.observerCh <- &Event{WorkloadName: n, Type: EventStarted}
+				case removed, stop, dead, failed, start:
+					e.observerCh <- &Event{WorkloadName: n, Type: EventStopped}
+				default:
+					log.Debugf("Ignoring unit sub state for service %s: %s", name, unit.SubState)
 				}
-			case msg := <-e.dbusErrCh:
-				log.Errorf("Error while parsing dbus event: %v", msg)
 			}
+		case msg := <-e.dbusErrCh:
+			log.Errorf("Error while parsing dbus event: %v", msg)
 		}
-	}()
+	}
+
 }
 
 func translateUnitSubStatus(unit *dbus.UnitStatus) unitSubState {

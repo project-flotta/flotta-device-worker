@@ -82,8 +82,14 @@ func newWorkloadInstance(configDir string, monitoringInterval uint) (*Workload, 
 		return nil, fmt.Errorf("workload cannot initialize mapping repository: %w", err)
 	}
 
-	eventCh := make(chan *service.Event)
-	serviceManager, err := service.NewSystemdManager(configDir, eventCh)
+	listener := service.NewEventListener()
+	eventCh, err := listener.Connect()
+	if err != nil {
+		return nil, err
+	}
+	go listener.Listen()
+
+	serviceManager, err := service.NewSystemdManager(configDir, listener)
 	if err != nil {
 		return nil, fmt.Errorf("workload cannot initialize systemd manager: %w", err)
 	}
