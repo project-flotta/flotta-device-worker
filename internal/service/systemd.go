@@ -70,7 +70,7 @@ type systemdManager struct {
 	eventListener *EventListener
 }
 
-func NewSystemdManager(configDir string, observerCh chan *Event) (SystemdManager, error) {
+func NewSystemdManager(configDir string, listener *EventListener) (SystemdManager, error) {
 	services := make(map[string]*systemd)
 	servicePath := path.Join(configDir, "services.json")
 	servicesJson, err := os.ReadFile(servicePath) //#nosec
@@ -85,15 +85,9 @@ func NewSystemdManager(configDir string, observerCh chan *Event) (SystemdManager
 	for k, v := range services {
 		systemdSVC[k] = v
 	}
-	listener := NewEventListener(observerCh)
-	err = listener.Connect()
-	if err != nil {
-		return nil, err
-	}
 	for name := range services {
 		listener.Add(name)
 	}
-	listener.Listen()
 	return &systemdManager{svcFilePath: servicePath, services: systemdSVC, lock: sync.RWMutex{}, eventListener: listener}, nil
 }
 
