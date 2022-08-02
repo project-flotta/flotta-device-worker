@@ -95,6 +95,18 @@ func (mr *MockWorkloadWrapperMockRecorder) ListSecrets() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSecrets", reflect.TypeOf((*MockWorkloadWrapper)(nil).ListSecrets))
 }
 
+// ListenServiceEvents mocks base method.
+func (m *MockWorkloadWrapper) ListenServiceEvents() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ListenServiceEvents")
+}
+
+// ListenServiceEvents indicates an expected call of ListenServiceEvents.
+func (mr *MockWorkloadWrapperMockRecorder) ListenServiceEvents() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenServiceEvents", reflect.TypeOf((*MockWorkloadWrapper)(nil).ListenServiceEvents))
+}
+
 // Logs mocks base method.
 func (m *MockWorkloadWrapper) Logs(arg0 string, arg1 io.Writer) (context.CancelFunc, error) {
 	m.ctrl.T.Helper()

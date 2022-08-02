@@ -105,11 +105,12 @@ func (mr *MockMappingRepositoryMockRecorder) GetModTime(arg0 interface{}) *gomoc
 }
 
 // GetSha256 mocks base method.
-func (m *MockMappingRepository) GetSha256(arg0 []byte) string {
+func (m *MockMappingRepository) GetSha256(arg0 []byte) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSha256", arg0)
 	ret0, _ := ret[0].(string)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetSha256 indicates an expected call of GetSha256.

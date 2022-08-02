@@ -40,7 +40,7 @@ var _ = Describe("Workload management", func() {
 		serviceManager = service.NewMockSystemdManager(mockCtrl)
 		svc = service.NewMockService(mockCtrl)
 
-		wk = workload.NewWorkload(newPodman, netfilter, mappingRepository, serviceManager, 15)
+		wk = workload.NewWorkload(newPodman, netfilter, mappingRepository, serviceManager, 15, nil)
 	})
 
 	AfterEach(func() {

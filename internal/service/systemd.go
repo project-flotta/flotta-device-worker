@@ -46,12 +46,10 @@ type Service interface {
 
 type systemd struct {
 	Name           string            `json:"name"`
-	RestartSec     int               `json:"restartSec"`
 	Units          []string          `json:"units"`
 	UnitsContent   map[string]string `json:"-"`
 	dbusConnection *dbus.Conn        `json:"-"`
 	BusType        BusType           `json:"busType"`
-	eventCh        chan Event        `json:"-"`
 }
 
 //go:generate mockgen -package=service -destination=mock_systemd_manager.go . SystemdManager
@@ -63,13 +61,12 @@ type SystemdManager interface {
 }
 
 type systemdManager struct {
-	svcFilePath   string
-	lock          sync.RWMutex
-	services      map[string]Service
-	eventListener *EventListener
+	svcFilePath string
+	lock        sync.RWMutex
+	services    map[string]Service
 }
 
-func NewSystemdManager(configDir string, listener *EventListener) (SystemdManager, error) {
+func NewSystemdManager(configDir string) (SystemdManager, error) {
 	services := make(map[string]*systemd)
 	servicePath := path.Join(configDir, "services.json")
 	servicesJson, err := os.ReadFile(servicePath) //#nosec
@@ -84,10 +81,8 @@ func NewSystemdManager(configDir string, listener *EventListener) (SystemdManage
 	for k, v := range services {
 		systemdSVC[k] = v
 	}
-	for name := range services {
-		listener.Add(name)
-	}
-	return &systemdManager{svcFilePath: servicePath, services: systemdSVC, lock: sync.RWMutex{}, eventListener: listener}, nil
+
+	return &systemdManager{svcFilePath: servicePath, services: systemdSVC, lock: sync.RWMutex{}}, nil
 }
 
 func (mgr *systemdManager) RemoveServicesFile() error {
@@ -113,7 +108,6 @@ func (mgr *systemdManager) Add(svc Service) error {
 	if err != nil {
 		return err
 	}
-	mgr.eventListener.Add(svc.GetName())
 	return nil
 }
 
@@ -132,7 +126,6 @@ func (mgr *systemdManager) Remove(svc Service) error {
 		return err
 	}
 	delete(mgr.services, svc.GetName())
-	mgr.eventListener.Remove(svc.GetName())
 	return nil
 }
 
@@ -172,7 +165,7 @@ func newDbusConnection(busType BusType) (*dbus.Conn, error) {
 	}
 }
 
-func NewSystemd(name string, units map[string]string, busType BusType, eventCh chan Event) (Service, error) {
+func NewSystemd(name string, units map[string]string, busType BusType) (Service, error) {
 	var err error
 	var conn *dbus.Conn
 
@@ -188,12 +181,10 @@ func NewSystemd(name string, units map[string]string, busType BusType, eventCh c
 
 	return &systemd{
 		Name:           name,
-		RestartSec:     DefaultRestartTimeout,
 		dbusConnection: conn,
 		Units:          unitNames,
 		BusType:        busType,
 		UnitsContent:   units,
-		eventCh:        eventCh,
 	}, nil
 }
 
@@ -220,7 +211,6 @@ func (s *systemd) Remove() error {
 			return err
 		}
 	}
-	s.eventCh <- Event{WorkloadName: s.Name, Type: EventStopped}
 	return s.reload()
 }
 
@@ -238,6 +228,7 @@ func (s *systemd) reload() error {
 }
 
 func (s *systemd) Start() error {
+	log.Debugf("Starting service %s", s.Name)
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
@@ -278,6 +269,7 @@ func (s *systemd) Stop() error {
 }
 
 func (s *systemd) Enable() error {
+	log.Debugf("Enabling service %s", s.Name)
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
@@ -289,6 +281,7 @@ func (s *systemd) Enable() error {
 }
 
 func (s *systemd) Disable() error {
+	log.Debugf("Disabling service %s", s.Name)
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err

@@ -53,6 +53,7 @@ func (wrkM *WorkloadMetrics) WorkloadRemoved(workloadName string) {
 }
 
 func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podman.PodReport) {
+	log.Infof("Starting target metrics for workload '%s'", workloadName)
 	for _, workload := range report {
 		cfg := wrkM.getWorkload(workloadName)
 		if cfg == nil {
