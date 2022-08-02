@@ -26,7 +26,6 @@ jobs:
       - name: Build the RPM
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          make rpm-tarball
           make rpm-src
           make rpm
 
