@@ -282,9 +282,9 @@ func (ww *Workload) removeService(workloadName string) error {
 		return fmt.Errorf("Cannot remove systemd service for '%s': %s", workloadName, err)
 	}
 
-	err = ww.serviceManager.Remove(svc)
+	err := ww.serviceManager.Remove(svc)
 	if err != nil {
-		log.Errorf("unable to remove service from serviceManager %s:%s", workloadName, err)
+		log.Errorf("Unable to remove service from serviceManager %s:%s", workloadName, err)
 	}
 	return nil
 }

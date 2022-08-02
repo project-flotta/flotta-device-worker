@@ -20,7 +20,6 @@ const (
 	DefaultRestartTimeout = 15
 	TimerSuffix           = ".timer"
 	ServiceSuffix         = ".service"
-	DefaultNameSeparator  = "-"
 )
 
 var (
