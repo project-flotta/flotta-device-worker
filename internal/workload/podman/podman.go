@@ -109,8 +109,6 @@ const DefaultTimeoutForStoppingInSeconds int = 5
 type podman struct {
 	podmanConnection   context.Context
 	timeoutForStopping int
-	eventCh            chan service.Event
-	cancel             chan bool
 }
 
 func NewPodman() (*podman, error) {
@@ -121,8 +119,6 @@ func NewPodman() (*podman, error) {
 	p := &podman{
 		podmanConnection:   podmanConnection,
 		timeoutForStopping: DefaultTimeoutForStoppingInSeconds,
-		eventCh:            make(chan service.Event, 1000),
-		cancel:             make(chan bool),
 	}
 	err = p.MinVersion()
 	if err != nil {
@@ -341,7 +337,7 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 
-		svc, err = service.NewSystemd(podName, report.Units, service.UserBus, p.eventCh)
+		svc, err = service.NewSystemd(podName, report.Units, service.UserBus)
 		if err != nil {
 			return nil, err
 		}
@@ -358,7 +354,7 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 			return nil, err
 		}
 		units := map[string]string{podName: unit.String()}
-		svc, err = service.NewSystemd(podName, units, service.UserBus, p.eventCh)
+		svc, err = service.NewSystemd(podName, units, service.UserBus)
 		if err != nil {
 			return nil, err
 		}

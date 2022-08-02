@@ -147,6 +147,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	}
 
 	log.Infof("updating configuration. New config: %s\nOld config: %s", newJson, oldJson)
+	log.Debugf("[ConfigManager] observers :%v+", m.observers)
 	for _, observer := range m.observers {
 		err := observer.Update(message)
 		if err != nil {

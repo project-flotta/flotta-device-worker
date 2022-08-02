@@ -40,8 +40,8 @@ type WorkloadManager struct {
 	deviceId       string
 }
 
-func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, error) {
-	wrapper, err := newWorkloadInstance(dataDir, defaultWorkloadsMonitoringInterval)
+func NewWorkloadManager(dataDir string, deviceId string, systemdEventCh <-chan *service.Event) (*WorkloadManager, error) {
+	wrapper, err := newWorkloadInstance(dataDir, defaultWorkloadsMonitoringInterval, systemdEventCh)
 	if err != nil {
 		return nil, err
 	}
@@ -413,6 +413,10 @@ func (w *WorkloadManager) deleteWorkloadsDir() error {
 func (w *WorkloadManager) deleteVolumeDir() error {
 	log.Infof("deleting volumes directory. DeviceID: %s;", w.deviceId)
 	return deleteDir(w.volumesDir)
+}
+
+func (w *WorkloadManager) ListenServiceEvents() {
+	w.workloads.ListenServiceEvents()
 }
 
 func deleteDir(path string) error {
