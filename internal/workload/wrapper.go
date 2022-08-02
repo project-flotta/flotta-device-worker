@@ -284,7 +284,7 @@ func (ww *Workload) removeService(workloadName string) error {
 
 	err := ww.serviceManager.Remove(svc)
 	if err != nil {
-		log.Errorf("unable to remove service from serviceManager %s:%s", workloadName, err)
+		log.Errorf("Unable to remove service from serviceManager %s:%s", workloadName, err)
 	}
 	return nil
 }

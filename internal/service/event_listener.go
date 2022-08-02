@@ -98,7 +98,7 @@ func translateUnitSubStatus(unit *dbus.UnitStatus) unitSubState {
 }
 
 func (e *EventListener) Add(workloadName string) {
-	name := fmt.Sprintf("%s.service", workloadName)
+	name := formatServiceName(workloadName)
 	log.Debugf("Adding service for events %s", name)
 	if !e.set.Contains(name) {
 		e.set.Add(name)
@@ -106,11 +106,15 @@ func (e *EventListener) Add(workloadName string) {
 }
 
 func (e *EventListener) Remove(workloadName string) {
-	name := fmt.Sprintf("%s.service", workloadName)
+	name := formatServiceName(workloadName)
 	log.Debugf("Removing service for events %s", name)
 	e.set.Remove(name)
 }
 
 func extractWorkloadName(serviceName string) string {
 	return serviceName[:len(serviceName)-servicePostfixLength]
+}
+
+func formatServiceName(workloadName string) string {
+	return fmt.Sprintf("%s.service", workloadName)
 }
