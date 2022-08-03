@@ -275,9 +275,14 @@ func (ww *Workload) removeService(workloadName string) error {
 	// Ignore stop failure:
 	_ = svc.Stop()
 
+	// Disable the service from the system:
+	if err := svc.Disable(); err != nil {
+		return fmt.Errorf("Cannot disable systemd service for '%s': %s", workloadName, err)
+	}
+
 	// Remove the service from the system:
 	if err := svc.Remove(); err != nil {
-		return err
+		return fmt.Errorf("Cannot remove systemd service for '%s': %s", workloadName, err)
 	}
 
 	err := ww.serviceManager.Remove(svc)
