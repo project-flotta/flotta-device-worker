@@ -84,6 +84,10 @@ func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podm
 	}
 }
 
+func (wrKM *WorkloadMetrics) String() string {
+	return "workload metrics"
+}
+
 func getWorkloadUrls(report *podman.PodReport, config *models.Workload) []string {
 	res := []string{}
 	metricsPath := config.Metrics.Path

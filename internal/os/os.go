@@ -207,3 +207,7 @@ func (o *OS) updateGreenbootScripts() error {
 
 	return nil
 }
+
+func (o *OS) String() string {
+	return "rpm-ostree"
+}
