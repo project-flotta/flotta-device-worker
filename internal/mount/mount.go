@@ -170,3 +170,7 @@ func getDefaultMountOptions() string {
 	}
 	return fmt.Sprintf("gid=%s,uid=%s", group.Gid, usr.Uid)
 }
+
+func (m *Manager) String() string {
+	return "mount"
+}

@@ -532,3 +532,7 @@ func toTimeSeries(series []Series) (timeSeries []prompb.TimeSeries, lowest time.
 	highest = fromDbTime(maxt)
 	return
 }
+
+func (r *RemoteWrite) String() string {
+	return "remote write"
+}

@@ -34,6 +34,7 @@ var (
 type Observer interface {
 	Init(configuration models.DeviceConfigurationMessage) error
 	Update(configuration models.DeviceConfigurationMessage) error
+	String() string
 }
 
 type Manager struct {
