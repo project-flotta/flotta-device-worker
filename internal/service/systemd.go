@@ -104,11 +104,7 @@ func (mgr *systemdManager) Add(svc Service) error {
 	defer mgr.lock.Unlock()
 
 	mgr.services[svc.GetName()] = svc
-	err := mgr.write()
-	if err != nil {
-		return err
-	}
-	return nil
+	return mgr.write()
 }
 
 func (mgr *systemdManager) Get(name string) Service {
@@ -121,12 +117,9 @@ func (mgr *systemdManager) Get(name string) Service {
 func (mgr *systemdManager) Remove(svc Service) error {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
-	err := mgr.write()
-	if err != nil {
-		return err
-	}
+
 	delete(mgr.services, svc.GetName())
-	return nil
+	return mgr.write()
 }
 
 func (mgr *systemdManager) write() error {
