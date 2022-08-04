@@ -8,7 +8,7 @@ RUN dnf copr enable project-flotta/flotta-testing -y
 
 # Yum dependencies
 RUN dnf update -y \
-  && dnf install -y openssl procps-ng dmidecode nc iproute \
+  && dnf --best install -y openssl procps-ng dmidecode nc iproute \
   yggdrasil flotta-agent-race node_exporter systemd-container \
   libselinux-utils util-linux sssd-client
 
