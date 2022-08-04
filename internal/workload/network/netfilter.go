@@ -65,14 +65,18 @@ func (nft *netfilter) DeleteTable(table string) error {
 	return nft.run(args)
 }
 
-func (nft *netfilter) AddChain(table, chain string) error {
-	args := []string{"add", "chain", family, table, chain, "{ type filter hook input priority 0 ; }"}
+func (nft *netfilter) AddChain(table, workloadName string) error {
+	// Fixes https://github.com/project-flotta/flotta-device-worker/issues/216
+	chainName := formatChainName(workloadName)
+	args := []string{"add", "chain", family, table, chainName, "{ type filter hook input priority 0 ; }"}
 	return nft.run(args)
 }
 
-func (nft *netfilter) DeleteChain(table, chain string) error {
+func (nft *netfilter) DeleteChain(table, workloadName string) error {
+	// Fixes https://github.com/project-flotta/flotta-device-worker/issues/216
+	chainName := formatChainName(workloadName)
 	// verify chain existence before attempting to delete it
-	args := []string{"list", "chain", family, table, chain}
+	args := []string{"list", "chain", family, table, chainName}
 	if err := nft.run(args); err != nil {
 		v, ok := err.(*Error)
 		if ok {
@@ -83,7 +87,7 @@ func (nft *netfilter) DeleteChain(table, chain string) error {
 		return err
 	}
 
-	args = []string{"delete", "chain", family, table, chain}
+	args = []string{"delete", "chain", family, table, chainName}
 	return nft.run(args)
 }
 
@@ -111,4 +115,8 @@ func (nft *netfilter) run(args []string) error {
 	}
 
 	return nil
+}
+
+func formatChainName(workloadName string) string {
+	return fmt.Sprintf("wl-%s", workloadName)
 }
