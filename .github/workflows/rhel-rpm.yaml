@@ -24,4 +24,4 @@ jobs:
       - name: Build container fedora 36
         run: |
           docker build -t flotta/f36 -f tools/f36-Dockerfile .
-          docker run --rm -w /opt/device -v $(pwd):/opt/device flotta/f36 make rpm-build
+          # docker run -d --name flotta-f36 --rm -w /opt/device -v $(pwd):/opt/device flotta/f36 make rpm-build

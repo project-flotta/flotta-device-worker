@@ -2,3 +2,16 @@ FROM fedora:36
 
 RUN dnf -y install rpm-build golang device-mapper-devel systemd-rpm-macros bash git make btrfs-progs-devel
 RUN git config --global --add safe.directory /opt/device
+
+COPY . /opt/device
+WORKDIR /opt/device
+
+RUN make rpm-build
+
+RUN dnf install -y 'dnf-command(copr)'
+RUN dnf copr enable project-flotta/flotta-testing -y
+
+RUN dnf install -y podman yggdrasil node_exporter ansible
+
+RUN rpm -i /root/rpmbuild/RPMS/x86_64/flotta-*.rpm
+RUN rpm -qa | grep podman
