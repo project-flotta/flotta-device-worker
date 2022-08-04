@@ -136,7 +136,12 @@ func (e *DBusEventListener) Listen() {
 				case running:
 					log.Debugf("Sending start event to observer channel for workload %s", n)
 					e.observerCh <- &Event{WorkloadName: n, Type: EventStarted}
-				case removed, stop, dead, failed, start:
+				case removed:
+					// We remove the service from the filter here to avoid a potential race condition where the fs notify routine removes it before the systemd event is received.
+					log.Infof("Service %s disabled or removed", name)
+					e.Remove(name)
+					fallthrough
+				case stop, dead, failed, start:
 					log.Debugf("Sending stop event to observer channel for workload %s", n)
 					e.observerCh <- &Event{WorkloadName: n, Type: EventStopped}
 				default:
@@ -165,11 +170,10 @@ func (e *DBusEventListener) watchFSEvents() {
 			svcName := getServiceFileName(event.Name)
 			switch {
 			case event.Op&fsnotify.Create == fsnotify.Create:
-				log.Infof("New service configuration detected at %s", event.Name)
+				log.Infof("New systemd service unit file %s detected", event.Name)
 				e.Add(svcName)
 			case event.Op&fsnotify.Remove == fsnotify.Remove:
-				log.Infof("Service configuration removed at %s", event.Name)
-				e.Remove(svcName)
+				log.Debugf("Systemd service unit file %s has been removed. Waiting for the systemd dbus remove event to elimitate it from the service watch filter", event.Name)
 			}
 		case err, ok := <-e.fsWatcher.Errors:
 			if !ok {
