@@ -1,0 +1,15 @@
+---
+name: Docker-test
+on:
+  push:
+    branches: [ WIPpodman ]
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out proper version of sources
+        uses: actions/checkout@v1
+
+      - name: Build & push the container image to quay
+        run: |
+          make deploy-container-image

@@ -8,9 +8,13 @@ RUN dnf copr enable project-flotta/flotta-testing -y
 
 # Yum dependencies
 RUN dnf update -y \
+  && rpm -qa | grep podman \
   && dnf install -y openssl procps-ng dmidecode nc iproute \
-  yggdrasil flotta-agent-race node_exporter systemd-container \
-  libselinux-utils util-linux sssd-client
+  systemd-container libselinux-utils util-linux sssd-client \
+  && rpm -qa | grep podman \
+  && dnf install -y yggdrasil flotta-agent-race node_exporter \
+  && echo "Final-->" \
+  && rpm -qa | grep podman
 
 # Modify podman configuration
 RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
