@@ -92,7 +92,7 @@ func (nft *netfilter) DeleteChain(table, workloadName string) error {
 }
 
 func (nft *netfilter) AddRule(table, chain, rule string) error {
-	args := []string{"add", "rule", family, table, chain, rule}
+	args := []string{"add", "rule", family, table, formatChainName(chain), rule}
 	return nft.run(args)
 }
 
