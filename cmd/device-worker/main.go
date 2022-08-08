@@ -34,17 +34,21 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var yggdDispatchSocketAddr string
-var gracefulRebootChannel chan struct{}
-
 const (
-	defaultDataDir = "/var/local/yggdrasil"
+	defaultDataDir         = "/var/local/yggdrasil"
+	systemdUserServicesDir = ".config/systemd/user"
+)
+
+var (
+	yggdDispatchSocketAddr      string
+	gracefulRebootChannel       chan struct{}
+	systemdUserServicesFullPath = filepath.Join(os.Getenv("HOME"), systemdUserServicesDir)
 )
 
 func initSystemdDirectory() error {
 
 	// init the flotta user systemd units directory
-	err := os.MkdirAll(service.SystemdUserServicesFullPath, 0750)
+	err := os.MkdirAll(systemdUserServicesFullPath, 0750)
 	if err != nil {
 		return err
 	}
@@ -150,15 +154,11 @@ func main() {
 	}
 	configManager := configuration2.NewConfigurationManager(dataDir)
 
-	// Systemd event listener
-	listener := service.NewDBusEventListener()
-	eventCh, err := listener.Connect()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Systemd event dbusEventListener
+	dbusEventListener := service.NewDBusEventListener()
 	// Start listening to systemd bus events. These events generated from here can start being processed once all observers have been initialized, otherwise
 	// we risk in missing observers whilst processing the events.
-	go listener.Listen()
+	configManager.RegisterObserver(dbusEventListener)
 
 	// --- Client metrics configuration ---
 	metricsStore, err := metrics.NewTSDB(dataDir)
@@ -181,7 +181,7 @@ func main() {
 	dataTransferWatcher := metrics.NewDataTransferMetrics(metricsDaemon)
 	configManager.RegisterObserver(dataTransferWatcher)
 
-	workloadManager, err := workload.NewWorkloadManager(dataDir, deviceId, eventCh)
+	workloadManager, err := workload.NewWorkloadManager(dataDir, deviceId, dbusEventListener.GetEventChannel())
 	if err != nil {
 		log.Fatalf("cannot start Workload Manager. DeviceID: %s; err: %v", deviceId, err)
 	}

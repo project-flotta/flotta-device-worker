@@ -1,23 +1,21 @@
 package service
 
 import (
-	"errors"
+	"context"
 	"fmt"
-	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/coreos/go-systemd/v22/dbus"
-	"github.com/fsnotify/fsnotify"
+	"github.com/project-flotta/flotta-operator/models"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
 	EventStarted EventType = "started"
 	EventStopped EventType = "stopped"
-
-	systemdUserServicesDir         = ".config/systemd/user"
-	defaultTargetWantsRelativePath = "default.target.wants/"
 
 	// To avoid confusion, we match the action verb tense coming from systemd sub state, even though it is not consistent
 	// The only addition to the list is the "removed" case, which we use when a service is removed
@@ -38,11 +36,6 @@ const (
 	removed unitSubState = "removed"
 )
 
-var (
-	SystemdUserServicesFullPath = filepath.Join(os.Getenv("HOME"), systemdUserServicesDir)
-	enabledServicesFullPath     = filepath.Join(SystemdUserServicesFullPath, defaultTargetWantsRelativePath)
-)
-
 type unitSubState string
 
 type EventType string
@@ -53,69 +46,59 @@ type Event struct {
 }
 
 type DBusEventListener struct {
-	observerCh chan *Event
-	set        *dbus.SubscriptionSet
-	dbusCh     <-chan map[string]*dbus.UnitStatus
-	dbusErrCh  <-chan error
-	fsWatcher  *fsnotify.Watcher
+	eventCh   chan *Event
+	set       *dbus.SubscriptionSet
+	dbusCh    <-chan map[string]*dbus.UnitStatus
+	dbusErrCh <-chan error
+	lock      sync.Mutex
 }
 
 func NewDBusEventListener() *DBusEventListener {
-	return &DBusEventListener{}
+	return &DBusEventListener{lock: sync.Mutex{}, eventCh: make(chan *Event, 1000)}
 }
 
-func (e *DBusEventListener) Connect() (<-chan *Event, error) {
+func (e *DBusEventListener) Init(configuration models.DeviceConfigurationMessage) error {
+	log.Infof("Starting DBus event listener")
 	conn, err := newDbusConnection(UserBus)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	e.set = conn.NewSubscriptionSet()
-	if err := e.initializeSubscriptionSet(); err != nil {
-		return nil, err
+	for _, w := range configuration.Workloads {
+		s, err := conn.GetUnitPropertyContext(context.Background(), DefaultServiceName(w.Name), "UnitFileState")
+		if err != nil {
+			return err
+		}
+		log.Debugf("Unit UnitFileState property for workload %s:%s", w.Name, s.Value.String())
+		v, err := strconv.Unquote(s.Value.String())
+		if err != nil {
+			return err
+		}
+		if v == "disabled" {
+			log.Warnf("Service for workload %s is disabled", w.Name)
+		}
+		e.add(DefaultServiceName(w.Name))
 	}
-	e.observerCh = make(chan *Event, 1000)
-	return e.observerCh, nil
+	go e.Listen()
+	return nil
 }
 
-func (e *DBusEventListener) initializeSubscriptionSet() error {
-	_, err := os.Stat(enabledServicesFullPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return e.watchServiceDirectory()
+func (e *DBusEventListener) Update(configuration models.DeviceConfigurationMessage) error {
+	for _, wl := range configuration.Workloads {
+		svcName := DefaultServiceName(wl.Name)
+		if !e.contains(svcName) {
+			e.add(svcName)
 		}
-		return err
 	}
-	files, err := os.ReadDir(enabledServicesFullPath)
-	if err != nil {
-		return err
-	}
-	log.Infof("List of services to be monitored in %s:%s", enabledServicesFullPath, files)
-	for _, fd := range files {
-		f := filepath.Join(enabledServicesFullPath, fd.Name())
-		log.Debugf("Detected service file %s", f)
-		if !fileExist(f) {
-			log.Errorf("Hard link %s does not exist or broken link", fd.Name())
-			continue
-		}
-		e.Add(getServiceFileName(fd.Name()))
-	}
-	return e.watchServiceDirectory()
+	return nil
 }
 
-func (e *DBusEventListener) watchServiceDirectory() error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	e.fsWatcher = watcher
+func (e *DBusEventListener) String() string {
+	return "DBus event listener"
+}
 
-	_, err = os.Stat(SystemdUserServicesFullPath)
-	if err != nil {
-		return fmt.Errorf("systemd user directory not found: %s", err)
-	}
-
-	go e.watchFSEvents()
-	return e.fsWatcher.Add(SystemdUserServicesFullPath)
+func (e *DBusEventListener) GetEventChannel() <-chan *Event {
+	return e.eventCh
 }
 
 func (e *DBusEventListener) Listen() {
@@ -135,15 +118,14 @@ func (e *DBusEventListener) Listen() {
 				switch state {
 				case running:
 					log.Debugf("Sending start event to observer channel for workload %s", n)
-					e.observerCh <- &Event{WorkloadName: n, Type: EventStarted}
+					e.eventCh <- &Event{WorkloadName: n, Type: EventStarted}
 				case removed:
-					// We remove the service from the filter here to avoid a potential race condition where the fs notify routine removes it before the systemd event is received.
-					log.Infof("Service %s disabled or removed", name)
-					e.Remove(name)
+					log.Debugf("Service %s has been removed", name)
+					e.remove(name)
 					fallthrough
 				case stop, dead, failed, start:
 					log.Debugf("Sending stop event to observer channel for workload %s", n)
-					e.observerCh <- &Event{WorkloadName: n, Type: EventStopped}
+					e.eventCh <- &Event{WorkloadName: n, Type: EventStopped}
 				default:
 					log.Debugf("Ignoring unit sub state for service %s: %s", name, unit.SubState)
 				}
@@ -155,50 +137,24 @@ func (e *DBusEventListener) Listen() {
 
 }
 
-func (e *DBusEventListener) watchFSEvents() {
-	for {
-		select {
-		case event, ok := <-e.fsWatcher.Events:
-			if !ok {
-				log.Errorf("Error while watching for file system events at %s:%s", SystemdUserServicesFullPath, event)
-				continue
-			}
-			log.Debugf("Captured file system event:%s", event)
-			if !isAnEnabledService(event.Name) {
-				continue
-			}
-			svcName := getServiceFileName(event.Name)
-			switch {
-			case event.Op&fsnotify.Create == fsnotify.Create:
-				log.Infof("New systemd service unit file %s detected", event.Name)
-				e.Add(svcName)
-			case event.Op&fsnotify.Remove == fsnotify.Remove:
-				log.Debugf("Systemd service unit file %s has been removed. Waiting for the systemd dbus remove event to elimitate it from the service watch filter", event.Name)
-			}
-		case err, ok := <-e.fsWatcher.Errors:
-			if !ok {
-				log.Errorf("Error detected on file system watcher: %s", err)
-				return
-			}
-		}
-	}
-}
-
-func translateUnitSubStatus(unit *dbus.UnitStatus) unitSubState {
-	if unit == nil {
-		return removed
-	}
-	return unitSubState(unit.SubState)
-}
-
-func (e *DBusEventListener) Add(serviceName string) {
+func (e *DBusEventListener) add(serviceName string) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	log.Debugf("Adding service for event listener %s", serviceName)
 	e.set.Add(serviceName)
 }
 
-func (e *DBusEventListener) Remove(serviceName string) {
+func (e *DBusEventListener) remove(serviceName string) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	log.Debugf("Removing service from event listener %s", serviceName)
 	e.set.Remove(serviceName)
+}
+
+func (e *DBusEventListener) contains(serviceName string) bool {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.set.Contains(serviceName)
 }
 
 func extractWorkloadName(serviceName string) (string, error) {
@@ -208,15 +164,9 @@ func extractWorkloadName(serviceName string) (string, error) {
 	return strings.TrimSuffix(filepath.Base(serviceName), filepath.Ext(serviceName)), nil
 }
 
-func fileExist(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func isAnEnabledService(fullPath string) bool {
-	return filepath.Ext(fullPath) == ServiceSuffix && filepath.Dir(fullPath) == enabledServicesFullPath
-}
-func getServiceFileName(fullPath string) string {
-	_, filename := filepath.Split(fullPath)
-	return filename
+func translateUnitSubStatus(unit *dbus.UnitStatus) unitSubState {
+	if unit == nil {
+		return removed
+	}
+	return unitSubState(unit.SubState)
 }
