@@ -122,20 +122,6 @@ func (mr *MockWorkloadWrapperMockRecorder) Logs(arg0, arg1 interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logs", reflect.TypeOf((*MockWorkloadWrapper)(nil).Logs), arg0, arg1)
 }
 
-// PersistConfiguration mocks base method.
-func (m *MockWorkloadWrapper) PersistConfiguration() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PersistConfiguration")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PersistConfiguration indicates an expected call of PersistConfiguration.
-func (mr *MockWorkloadWrapperMockRecorder) PersistConfiguration() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistConfiguration", reflect.TypeOf((*MockWorkloadWrapper)(nil).PersistConfiguration))
-}
-
 // RegisterObserver mocks base method.
 func (m *MockWorkloadWrapper) RegisterObserver(arg0 Observer) {
 	m.ctrl.T.Helper()
@@ -162,20 +148,6 @@ func (mr *MockWorkloadWrapperMockRecorder) Remove(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockWorkloadWrapper)(nil).Remove), arg0)
 }
 
-// RemoveMappingFile mocks base method.
-func (m *MockWorkloadWrapper) RemoveMappingFile() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveMappingFile")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RemoveMappingFile indicates an expected call of RemoveMappingFile.
-func (mr *MockWorkloadWrapperMockRecorder) RemoveMappingFile() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveMappingFile", reflect.TypeOf((*MockWorkloadWrapper)(nil).RemoveMappingFile))
-}
-
 // RemoveSecret mocks base method.
 func (m *MockWorkloadWrapper) RemoveSecret(arg0 string) error {
 	m.ctrl.T.Helper()
@@ -188,20 +160,6 @@ func (m *MockWorkloadWrapper) RemoveSecret(arg0 string) error {
 func (mr *MockWorkloadWrapperMockRecorder) RemoveSecret(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveSecret", reflect.TypeOf((*MockWorkloadWrapper)(nil).RemoveSecret), arg0)
-}
-
-// RemoveServicesFile mocks base method.
-func (m *MockWorkloadWrapper) RemoveServicesFile() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveServicesFile")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RemoveServicesFile indicates an expected call of RemoveServicesFile.
-func (mr *MockWorkloadWrapperMockRecorder) RemoveServicesFile() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveServicesFile", reflect.TypeOf((*MockWorkloadWrapper)(nil).RemoveServicesFile))
 }
 
 // RemoveTable mocks base method.
@@ -230,20 +188,6 @@ func (m *MockWorkloadWrapper) Run(arg0 *v1.Pod, arg1, arg2 string, arg3 map[stri
 func (mr *MockWorkloadWrapperMockRecorder) Run(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockWorkloadWrapper)(nil).Run), arg0, arg1, arg2, arg3)
-}
-
-// Start mocks base method.
-func (m *MockWorkloadWrapper) Start(arg0 *v1.Pod) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Start indicates an expected call of Start.
-func (mr *MockWorkloadWrapperMockRecorder) Start(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockWorkloadWrapper)(nil).Start), arg0)
 }
 
 // Stop mocks base method.

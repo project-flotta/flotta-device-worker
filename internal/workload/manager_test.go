@@ -92,16 +92,14 @@ var _ = Describe("Events", func() {
 			wkwMock.EXPECT().List().Return([]api.WorkloadInfo{
 				{Id: "stale", Name: "stale", Status: "created"},
 			}, nil).AnyTimes()
-			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed to start container"))
-			wkwMock.EXPECT().PersistConfiguration().AnyTimes()
-			wkwMock.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("failed to start container")).AnyTimes()
+			wkwMock.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("Failed to start container"))
 
 			// when
 			err := wkManager.Update(cfg)
 
 			// then
 			Expect(err).To(HaveOccurred())
-
+			Expect(err.Error()).To(ContainSubstring("Failed to start container"))
 			// Check no events are generated:
 			time.Sleep(5 * time.Second)
 			events := wkManager.PopEvents()

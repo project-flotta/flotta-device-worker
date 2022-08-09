@@ -55,7 +55,6 @@ var _ = Describe("Heartbeat", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
-		wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 
 		regMock := registration.NewMockRegistrationWrapper(mockCtrl)
 		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, "device-id-123")

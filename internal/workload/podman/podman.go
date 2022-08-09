@@ -169,22 +169,22 @@ func (p *podman) List() ([]api.WorkloadInfo, error) {
 	return workloads, nil
 }
 
-func (p *podman) Exists(workloadId string) (bool, error) {
-	exists, err := pods.Exists(p.podmanConnection, workloadId, nil)
+func (p *podman) Exists(workloadName string) (bool, error) {
+	exists, err := pods.Exists(p.podmanConnection, workloadName, nil)
 	if err != nil {
 		return false, err
 	}
 	return exists, nil
 }
 
-func (p *podman) Remove(workloadId string) error {
-	exists, err := p.Exists(workloadId)
+func (p *podman) Remove(workloadName string) error {
+	exists, err := p.Exists(workloadName)
 	if err != nil {
 		return err
 	}
 	if exists {
 		force := true
-		_, err := pods.Remove(p.podmanConnection, workloadId, &pods.RemoveOptions{Force: &force})
+		_, err := pods.Remove(p.podmanConnection, workloadName, &pods.RemoveOptions{Force: &force})
 		if err != nil {
 			return err
 		}
@@ -272,12 +272,9 @@ func (p *podman) Run(manifestPath, authFilePath string, annotations map[string]s
 	return podIds, nil
 }
 
-func (p *podman) Start(workloadId string) error {
-	_, err := pods.Start(p.podmanConnection, workloadId, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+func (p *podman) Start(workloadName string) error {
+	_, err := pods.Start(p.podmanConnection, workloadName, nil)
+	return err
 }
 
 func (p *podman) ListSecrets() (map[string]struct{}, error) {
@@ -320,7 +317,6 @@ func hasAutoUpdateEnabled(labels map[string]string) bool {
 }
 
 func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, monitoringInterval uint) (service.Service, error) {
-	var svc service.Service
 	podName := workload.Name
 
 	// Since podman don't support generation of the systemd services that re-creates the pod, instead of restarting it,
@@ -336,31 +332,22 @@ func (p *podman) GenerateSystemdService(workload *v1.Pod, manifestPath string, m
 		if err != nil {
 			return nil, err
 		}
-
-		svc, err = service.NewSystemd(podName, report.Units, service.UserBus)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		var unit bytes.Buffer
-
-		tmp := template.New("unit")
-		t, err := tmp.Parse(autoUpdateServiceUnitTemplate)
-		if err != nil {
-			return nil, err
-		}
-		err = t.Execute(&unit, AutoUpdateUnit{ManifestPath: manifestPath, PodmanBinary: podmanBinary, PodName: podName})
-		if err != nil {
-			return nil, err
-		}
-		units := map[string]string{podName: unit.String()}
-		svc, err = service.NewSystemd(podName, units, service.UserBus)
-		if err != nil {
-			return nil, err
-		}
+		return service.NewSystemd(podName, report.Units, service.UserBus), nil
 	}
 
-	return svc, nil
+	var unit bytes.Buffer
+
+	tmp := template.New("unit")
+	t, err := tmp.Parse(autoUpdateServiceUnitTemplate)
+	if err != nil {
+		return nil, err
+	}
+	err = t.Execute(&unit, AutoUpdateUnit{ManifestPath: manifestPath, PodmanBinary: podmanBinary, PodName: podName})
+	if err != nil {
+		return nil, err
+	}
+	units := map[string]string{podName: unit.String()}
+	return service.NewSystemd(podName, units, service.UserBus), nil
 }
 
 // Retrieve all pods logs and send that to the given io.Writer

@@ -18,8 +18,8 @@ const (
 	EventStopped EventType = "stopped"
 
 	// To avoid confusion, we match the action verb tense coming from systemd sub state, even though it is not consistent
-	// The only addition to the list is the "removed" case, which we use when a service is removed
-	// from the system and we receive an empty unitStatus object.
+	// The only addition to the list is the "removed" case, which we use when a service is disabled by removing the softlink
+	// from the file system. In this case we receive an empty unitStatus object.
 
 	//The service is running
 	running unitSubState = "running"
@@ -32,7 +32,8 @@ const (
 	dead unitSubState = "dead"
 	//The service failed to start
 	failed unitSubState = "failed"
-	//The service has been removed, no unit state is returned from systemd
+	//The service has been disabled, probably because the soft link in the `default.target.wants` directory has been removed.
+	// No unit state is returned from systemd and thus we stop watching for this service.
 	removed unitSubState = "removed"
 )
 
@@ -107,7 +108,7 @@ func (e *DBusEventListener) Listen() {
 		select {
 		case msg := <-e.dbusCh:
 			for name, unit := range msg {
-				log.Debugf("Captured DBus event for %s: %v+", name, unit)
+				log.Tracef("Captured DBus event for %s: %v+", name, unit)
 				n, err := extractWorkloadName(name)
 				if err != nil {
 					log.Error(err)
@@ -117,17 +118,16 @@ func (e *DBusEventListener) Listen() {
 				log.Debugf("Systemd service for workload %s transitioned to sub state %s\n", n, state)
 				switch state {
 				case running:
-					log.Debugf("Sending start event to observer channel for workload %s", n)
+					log.Tracef("Sending start event to observer channel for workload %s", n)
 					e.eventCh <- &Event{WorkloadName: n, Type: EventStarted}
 				case removed:
-					log.Debugf("Service %s has been removed", name)
+					log.Tracef("Service %s has been disabled.", name)
 					e.remove(name)
-					fallthrough
 				case stop, dead, failed, start:
-					log.Debugf("Sending stop event to observer channel for workload %s", n)
+					log.Tracef("Sending stop event to observer channel for workload %s", n)
 					e.eventCh <- &Event{WorkloadName: n, Type: EventStopped}
 				default:
-					log.Debugf("Ignoring unit sub state for service %s: %s", name, unit.SubState)
+					log.Tracef("Ignoring unit sub state for service %s: %s", name, state)
 				}
 			}
 		case msg := <-e.dbusErrCh:
@@ -140,14 +140,14 @@ func (e *DBusEventListener) Listen() {
 func (e *DBusEventListener) add(serviceName string) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	log.Debugf("Adding service for event listener %s", serviceName)
+	log.Tracef("Adding service for event listener %s", serviceName)
 	e.set.Add(serviceName)
 }
 
 func (e *DBusEventListener) remove(serviceName string) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	log.Debugf("Removing service from event listener %s", serviceName)
+	log.Tracef("Removing service from event listener %s", serviceName)
 	e.set.Remove(serviceName)
 }
 

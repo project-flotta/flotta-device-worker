@@ -2,13 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
-	"sync"
 
 	"git.sr.ht/~spc/go-log"
 	"github.com/coreos/go-systemd/v22/dbus"
@@ -42,14 +39,14 @@ type Service interface {
 	Stop() error
 	Enable() error
 	Disable() error
+	ServiceExists() (bool, error)
 }
 
 type systemd struct {
-	Name           string            `json:"name"`
-	Units          []string          `json:"units"`
-	UnitsContent   map[string]string `json:"-"`
-	dbusConnection *dbus.Conn        `json:"-"`
-	BusType        BusType           `json:"busType"`
+	name         string
+	Units        []string
+	UnitsContent map[string]string
+	BusType      BusType
 }
 
 //go:generate mockgen -package=service -destination=mock_systemd_manager.go . SystemdManager
@@ -57,77 +54,6 @@ type SystemdManager interface {
 	Add(svc Service) error
 	Get(name string) Service
 	Remove(svc Service) error
-	RemoveServicesFile() error
-}
-
-type systemdManager struct {
-	svcFilePath string
-	lock        sync.RWMutex
-	services    map[string]Service
-}
-
-func NewSystemdManager(configDir string) (SystemdManager, error) {
-	services := make(map[string]*systemd)
-	servicePath := path.Join(configDir, "services.json")
-	servicesJson, err := ioutil.ReadFile(servicePath) //#nosec
-	if err == nil {
-		err := json.Unmarshal(servicesJson, &services)
-		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal %v: %w", servicePath, err)
-		}
-	}
-
-	systemdSVC := make(map[string]Service)
-	for k, v := range services {
-		systemdSVC[k] = v
-	}
-
-	return &systemdManager{svcFilePath: servicePath, services: systemdSVC, lock: sync.RWMutex{}}, nil
-}
-
-func (mgr *systemdManager) RemoveServicesFile() error {
-	mgr.lock.Lock()
-	defer mgr.lock.Unlock()
-
-	log.Infof("deleting %s file", mgr.svcFilePath)
-	err := os.RemoveAll(mgr.svcFilePath)
-	if err != nil {
-		log.Errorf("failed to delete %s: %v", mgr.svcFilePath, err)
-		return err
-	}
-
-	return nil
-}
-
-func (mgr *systemdManager) Add(svc Service) error {
-	mgr.lock.Lock()
-	defer mgr.lock.Unlock()
-
-	mgr.services[svc.GetName()] = svc
-	return mgr.write()
-}
-
-func (mgr *systemdManager) Get(name string) Service {
-	mgr.lock.RLock()
-	defer mgr.lock.RUnlock()
-
-	return mgr.services[name]
-}
-
-func (mgr *systemdManager) Remove(svc Service) error {
-	mgr.lock.Lock()
-	defer mgr.lock.Unlock()
-
-	delete(mgr.services, svc.GetName())
-	return mgr.write()
-}
-
-func (mgr *systemdManager) write() error {
-	svcJson, err := json.Marshal(mgr.services)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
 }
 
 func newDbusConnection(busType BusType) (*dbus.Conn, error) {
@@ -158,32 +84,25 @@ func newDbusConnection(busType BusType) (*dbus.Conn, error) {
 	}
 }
 
-func NewSystemd(name string, units map[string]string, busType BusType) (Service, error) {
-	var err error
-	var conn *dbus.Conn
-
-	conn, err = newDbusConnection(busType)
-	if err != nil {
-		return nil, err
-	}
-
+func NewSystemd(name string, units map[string]string, busType BusType) Service {
 	var unitNames []string
 	for unit := range units {
 		unitNames = append(unitNames, unit)
 	}
 
 	return &systemd{
-		Name:           name,
-		dbusConnection: conn,
-		Units:          unitNames,
-		BusType:        busType,
-		UnitsContent:   units,
-	}, nil
+		name: name,
+
+		Units:        unitNames,
+		BusType:      busType,
+		UnitsContent: units,
+	}
+
 }
 
 func (s *systemd) Add() error {
 	if len(s.UnitsContent) == 0 {
-		log.Infof("calling systemd add service for '%s' with no units available", s.Name)
+		log.Infof("calling systemd add service for '%s' with no units available", s.GetName())
 	}
 
 	for unit, content := range s.UnitsContent {
@@ -198,17 +117,39 @@ func (s *systemd) Add() error {
 }
 
 func (s *systemd) Remove() error {
-	for _, unit := range s.Units {
-		err := os.Remove(path.Join(DefaultUnitsPath, DefaultServiceName(unit)))
+
+	conn, err := newDbusConnection(s.BusType)
+	if err != nil {
+		return err
+	}
+	// Retrieve dependency/bound services to the workload. It will return a slice with the services that are bound to this one
+	p, err := conn.GetUnitPropertyContext(context.Background(), DefaultServiceName(s.GetName()), "BoundBy")
+	if err != nil {
+		return err
+	}
+	log.Debugf("List of dependent services to %s: %s", s.GetName(), p)
+	v, ok := p.Value.Value().([]string)
+	if !ok {
+		return fmt.Errorf("invalid value %s for property BoundBy in service %s", p.Value.Value(), s.GetName())
+	}
+	// Delete the files that are bound to this service
+	for _, unit := range v {
+		log.Tracef("Deleting service unit configuration at %s", path.Join(DefaultUnitsPath, unit))
+		err := os.Remove(path.Join(DefaultUnitsPath, unit))
 		if err != nil {
 			return err
 		}
+	}
+	// Finally, remove the service file
+	err = os.Remove(path.Join(DefaultUnitsPath, DefaultServiceName(s.GetName())))
+	if err != nil {
+		return err
 	}
 	return s.reload()
 }
 
 func (s *systemd) GetName() string {
-	return s.Name
+	return s.name
 }
 
 func (s *systemd) reload() error {
@@ -221,14 +162,14 @@ func (s *systemd) reload() error {
 }
 
 func (s *systemd) Start() error {
-	log.Debugf("Starting service %s", s.Name)
+	log.Debugf("Starting service %s", s.GetName())
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	startChan := make(chan string)
-	if _, err := conn.StartUnitContext(context.Background(), DefaultServiceName(s.Name), "replace", startChan); err != nil {
+	if _, err := conn.StartUnitContext(context.Background(), DefaultServiceName(s.GetName()), "replace", startChan); err != nil {
 		return err
 	}
 
@@ -237,18 +178,19 @@ func (s *systemd) Start() error {
 	case "done":
 		return nil
 	default:
-		return errors.Errorf("Failed[%s] to start systemd service %s", result, DefaultServiceName(s.Name))
+		return errors.Errorf("Failed[%s] to start systemd service %s", result, DefaultServiceName(s.GetName()))
 	}
 }
 
 func (s *systemd) Stop() error {
+
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	stopChan := make(chan string)
-	if _, err := conn.StopUnitContext(context.Background(), DefaultServiceName(s.Name), "replace", stopChan); err != nil {
+	if _, err := conn.StopUnitContext(context.Background(), DefaultServiceName(s.GetName()), "replace", stopChan); err != nil {
 		return err
 	}
 
@@ -257,33 +199,52 @@ func (s *systemd) Stop() error {
 	case "done":
 		return nil
 	default:
-		return errors.Errorf("Failed[%s] to stop systemd service %s", result, DefaultServiceName(s.Name))
+		return errors.Errorf("Failed[%s] to stop systemd service %s", result, DefaultServiceName(s.GetName()))
 	}
 }
 
 func (s *systemd) Enable() error {
-	log.Debugf("Enabling service %s", s.Name)
+	log.Debugf("Enabling service %s", s.GetName())
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	_, _, err = conn.EnableUnitFilesContext(context.Background(), []string{DefaultServiceName(s.Name)}, false, true)
+	_, _, err = conn.EnableUnitFilesContext(context.Background(), []string{DefaultServiceName(s.GetName())}, false, true)
 	return err
 }
 
 func (s *systemd) Disable() error {
-	log.Debugf("Disabling service %s", s.Name)
+	log.Debugf("Disabling service %s", s.GetName())
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-	_, err = conn.DisableUnitFilesContext(context.Background(), []string{DefaultServiceName(s.Name)}, false)
+	_, err = conn.DisableUnitFilesContext(context.Background(), []string{DefaultServiceName(s.GetName())}, false)
 	return err
 }
 
 func DefaultServiceName(serviceName string) string {
 	return serviceName + ServiceSuffix
+}
+
+func (s *systemd) ServiceExists() (bool, error) {
+	conn, err := newDbusConnection(s.BusType)
+	if err != nil {
+		return false, err
+	}
+	defer conn.Close()
+
+	units, err := conn.ListUnitsByNamesContext(context.Background(), []string{DefaultServiceName(s.GetName())})
+	if err != nil {
+		return false, err
+	}
+	log.Tracef("Number of matching units %d:%+v", len(units), units)
+	exists := len(units) == 1 && units[0].LoadState != "not-found"
+	if !exists {
+		log.Tracef("Service %s not found ", s.GetName())
+	}
+	return exists, nil
 }
