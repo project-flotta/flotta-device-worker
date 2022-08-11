@@ -301,7 +301,12 @@ func (ww *Workload) createService(svc service.Service) error {
 		return fmt.Errorf("cannot enable systemd service '%s': %v", svc.GetName(), err)
 	}
 
-	_ = svc.Start()
+	err := svc.Start()
+	if err != nil {
+		// A service maybe is already in place, and started, so no returning an
+		// error here.
+		log.Errorf("cannot start systemd service '%s': %v", svc.GetName(), err)
+	}
 
 	return nil
 }
