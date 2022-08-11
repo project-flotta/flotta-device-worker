@@ -2,7 +2,7 @@
 name: COPR and quay build
 on:
   push:
-    branches: [ main ]
+    branches: [ bump]
 jobs:
   rpm:
     name: Submit a build from Fedora container
