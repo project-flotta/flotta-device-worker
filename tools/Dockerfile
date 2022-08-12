@@ -10,17 +10,12 @@ RUN dnf copr enable project-flotta/flotta-testing -y
 RUN dnf update -y --exclude podman \
   && dnf install -y openssl procps-ng dmidecode nc iproute \
   yggdrasil flotta-agent-race node_exporter systemd-container \
-  libselinux-utils util-linux sssd-client
+  libselinux-utils util-linux sssd-client less
 
 # Modify podman configuration
-RUN sed -i 's/netns = \"host\"/netns = \"private\"/g' /usr/share/containers/containers.conf && \
-    sed -i 's/utsns = \"host\"/utsns = \"private\"/g' /usr/share/containers/containers.conf && \
-    sed -i 's/ipcns = \"shareable\"/ipcns = \"private\"/g' /usr/share/containers/containers.conf
-
-# Uncomment podman configuration
-RUN sed -i '/netns = \"private\"/s/^#//g' /usr/share/containers/containers.conf && \
-    sed -i '/utsns = \"private\"/s/^#//g' /usr/share/containers/containers.conf && \
-    sed -i '/ipcns = \"private\"/s/^#//g' /usr/share/containers/containers.conf
+RUN sed -i s/netns=\"host\"/netns=\"private\"/g /etc/containers/containers.conf && \
+    sed -i s/utsns=\"host\"/utsns=\"private\"/g /etc/containers/containers.conf && \
+    sed -i s/ipcns=\"host\"/ipcns=\"private\"/g /etc/containers/containers.conf
 
 # Certificate reqs:
 RUN mkdir /etc/pki/consumer && \
