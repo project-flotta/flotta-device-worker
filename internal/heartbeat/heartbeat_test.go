@@ -6,14 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"reflect"
 	"sync"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
-	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 	"github.com/project-flotta/flotta-device-worker/internal/registration"
@@ -57,7 +55,6 @@ var _ = Describe("Heartbeat", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		wkwMock = workload.NewMockWorkloadWrapper(mockCtrl)
 		wkwMock.EXPECT().Init().Return(nil).AnyTimes()
-		wkwMock.EXPECT().PersistConfiguration().AnyTimes()
 
 		regMock := registration.NewMockRegistrationWrapper(mockCtrl)
 		wkManager, err = workload.NewWorkloadManagerWithParams(datadir, wkwMock, "device-id-123")
@@ -757,44 +754,6 @@ func (d *DispatcherFailing) Register(ctx context.Context, in *pb.RegistrationReq
 
 func (d *DispatcherFailing) GetConfig(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (*pb.Config, error) {
 	return nil, nil
-}
-
-func NewFilledInterfaceMock(mtu int, name string, macAddr string, flags net.Flags, addrs []string, isPhysical bool, isBonding bool, isVlan bool, speedMbps int64) *util.MockInterface {
-	hwAddr, _ := net.ParseMAC(macAddr)
-	ret := util.MockInterface{}
-	ret.On("IsPhysical").Return(isPhysical)
-	if isPhysical || isBonding || isVlan {
-		ret.On("Name").Return(name)
-		ret.On("MTU").Return(mtu)
-		ret.On("HardwareAddr").Return(hwAddr)
-		ret.On("Flags").Return(flags)
-		ret.On("Addrs").Return(toAddresses(addrs), nil)
-		ret.On("SpeedMbps").Return(speedMbps)
-	}
-	if !isPhysical {
-		ret.On("IsBonding").Return(isBonding)
-	}
-	if !(isPhysical || isBonding) {
-		ret.On("IsVlan").Return(isVlan)
-	}
-
-	return &ret
-}
-
-func toAddresses(addrs []string) []net.Addr {
-	ret := make([]net.Addr, 0)
-	for _, a := range addrs {
-		ret = append(ret, str2Addr(a))
-	}
-	return ret
-}
-
-func str2Addr(addrStr string) net.Addr {
-	ip, ipnet, err := net.ParseCIDR(addrStr)
-	if err != nil {
-		return &net.IPNet{}
-	}
-	return &net.IPNet{IP: ip, Mask: ipnet.Mask}
 }
 
 func initHwMock(hwMock *hardware.MockHardware, configManager *configuration.Manager, hostname string, ipv4 []string) (*gomock.Call, *gomock.Call, *gomock.Call) {

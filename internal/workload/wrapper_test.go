@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
-	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/network"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
 	v1 "k8s.io/api/core/v1"
@@ -23,24 +22,21 @@ const (
 var _ = Describe("Workload management", func() {
 
 	var (
-		mockCtrl          *gomock.Controller
-		wk                *workload.Workload
-		newPodman         *podman.MockPodman
-		netfilter         *network.MockNetfilter
-		mappingRepository *mapping.MockMappingRepository
-		serviceManager    *service.MockSystemdManager
-		svc               *service.MockService
+		mockCtrl  *gomock.Controller
+		wk        *workload.Workload
+		newPodman *podman.MockPodman
+		netfilter *network.MockNetfilter
+
+		svc *service.MockService
 	)
 
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		newPodman = podman.NewMockPodman(mockCtrl)
 		netfilter = network.NewMockNetfilter(mockCtrl)
-		mappingRepository = mapping.NewMockMappingRepository(mockCtrl)
-		serviceManager = service.NewMockSystemdManager(mockCtrl)
 		svc = service.NewMockService(mockCtrl)
 
-		wk = workload.NewWorkload(newPodman, netfilter, mappingRepository, serviceManager, 15)
+		wk = workload.NewWorkload(newPodman, netfilter, 15, nil)
 	})
 
 	AfterEach(func() {
@@ -56,15 +52,10 @@ var _ = Describe("Workload management", func() {
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
-			newPodman.EXPECT().GetPodReportForId("pod1").Return(nil, nil)
 
 			svc.EXPECT().Add().Return(nil)
 			svc.EXPECT().Enable().Return(nil)
 			svc.EXPECT().Start().Return(nil)
-
-			serviceManager.EXPECT().Add(svc).Return(nil)
-
-			mappingRepository.EXPECT().Add("pod1", "id1")
 
 			// when
 			err := wk.Run(pod, manifestPath, authFilePath, nil)
@@ -77,8 +68,6 @@ var _ = Describe("Workload management", func() {
 
 			// given
 			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
-
-			mappingRepository.EXPECT().Add("pod1", "id1")
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
@@ -97,8 +86,6 @@ var _ = Describe("Workload management", func() {
 
 			// given
 			pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
-
-			mappingRepository.EXPECT().Add("pod1", "id1")
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)

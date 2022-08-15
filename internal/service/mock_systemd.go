@@ -103,6 +103,21 @@ func (mr *MockServiceMockRecorder) Remove() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockService)(nil).Remove))
 }
 
+// ServiceExists mocks base method.
+func (m *MockService) ServiceExists() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ServiceExists")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ServiceExists indicates an expected call of ServiceExists.
+func (mr *MockServiceMockRecorder) ServiceExists() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceExists", reflect.TypeOf((*MockService)(nil).ServiceExists))
+}
+
 // Start mocks base method.
 func (m *MockService) Start() error {
 	m.ctrl.T.Helper()

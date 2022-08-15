@@ -205,3 +205,7 @@ func (w *WorkloadsLogsTarget) WorkloadStarted(workloadName string, report []*pod
 		log.Error("Cannot start workload logs", err)
 	}
 }
+
+func (w *WorkloadsLogsTarget) String() string {
+	return "workload logs"
+}

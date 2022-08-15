@@ -40,8 +40,8 @@ type WorkloadManager struct {
 	deviceId       string
 }
 
-func NewWorkloadManager(dataDir string, deviceId string) (*WorkloadManager, error) {
-	wrapper, err := newWorkloadInstance(dataDir, defaultWorkloadsMonitoringInterval)
+func NewWorkloadManager(dataDir string, deviceId string, systemdEventCh <-chan *service.Event) (*WorkloadManager, error) {
+	wrapper, err := newWorkloadInstance(dataDir, defaultWorkloadsMonitoringInterval, systemdEventCh)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (w *WorkloadManager) Update(configuration models.DeviceConfigurationMessage
 
 		if PodShouldWaitForMount(pod, configuration.Configuration) {
 			errors = multierror.Append(errors, fmt.Errorf(
-				"Pod '%s' needs to mount blockdevice but it's not in there yet", workload.Name))
+				"pod '%s' needs to mount blockdevice but it's not in there yet", workload.Name))
 			continue
 		}
 
@@ -353,18 +353,6 @@ func (w *WorkloadManager) Deregister() error {
 		log.Errorf("failed to delete volumes directory. DeviceID: %s; err: %v", w.deviceId, err)
 	}
 
-	err = w.removeMappingFile()
-	if err != nil {
-		errors = multierror.Append(errors, fmt.Errorf("failed to remove mapping file: %v", err))
-		log.Errorf("failed to remove mapping file. DeviceID: %s; err: %v", w.deviceId, err)
-	}
-
-	err = w.removeServicesFile()
-	if err != nil {
-		errors = multierror.Append(errors, fmt.Errorf("failed to remove services file: %v", err))
-		log.Errorf("failed to remove services file. DeviceID: %s; err: %v", w.deviceId, err)
-	}
-
 	w.deregistered = true
 	return errors
 }
@@ -415,6 +403,10 @@ func (w *WorkloadManager) deleteVolumeDir() error {
 	return deleteDir(w.volumesDir)
 }
 
+func (w *WorkloadManager) ListenServiceEvents() {
+	w.workloads.ListenServiceEvents()
+}
+
 func deleteDir(path string) error {
 	err := os.RemoveAll(path)
 	if err != nil {
@@ -437,27 +429,6 @@ func deleteFile(file string) error {
 func (w *WorkloadManager) deleteTable() error {
 	log.Infof("deleting nftable. DeviceID: %s;", w.deviceId)
 	err := w.workloads.RemoveTable()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return nil
-}
-
-func (w *WorkloadManager) removeServicesFile() error {
-	log.Infof("deleting services file. DeviceID: %s;", w.deviceId)
-	err := w.workloads.RemoveServicesFile()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (w *WorkloadManager) removeMappingFile() error {
-	log.Infof("deleting mapping file. DeviceID: %s;", w.deviceId)
-	err := w.workloads.RemoveMappingFile()
 	if err != nil {
 		log.Error(err)
 		return err
