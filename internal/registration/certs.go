@@ -13,7 +13,7 @@ import (
 
 	"encoding/pem"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/project-flotta/flotta-operator/pkg/mtls"
 )
 

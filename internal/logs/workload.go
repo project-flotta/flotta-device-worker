@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/project-flotta/flotta-device-worker/internal/workload"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/podman"
 	"github.com/project-flotta/flotta-operator/models"

@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"git.sr.ht/~spc/go-log"
 	"github.com/coreos/go-systemd/v22/dbus"
 	godbus "github.com/godbus/dbus/v5"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

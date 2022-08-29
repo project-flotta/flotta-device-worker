@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	runc "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/openshift/assisted-installer-agent/src/inventory"
 	"github.com/openshift/assisted-installer-agent/src/util"

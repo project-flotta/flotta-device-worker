@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"

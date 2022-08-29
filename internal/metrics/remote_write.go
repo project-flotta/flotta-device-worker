@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/golang/snappy"
 	"github.com/project-flotta/flotta-operator/models"
@@ -248,7 +248,7 @@ func (r *RemoteWrite) applyConfig(newConfig *models.MetricsReceiverConfiguration
 // writeRoutine
 // Used as the goroutine function for handling ongoing writes to remote server
 func (r *RemoteWrite) writeRoutine() {
-	log.Infof("metric remote writer started. %+v", r)
+	log.Infof("metric remote writer started since '%s' last write", r.LastWrite)
 
 	shouldExit := false
 	client := WriteClient(nil)
@@ -407,7 +407,7 @@ func (r *RemoteWrite) writeRequest(series []Series, client WriteClient) bool {
 		Timeseries: timeSeries,
 	}
 
-	if log.CurrentLevel() >= log.LevelTrace {
+	if log.GetLevel() >= log.TraceLevel {
 		reqBytes, err := json.Marshal(writeRequest)
 		if err != nil {
 			log.Error("cannot marshal prompb.WriteRequest to json", err)

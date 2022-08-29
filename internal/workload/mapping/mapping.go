@@ -7,7 +7,7 @@ import (
 	"path"
 	"sync"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 )
 
 type mapping struct {

@@ -16,7 +16,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-device-worker/internal/volumes"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/project-flotta/flotta-operator/models"
 	v1 "k8s.io/api/core/v1"

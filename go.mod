@@ -3,7 +3,6 @@ module github.com/project-flotta/flotta-device-worker
 go 1.16
 
 require (
-	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
 	github.com/Azure/azure-sdk-for-go v65.0.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.27 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.20 // indirect
@@ -53,10 +52,11 @@ require (
 	github.com/redhatinsights/yggdrasil v0.0.0-20220323125707-cdde836c519a
 	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.9 // indirect
 	github.com/seqsense/s3sync v1.8.3-0.20220617225540-7524fc039ded
+	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
 	github.com/vishvananda/netlink v1.1.1-0.20220115184804-dd687eb2f2d4
 	golang.org/x/net v0.0.0-20220706163947-c90051bbdb60 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	google.golang.org/genproto v0.0.0-20220524023933-508584e28198 // indirect

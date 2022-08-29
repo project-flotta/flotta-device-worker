@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/project-flotta/flotta-operator/models"
 )
 

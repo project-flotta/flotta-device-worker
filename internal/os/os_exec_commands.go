@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 )
 
 //go:generate mockgen -package=os -destination=mock_os.go . OsExecCommands
