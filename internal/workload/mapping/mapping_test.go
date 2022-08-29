@@ -1,7 +1,6 @@
 package mapping_test
 
 import (
-	"io/ioutil"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -15,7 +14,7 @@ var _ = Describe("Mapping", func() {
 	var repo mapping.MappingRepository
 
 	BeforeEach(func() {
-		dir, err := ioutil.TempDir(os.TempDir(), "mapping")
+		dir, err := os.MkdirTemp(os.TempDir(), "mapping")
 		Expect(err).ToNot(HaveOccurred())
 		configDir = dir
 

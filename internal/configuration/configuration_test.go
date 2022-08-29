@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	gomock "github.com/golang/mock/gomock"
@@ -49,7 +48,7 @@ var _ = Describe("Configuration", func() {
 	}
 
 	BeforeEach(func() {
-		datadir, err = ioutil.TempDir("", "worloadTest")
+		datadir, err = os.MkdirTemp("", "worloadTest")
 		Expect(err).ToNot(HaveOccurred())
 
 		mockCtrl = gomock.NewController(GinkgoT())
@@ -81,7 +80,7 @@ var _ = Describe("Configuration", func() {
 	Context("NewConfigurationManager", func() {
 		It("Should use configuration when device-config file is not valid json", func() {
 			// given
-			err = ioutil.WriteFile(
+			err = os.WriteFile(
 				fmt.Sprintf("%s/%s", datadir, deviceConfigName),
 				[]byte("foo"),
 				0640)
@@ -106,7 +105,7 @@ var _ = Describe("Configuration", func() {
 			file, err := json.MarshalIndent(cfg, "", " ")
 			Expect(err).NotTo(HaveOccurred())
 
-			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
+			err = os.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -249,7 +248,7 @@ var _ = Describe("Configuration", func() {
 				file, err := json.MarshalIndent(cfg, "", " ")
 				Expect(err).NotTo(HaveOccurred())
 
-				err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
+				err = os.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -405,7 +404,7 @@ var _ = Describe("Configuration", func() {
 			file, err := json.MarshalIndent(cfg, "", " ")
 			Expect(err).NotTo(HaveOccurred())
 
-			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
+			err = os.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
 			Expect(err).NotTo(HaveOccurred())
 
 			configManager := configuration.NewConfigurationManager(datadir)
@@ -467,7 +466,7 @@ var _ = Describe("Configuration", func() {
 			file, err := json.MarshalIndent(cfg, "", " ")
 			Expect(err).NotTo(HaveOccurred())
 
-			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
+			err = os.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
 			Expect(err).NotTo(HaveOccurred())
 
 			configManager := configuration.NewConfigurationManager(datadir)
@@ -532,7 +531,7 @@ var _ = Describe("Configuration", func() {
 			file, err := json.MarshalIndent(cfg, "", " ")
 			Expect(err).NotTo(HaveOccurred())
 
-			err = ioutil.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
+			err = os.WriteFile(fmt.Sprintf("%s/%s", datadir, deviceConfigName), file, 0640)
 			Expect(err).NotTo(HaveOccurred())
 
 			configManager := configuration.NewConfigurationManager(datadir)

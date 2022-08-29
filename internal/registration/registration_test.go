@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -60,7 +59,7 @@ var _ = Describe("Registration", Label("root"), func() {
 	)
 
 	BeforeEach(func() {
-		datadir, err = ioutil.TempDir("", "registrationTest")
+		datadir, err = os.MkdirTemp("", "registrationTest")
 		Expect(err).ToNot(HaveOccurred())
 
 		err = os.MkdirAll(sysconfigPath, os.ModePerm)
@@ -178,7 +177,7 @@ var _ = Describe("Registration", Label("root"), func() {
 			It("Send enrol with custom namespace", func() {
 				// given
 				data := []byte(`namespace="foobar"`)
-				err = ioutil.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
+				err = os.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
 				Expect(err).NotTo(HaveOccurred())
 
 				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
@@ -207,7 +206,7 @@ var _ = Describe("Registration", Label("root"), func() {
 			It("Send enrol with tags without namespace defined", func() {
 				// given
 				data := []byte(`test="foobar"`)
-				err = ioutil.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
+				err = os.WriteFile(filepath.Join(sysconfigPath, "tags.toml"), data, 0777)
 				Expect(err).NotTo(HaveOccurred())
 
 				reg, err := registration.NewRegistration(deviceID, hwMock, dispatcherMock, configManager, wkManager)
@@ -322,7 +321,7 @@ var _ = Describe("Registration", Label("root"), func() {
 				Expect(reg.IsRegistered()).To(BeTrue())
 
 				// cert is overwriten with the client one.
-				content, err := ioutil.ReadFile(regCertPath)
+				content, err := os.ReadFile(regCertPath)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(content).To(Equal(clientCertPem))
 			})
@@ -357,7 +356,7 @@ var _ = Describe("Registration", Label("root"), func() {
 				// then
 				Expect(reg.IsRegistered()).To(BeFalse())
 				// make sure that it's not overwriten
-				content, err := ioutil.ReadFile(regCertPath)
+				content, err := os.ReadFile(regCertPath)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(content).To(Equal(regCertPem))
 			})
@@ -384,7 +383,7 @@ var _ = Describe("Registration", Label("root"), func() {
 				Expect(reg.IsRegistered()).To(BeFalse())
 
 				// make sure that it's not overwriten
-				content, err := ioutil.ReadFile(regCertPath)
+				content, err := os.ReadFile(regCertPath)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(content).To(Equal(regCertPem))
 			})
@@ -411,7 +410,7 @@ var _ = Describe("Registration", Label("root"), func() {
 				Expect(reg.IsRegistered()).To(BeFalse())
 
 				// make sure that it's not overwriten
-				content, err := ioutil.ReadFile(regCertPath)
+				content, err := os.ReadFile(regCertPath)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(content).To(Equal(regCertPem))
 			})
@@ -451,7 +450,7 @@ var _ = Describe("Registration", Label("root"), func() {
 				// then
 				Expect(reg.IsRegistered()).To(BeTrue())
 
-				content, err := ioutil.ReadFile(regCertPath)
+				content, err := os.ReadFile(regCertPath)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(content).To(Equal(clientCertPem))
 			})
@@ -498,7 +497,7 @@ var _ = Describe("Registration", Label("root"), func() {
 		var configFile string
 		BeforeEach(func() {
 			configFile = fmt.Sprintf("%s/%s", datadir, deviceConfigName)
-			err = ioutil.WriteFile(
+			err = os.WriteFile(
 				configFile,
 				[]byte("{}"),
 				0777)
@@ -581,7 +580,7 @@ var _ = Describe("Registration", Label("root"), func() {
 			Expect(reg.IsRegistered()).To(BeTrue())
 
 			// then
-			content, err := ioutil.ReadFile(regCertPath)
+			content, err := os.ReadFile(regCertPath)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(content).To(Equal(clientCertPem))
 		})
@@ -618,7 +617,7 @@ func (c *certificate) DumpToFiles(certPath, keyPath string) ([]byte, []byte) {
 		Bytes: c.certBytes,
 	})
 
-	err := ioutil.WriteFile(certPath, certPEM, 0777)
+	err := os.WriteFile(certPath, certPEM, 0777)
 	Expect(err).NotTo(HaveOccurred())
 
 	keyBytes, err := x509.MarshalECPrivateKey(c.key.(*ecdsa.PrivateKey))
@@ -628,7 +627,7 @@ func (c *certificate) DumpToFiles(certPath, keyPath string) ([]byte, []byte) {
 		Type:  mtls.ECPrivateKeyBlockType,
 		Bytes: keyBytes,
 	})
-	err = ioutil.WriteFile(keyPath, certKeyPEM, 0777)
+	err = os.WriteFile(keyPath, certKeyPEM, 0777)
 	Expect(err).NotTo(HaveOccurred())
 	return certPEM, certKeyPEM
 }

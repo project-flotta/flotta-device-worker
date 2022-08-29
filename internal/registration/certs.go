@@ -8,13 +8,12 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"encoding/pem"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/project-flotta/flotta-operator/pkg/mtls"
+	log "github.com/sirupsen/logrus"
 )
 
 type ClientCert struct {
@@ -112,15 +111,15 @@ func (c *ClientCert) WriteCertificate(cert, key []byte) error {
 		return fmt.Errorf("failing on importing certificate: %v", err)
 	}
 
-	err = ioutil.WriteFile(c.certPath, cert, 0600)
+	err = os.WriteFile(c.certPath, cert, 0600)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(c.keyPath, key, 0600)
+	err = os.WriteFile(c.keyPath, key, 0600)
 	if err != nil {
 		// Write the cert back because cannot write the new key
-		certErr := ioutil.WriteFile(c.certPath, c.certGroup.CertPEM.Bytes(), 0600)
+		certErr := os.WriteFile(c.certPath, c.certGroup.CertPEM.Bytes(), 0600)
 		if certErr != nil {
 			log.Error("cannot restore certificate on key write", certErr)
 		}

@@ -2,7 +2,6 @@ package os
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -102,7 +101,7 @@ func (o *osExecCommands) EnsureScriptExists(fileName string, script string) erro
 }
 
 func (o *osExecCommands) UpdateUrlInEdgeRemote(newURL string, remoteFileName string) error {
-	input, err := ioutil.ReadFile(filepath.Clean(remoteFileName))
+	input, err := os.ReadFile(filepath.Clean(remoteFileName))
 	if err != nil {
 		return err
 	}
@@ -115,7 +114,7 @@ func (o *osExecCommands) UpdateUrlInEdgeRemote(newURL string, remoteFileName str
 	}
 
 	output := strings.Join(lines, "\n")
-	err = ioutil.WriteFile(remoteFileName, []byte(output), 0600)
+	err = os.WriteFile(remoteFileName, []byte(output), 0600)
 	if err != nil {
 		return err
 	}

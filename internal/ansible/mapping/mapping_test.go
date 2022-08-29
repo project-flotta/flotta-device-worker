@@ -1,7 +1,6 @@
 package mapping_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -17,7 +16,7 @@ var _ = Describe("Mapping", func() {
 	var repo mapping.MappingRepository
 
 	BeforeEach(func() {
-		dir, err := ioutil.TempDir(os.TempDir(), "AAA")
+		dir, err := os.MkdirTemp(os.TempDir(), "AAA")
 		Expect(err).ToNot(HaveOccurred())
 		configDir = dir
 

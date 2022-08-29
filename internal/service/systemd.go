@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -63,7 +62,7 @@ type systemdManager struct {
 func NewSystemdManager(configDir string) (SystemdManager, error) {
 	services := make(map[string]*systemd)
 	servicePath := path.Join(configDir, "services.json")
-	servicesJson, err := ioutil.ReadFile(servicePath) //#nosec
+	servicesJson, err := os.ReadFile(servicePath) //#nosec
 	if err == nil {
 		err := json.Unmarshal(servicesJson, &services)
 		if err != nil {
@@ -123,7 +122,7 @@ func (mgr *systemdManager) write() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
+	err = os.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
 	if err != nil {
 		return err
 	}

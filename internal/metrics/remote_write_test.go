@@ -3,7 +3,6 @@ package metrics_test
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -63,7 +62,7 @@ W5WPOpTBuB5eJ1Clr/7QePRsMcRMOCTRloMTQg==
 		)
 
 		listCaFiles := func() (result []string) {
-			files, err := ioutil.ReadDir(tmpDir)
+			files, err := os.ReadDir(tmpDir)
 			Expect(err).To(BeNil())
 			for _, file := range files {
 				match, err := path.Match(metrics.ServerCAFileNamePattern, file.Name())
@@ -77,7 +76,7 @@ W5WPOpTBuB5eJ1Clr/7QePRsMcRMOCTRloMTQg==
 
 		BeforeEach(func() {
 			var err error
-			tmpDir, err = ioutil.TempDir("", "metrics")
+			tmpDir, err = os.MkdirTemp("", "metrics")
 			Expect(err).ToNot(HaveOccurred())
 
 			tsdbInstance, err = metrics.NewTSDB(tmpDir)

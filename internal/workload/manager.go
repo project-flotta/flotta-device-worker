@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -16,9 +15,9 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 	"github.com/project-flotta/flotta-device-worker/internal/volumes"
 
-	log "github.com/sirupsen/logrus"
 	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/project-flotta/flotta-operator/models"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -266,7 +265,7 @@ func (w *WorkloadManager) manageAuthFile(authFilePath, authFile string) (string,
 }
 
 func (w *WorkloadManager) storeFile(filePath string, content []byte) error {
-	return ioutil.WriteFile(filePath, content, 0600)
+	return os.WriteFile(filePath, content, 0600)
 }
 
 func (w *WorkloadManager) getAuthFilePath(workloadName string) string {
@@ -555,7 +554,7 @@ func (w *WorkloadManager) podConfigurationModified(manifestPath string, podYaml 
 }
 
 func (w *WorkloadManager) podModified(manifestPath string, podYaml []byte) bool {
-	file, err := ioutil.ReadFile(manifestPath) //#nosec
+	file, err := os.ReadFile(manifestPath) //#nosec
 	if err != nil {
 		return true
 	}
@@ -566,7 +565,7 @@ func (w *WorkloadManager) podAuthModified(authPath string, auth string) bool {
 	if _, err := os.Stat(authPath); err != nil {
 		return auth != ""
 	}
-	file, err := ioutil.ReadFile(authPath) //#nosec
+	file, err := os.ReadFile(authPath) //#nosec
 	if err != nil {
 		return true
 	}
