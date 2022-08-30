@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -51,7 +50,7 @@ var _ = Describe("Events", func() {
 	)
 
 	BeforeEach(func() {
-		datadir, err = ioutil.TempDir("", "worloadTest")
+		datadir, err = os.MkdirTemp("", "worloadTest")
 		Expect(err).ToNot(HaveOccurred())
 
 		mockCtrl = gomock.NewController(GinkgoT())
@@ -122,7 +121,7 @@ var _ = Describe("Manager", func() {
 	)
 
 	BeforeEach(func() {
-		datadir, err = ioutil.TempDir("", "worloadTest")
+		datadir, err = os.MkdirTemp("", "worloadTest")
 		Expect(err).ToNot(HaveOccurred())
 
 		mockCtrl = gomock.NewController(GinkgoT())
@@ -145,7 +144,7 @@ var _ = Describe("Manager", func() {
 		It("Testing invalid datadir", func() {
 
 			// given
-			datadir, err = ioutil.TempDir("", "worloadTest")
+			datadir, err = os.MkdirTemp("", "worloadTest")
 			err = os.Chmod(datadir, 0444)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -289,7 +288,7 @@ var _ = Describe("Manager", func() {
 
 				authFilePath := getAuthPath(datadir, wkName)
 				Expect(getAuthPath(datadir, wkName)).To(BeAnExistingFile())
-				authFile, _ := ioutil.ReadFile(authFilePath)
+				authFile, _ := os.ReadFile(authFilePath)
 				Expect(authFile).To(BeEquivalentTo("authFile-" + wkName))
 			}
 		})
@@ -325,7 +324,7 @@ var _ = Describe("Manager", func() {
 
 			manifestPath := getManifestPath(datadir, wkName)
 			Expect(manifestPath).To(BeAnExistingFile())
-			manifestFile, _ := ioutil.ReadFile(manifestPath)
+			manifestFile, _ := os.ReadFile(manifestPath)
 			Expect(manifestFile).To(ContainSubstring(cmSpec))
 		})
 
@@ -771,7 +770,7 @@ volumes:
 
 func getPodFor(datadir, wkName string) v1.Pod {
 	manifestPath := getManifestPath(datadir, wkName)
-	manifest, err := ioutil.ReadFile(manifestPath)
+	manifest, err := os.ReadFile(manifestPath)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	pod := v1.Pod{}
 	err = yaml.Unmarshal(manifest, &pod)

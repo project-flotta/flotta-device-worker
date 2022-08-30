@@ -4,14 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
 	"sync"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 )
 
 type mapping struct {
@@ -45,7 +44,7 @@ func NewMappingRepository(configDir string) (MappingRepository, error) {
 
 	mappingFilePath := path.Join(configDir, "playbook-mapping.json")
 
-	mappingJSON, err := ioutil.ReadFile(mappingFilePath) //#nosec
+	mappingJSON, err := os.ReadFile(mappingFilePath) //#nosec
 	var mappings []mapping
 	if err == nil {
 		err := json.Unmarshal(mappingJSON, &mappings)
@@ -179,7 +178,7 @@ func (m *mappingRepository) persist() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(m.mappingFilePath, mappingsJSON, 0640) //#nosec
+	err = os.WriteFile(m.mappingFilePath, mappingsJSON, 0640) //#nosec
 	if err != nil {
 		return err
 	}

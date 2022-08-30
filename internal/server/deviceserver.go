@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"

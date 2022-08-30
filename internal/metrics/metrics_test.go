@@ -1,8 +1,8 @@
 package metrics_test
 
 import (
-	"io/ioutil"
 	"math/rand"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -16,7 +16,7 @@ var _ = Describe("Metrics", func() {
 	)
 
 	BeforeEach(func() {
-		tmpDir, err := ioutil.TempDir("", "metrics")
+		tmpDir, err := os.MkdirTemp("", "metrics")
 		Expect(err).ToNot(HaveOccurred())
 
 		tsdb, err = metrics.NewTSDB(tmpDir)

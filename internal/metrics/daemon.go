@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/prometheus/common/model"
 )
 

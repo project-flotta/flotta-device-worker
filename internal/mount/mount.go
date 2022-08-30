@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/hashicorp/go-multierror"
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-operator/models"

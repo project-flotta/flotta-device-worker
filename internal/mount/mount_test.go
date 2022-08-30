@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -49,7 +48,7 @@ var _ = Describe("Mount", Ordered, Label("root"), func() {
 	BeforeAll(func() {
 		common.SkipIfRootless("Mount needs root access to run it")
 		createFilesystemfile()
-		deviceFolder, err = ioutil.TempDir("/tmp/", "lopdevices")
+		deviceFolder, err = os.MkdirTemp("/tmp/", "lopdevices")
 		Expect(err).NotTo(HaveOccurred())
 
 		execCommand(fmt.Sprintf("dd if=/dev/zero of=/%s/image bs=1M count=128", deviceFolder))
@@ -77,12 +76,12 @@ var _ = Describe("Mount", Ordered, Label("root"), func() {
 			mountManager, err = mm.New()
 			Expect(err).NotTo(HaveOccurred())
 
-			tmpFolder, err = ioutil.TempDir("/tmp/", "mountfile")
+			tmpFolder, err = os.MkdirTemp("/tmp/", "mountfile")
 			Expect(err).NotTo(HaveOccurred())
 
 			depMock = &util.MockIDependencies{}
 
-			devFolder, err = ioutil.TempDir("/tmp/", "dev")
+			devFolder, err = os.MkdirTemp("/tmp/", "dev")
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(os.MkdirAll(devFolder, os.ModePerm)).NotTo(HaveOccurred())

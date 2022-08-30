@@ -9,7 +9,7 @@ import (
 
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
 	"github.com/project-flotta/flotta-device-worker/internal/workload/mapping"

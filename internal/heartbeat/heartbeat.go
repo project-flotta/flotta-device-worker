@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	ansible "github.com/project-flotta/flotta-device-worker/internal/ansible"
 	cfg "github.com/project-flotta/flotta-device-worker/internal/configuration"
@@ -150,7 +149,6 @@ type Heartbeat struct {
 	sendLock              sync.Mutex
 	tickerLock            sync.RWMutex
 	pushInfoLock          sync.RWMutex
-	log                   log.Logger
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
@@ -169,12 +167,7 @@ func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cf
 		},
 		firstHearbeat:         true,
 		previousPeriodSeconds: -1,
-		log:                   *log.New(os.Stderr, log.Prefix(), log.Flags(), log.CurrentLevel()),
 	}
-}
-
-func (s *Heartbeat) SetLogger(logger log.Logger) {
-	s.log = logger
 }
 
 func (s *Heartbeat) send(data *pb.Data) error {
@@ -238,8 +231,8 @@ func (s *Heartbeat) Update(config models.DeviceConfigurationMessage) error {
 	periodSeconds := s.getInterval(*config.Configuration)
 	previousPeriodSeconds := atomic.LoadInt64(&s.previousPeriodSeconds)
 	if previousPeriodSeconds <= 0 || previousPeriodSeconds != periodSeconds {
-		s.log.Debugf("Heartbeat configuration update: periodSeconds changed from %d to %d; Device ID: %s", previousPeriodSeconds, periodSeconds, s.data.workloadManager.GetDeviceID())
-		s.log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, s.data.workloadManager.GetDeviceID())
+		log.Debugf("Heartbeat configuration update: periodSeconds changed from %d to %d; Device ID: %s", previousPeriodSeconds, periodSeconds, s.data.workloadManager.GetDeviceID())
+		log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, s.data.workloadManager.GetDeviceID())
 		s.stopTicker()
 
 		atomic.StoreInt64(&s.previousPeriodSeconds, periodSeconds)
@@ -305,16 +298,16 @@ func (s *Heartbeat) initTicker(periodSeconds int64) {
 		for range ticker.C {
 			err := s.pushInformation()
 			if err != nil {
-				s.log.Errorf("heartbeat interval cannot send the data. DeviceID: %s; err: %s", s.data.workloadManager.GetDeviceID(), err)
+				log.Errorf("heartbeat interval cannot send the data. DeviceID: %s; err: %s", s.data.workloadManager.GetDeviceID(), err)
 			}
 		}
 	}()
 
-	s.log.Infof("the heartbeat was started. DeviceID: %s", s.data.workloadManager.GetDeviceID())
+	log.Infof("the heartbeat was started. DeviceID: %s", s.data.workloadManager.GetDeviceID())
 }
 
 func (s *Heartbeat) Deregister() error {
-	s.log.Infof("stopping heartbeat ticker. DeviceID: %s", s.data.workloadManager.GetDeviceID())
+	log.Infof("stopping heartbeat ticker. DeviceID: %s", s.data.workloadManager.GetDeviceID())
 	s.stopTicker()
 	return nil
 }

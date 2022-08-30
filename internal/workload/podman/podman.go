@@ -16,7 +16,7 @@ import (
 	"github.com/go-openapi/swag"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 	podmanEvents "github.com/containers/podman/v4/libpod/events"
 	"github.com/containers/podman/v4/pkg/bindings"
 	"github.com/containers/podman/v4/pkg/bindings/containers"

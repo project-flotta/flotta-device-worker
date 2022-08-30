@@ -2,12 +2,12 @@ package mapping
 
 import (
 	"encoding/json"
-	"io/ioutil"
+
 	"os"
 	"path"
 	"sync"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 )
 
 type mapping struct {
@@ -36,7 +36,7 @@ type mappingRepository struct {
 func NewMappingRepository(configDir string) (MappingRepository, error) {
 	mappingFilePath := path.Join(configDir, "workload-mapping.json")
 
-	mappingJson, err := ioutil.ReadFile(mappingFilePath) //#nosec
+	mappingJson, err := os.ReadFile(mappingFilePath) //#nosec
 	var mappings []mapping
 	if err == nil {
 		err := json.Unmarshal(mappingJson, &mappings)
@@ -131,7 +131,7 @@ func (m *mappingRepository) persist() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(m.mappingFilePath, mappingsJson, 0640) //#nosec
+	err = os.WriteFile(m.mappingFilePath, mappingsJson, 0640) //#nosec
 	if err != nil {
 		return err
 	}

@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
 	"github.com/openshift/assisted-installer-agent/src/util"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	os2 "github.com/project-flotta/flotta-device-worker/internal/os"
 	"github.com/project-flotta/flotta-device-worker/internal/registration"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/golang/mock/gomock"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
@@ -361,6 +361,7 @@ var _ = Describe("Heartbeat", func() {
 			//then
 			Expect(hb.HasStarted()).To(BeTrue())
 		})
+
 		It("Hearbeat is sent with error", func() {
 			//given
 
@@ -447,17 +448,17 @@ var _ = Describe("Heartbeat", func() {
 			hb := createCustomHeartbeatWithDispatcher(&clientEmpty, mockCtrl, datadir, 2, wkManager, hwMock, monitor, deviceOs)
 
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
-			var buf bytes.Buffer
+			var buf Buffer
 			writer := bufio.NewWriter(&buf)
-			logger := *log.New(writer, "", log.LstdFlags, log.LevelTrace)
-			hb.SetLogger(logger)
+			log.SetOutput(writer)
+			log.SetLevel(log.TraceLevel)
 			// when
 			hb.Start()
 			Expect(hb.HasStarted()).To(BeTrue())
 			time.Sleep(3 * time.Second)
 			Expect(hb.Deregister()).ToNot(HaveOccurred())
-			//then
 			writer.Flush()
+			//then
 			Expect(buf.String()).To(ContainSubstring("empty response received, host may not be reachable"))
 
 		})
@@ -509,6 +510,7 @@ var _ = Describe("Heartbeat", func() {
 			Expect(hb.HasStarted()).To(BeTrue())
 			Expect(hb.Deregister()).ToNot(HaveOccurred())
 		})
+
 		It("Ticker is updated with new PeriodSeconds", func() {
 			defer GinkgoRecover()
 			//given
@@ -523,10 +525,10 @@ var _ = Describe("Heartbeat", func() {
 			clientSuccess := Dispatcher{}
 			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, monitor, deviceOs)
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
-			var buf bytes.Buffer
+			var buf Buffer
 			writer := bufio.NewWriter(&buf)
-			logger := *log.New(writer, "", log.LstdFlags, log.LevelTrace)
-			hb.SetLogger(logger)
+			log.SetOutput(writer)
+			log.SetLevel(log.TraceLevel)
 			// when
 			hb.Start()
 			Expect(hb.HasStarted()).To(BeTrue())
@@ -577,11 +579,11 @@ var _ = Describe("Heartbeat", func() {
 			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(1))
 			quit_1 <- true
 			quit_2 <- true
-			writer.Flush()
 			Expect(buf.String()).To(ContainSubstring(fmt.Sprintf("Heartbeat configuration update: periodSeconds changed from %d to %d", initialPeriod, newPeriod)))
 
 			Expect(hb.Deregister()).ToNot(HaveOccurred())
 		})
+
 		It("Ticker is NOT updated as period is the same", func() {
 			//given
 			initialPeriod := 2
@@ -595,10 +597,9 @@ var _ = Describe("Heartbeat", func() {
 			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, monitor, deviceOs)
 
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
-			var buf bytes.Buffer
+			var buf Buffer
 			writer := bufio.NewWriter(&buf)
-			logger := *log.New(writer, "", log.LstdFlags, log.LevelTrace)
-			hb.SetLogger(logger)
+			log.SetOutput(writer)
 			// when
 			hb.Start()
 			Expect(hb.HasStarted()).To(BeTrue())
@@ -624,7 +625,6 @@ var _ = Describe("Heartbeat", func() {
 			time.Sleep(6 * time.Second)
 			// should be 5 at the end of the test: the ticker was not stopped and that the tests lasted 11 seconds with a 2 sec periods so 5 HWInfo in total
 			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(5))
-			writer.Flush()
 			Expect(buf.String()).To(Not(ContainSubstring("Heartbeat configuration update: periodSeconds changed from")))
 
 			Expect(hb.Deregister()).ToNot(HaveOccurred())
@@ -838,4 +838,25 @@ func createCustomHeartbeatWithDispatcher(client pb.DispatcherClient, mockCtrl *g
 		monitor,
 		deviceOs,
 		regMock)
+}
+
+type Buffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *Buffer) Read(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Read(p)
+}
+func (b *Buffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+func (b *Buffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
 }

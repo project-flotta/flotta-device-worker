@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -12,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/project-flotta/flotta-operator/models"
@@ -49,7 +48,7 @@ type Manager struct {
 func NewConfigurationManager(dataDir string) *Manager {
 	deviceConfigFile := path.Join(dataDir, "device-config.json")
 	log.Infof("device config file: %s", deviceConfigFile)
-	file, err := ioutil.ReadFile(deviceConfigFile) //#nosec
+	file, err := os.ReadFile(deviceConfigFile) //#nosec
 	var deviceConfiguration models.DeviceConfigurationMessage
 	initialConfig := atomic.Value{}
 	initialConfig.Store(false)
@@ -162,7 +161,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	}
 
 	log.Tracef("writing config to %s: %s", m.deviceConfigFile, file.String())
-	err = ioutil.WriteFile(m.deviceConfigFile, file.Bytes(), 0600)
+	err = os.WriteFile(m.deviceConfigFile, file.Bytes(), 0600)
 	if err != nil {
 		errors = multierror.Append(fmt.Errorf("cannot write device config file '%s': %s", m.deviceConfigFile, err))
 		return errors

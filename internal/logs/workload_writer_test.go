@@ -2,7 +2,6 @@ package logs_test
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 
 	"github.com/golang/mock/gomock"
@@ -28,7 +27,7 @@ var _ = Describe("WorkloadWrite", func() {
 	)
 
 	BeforeEach(func() {
-		datadir, err = ioutil.TempDir("", "worloadTest")
+		datadir, err = os.MkdirTemp("", "worloadTest")
 		Expect(err).ToNot(HaveOccurred())
 
 		mockCtrl = gomock.NewController(GinkgoT())

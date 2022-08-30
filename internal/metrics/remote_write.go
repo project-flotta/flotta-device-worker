@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/url"
 	"os"
@@ -14,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/golang/snappy"
 	"github.com/project-flotta/flotta-operator/models"
@@ -60,7 +59,7 @@ func NewRemoteWrite(dataDir, deviceID string, tsdbInstance API) *RemoteWrite {
 		dataDir:              dataDir,
 	}
 
-	lastWriteBytes, err := ioutil.ReadFile(newRemoteWrite.lastWriteFile)
+	lastWriteBytes, err := os.ReadFile(newRemoteWrite.lastWriteFile)
 	if err == nil {
 		if len(lastWriteBytes) != 0 {
 			i, err := strconv.ParseInt(string(lastWriteBytes), 10, 64)
@@ -189,7 +188,7 @@ func (r *RemoteWrite) applyConfig(newConfig *models.MetricsReceiverConfiguration
 
 	if newConfig.CaCert != "" {
 		// create new file for CA. can't use same file cause client watches for changes in the file we pass to it.
-		caFile, err := ioutil.TempFile(r.dataDir, ServerCAFileNamePattern)
+		caFile, err := os.CreateTemp(r.dataDir, ServerCAFileNamePattern)
 		if err != nil {
 			log.Errorf("cannot create temp file for metrics remote write server CA at %s", r.dataDir)
 			return err
@@ -248,7 +247,7 @@ func (r *RemoteWrite) applyConfig(newConfig *models.MetricsReceiverConfiguration
 // writeRoutine
 // Used as the goroutine function for handling ongoing writes to remote server
 func (r *RemoteWrite) writeRoutine() {
-	log.Infof("metric remote writer started. %+v", r)
+	log.Infof("metric remote writer started since '%s' last write", r.LastWrite)
 
 	shouldExit := false
 	client := WriteClient(nil)
@@ -338,7 +337,7 @@ func (r *RemoteWrite) Write(client WriteClient, requestNumSamples int) {
 
 		// store last write
 		r.LastWrite = rangeEnd
-		err = ioutil.WriteFile(r.lastWriteFile, strconv.AppendInt(nil, r.LastWrite.UnixNano(), 10), 0600)
+		err = os.WriteFile(r.lastWriteFile, strconv.AppendInt(nil, r.LastWrite.UnixNano(), 10), 0600)
 		if err != nil {
 			log.Errorf("failed writing to file %s. error: %s", r.lastWriteFile, err.Error())
 		}
@@ -407,7 +406,7 @@ func (r *RemoteWrite) writeRequest(series []Series, client WriteClient) bool {
 		Timeseries: timeSeries,
 	}
 
-	if log.CurrentLevel() >= log.LevelTrace {
+	if log.GetLevel() >= log.TraceLevel {
 		reqBytes, err := json.Marshal(writeRequest)
 		if err != nil {
 			log.Error("cannot marshal prompb.WriteRequest to json", err)
@@ -451,7 +450,7 @@ func (r *RemoteWrite) writeRequest(series []Series, client WriteClient) bool {
 }
 
 func (r *RemoteWrite) removeServerCaFiles() {
-	fileInfo, err := ioutil.ReadDir(r.dataDir)
+	fileInfo, err := os.ReadDir(r.dataDir)
 	if err != nil {
 		log.Errorf("cannot read %s", r.dataDir)
 		return

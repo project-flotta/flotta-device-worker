@@ -27,8 +27,8 @@ import (
 	"path"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -65,17 +65,25 @@ func initSystemdDirectory() error {
 }
 
 func main() {
-	log.SetFlags(0) // No datetime, is already done on yggdrasil server
-
 	logLevel, ok := os.LookupEnv("YGG_LOG_LEVEL")
 	if !ok {
 		logLevel = "ERROR"
 	}
 	level, err := log.ParseLevel(logLevel)
 	if err != nil {
-		level = log.LevelError
+		level = log.ErrorLevel
 	}
+
 	log.SetLevel(level)
+
+	log.SetFormatter(&log.TextFormatter{
+		ForceColors:      false,
+		DisableColors:    true,
+		DisableTimestamp: true,
+	})
+
+	log.SetOutput(os.Stdout)
+
 	// Get initialization values from the environment.
 	yggdDispatchSocketAddr, ok = os.LookupEnv("YGG_SOCKET_ADDR")
 	if !ok {

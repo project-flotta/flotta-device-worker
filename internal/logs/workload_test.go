@@ -2,7 +2,6 @@ package logs_test
 
 import (
 	"errors"
-	"io/ioutil"
 	"net"
 	"os"
 
@@ -34,7 +33,7 @@ var _ = Describe("WorkloadsLogsTarget", func() {
 		l, err = net.Listen("tcp", "127.0.0.1:10600")
 		Expect(err).ToNot(HaveOccurred())
 
-		datadir, err = ioutil.TempDir("", "worloadTest")
+		datadir, err = os.MkdirTemp("", "worloadTest")
 		Expect(err).ToNot(HaveOccurred())
 
 		mockCtrl = gomock.NewController(GinkgoT())
