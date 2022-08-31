@@ -48,6 +48,17 @@ else
 	GINKGO=$(shell which ginkgo)
 endif
 
+GOJSONSCHEMA = $(shell pwd)/bin/gojsonschema
+gojsonschema:
+
+ifeq (, $(shell which gojsonschema 2> /dev/null))
+	$(call go-install-tool,$(GOJSONSCHEMA),github.com/atombender/go-jsonschema/cmd/gojsonschema)
+else
+	GOJSONSCHEMA=$(shell which gojsonschema)
+endif
+
+
+
 test-tools: ## Install test-tools
 test-tools: ginkgo gover
 
@@ -69,10 +80,7 @@ test-coverage: test
 test-coverage-clean:
 	git ls-files --others --ignored --exclude-standard | grep "coverprofile$$" | xargs rm
 
-generate-tools:
-ifeq (, $(shell which gojsonschema))
-	go get github.com/atombender/go-jsonschema/cmd/gojsonschema
-endif
+generate-tools: gojsonschema
 
 generate-messages: generate-tools 
 	mkdir -p internal/ansible/model/message/
