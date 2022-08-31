@@ -19,23 +19,30 @@ import (
 	"github.com/apenella/go-ansible/pkg/playbook"
 	"github.com/apenella/go-ansible/pkg/stdoutcallback"
 	ansibleResults "github.com/apenella/go-ansible/pkg/stdoutcallback/results"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/model/message"
 	"github.com/project-flotta/flotta-operator/models"
 
+	cfg "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 )
 
 // Manager handle ansible playbook execution
 type Manager struct {
+	configManager     *cfg.Manager
+	deviceId          string
 	wg                sync.WaitGroup
 	managementLock    sync.Locker
+	sendLock          sync.Mutex
 	dispatcherClient  pb.DispatcherClient
 	ansibleDispatcher *dispatcher.AnsibleDispatcher
 	MappingRepository mapping.MappingRepository
 	eventsQueue       []*models.EventInfo
+	tickerLock        sync.RWMutex
+	ticker            *time.Ticker
 }
 
 type RequiredFields struct {
@@ -54,12 +61,7 @@ const (
 	dataDir      = "/tmp"
 )
 
-var (
-	deviceID string
-)
-
-func NewAnsibleManager(
-	dispatcherClient pb.DispatcherClient, configDir string) (*Manager, error) {
+func NewAnsibleManager(configManager *cfg.Manager, dispatcherClient pb.DispatcherClient, configDir string, deviceId string) (*Manager, error) {
 	mappingRepository, err := mapping.NewMappingRepository(configDir)
 	if err != nil {
 		return nil, fmt.Errorf("ansible manager cannot initialize mapping repository: %w", err)
@@ -71,12 +73,83 @@ func NewAnsibleManager(
 	}
 
 	return &Manager{
+		deviceId:          deviceId,
+		configManager:     configManager,
 		wg:                sync.WaitGroup{},
 		managementLock:    &sync.Mutex{},
 		dispatcherClient:  dispatcherClient,
-		ansibleDispatcher: dispatcher.NewAnsibleDispatcher(deviceID),
+		ansibleDispatcher: dispatcher.NewAnsibleDispatcher(deviceId),
 		MappingRepository: mappingRepository,
+		ticker:            nil,
 	}, nil
+}
+
+func (a *Manager) initTicker(periodSeconds int64) {
+	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
+	a.tickerLock.Lock()
+	defer a.tickerLock.Unlock()
+	a.ticker = ticker
+	go func() {
+		for range ticker.C {
+			err := a.pushInformation()
+			if err != nil {
+				log.Errorf("ansible manager interval cannot send the data. DeviceID: %s; err: %s", a.deviceId, err)
+			}
+		}
+	}()
+
+	log.Infof("the ansible manager ticker was started. DeviceID: %s", a.deviceId)
+}
+
+// func (a *Manager) Start() {
+// 	a.previousPeriodSeconds = s.getInterval(s.data.configManager.GetDeviceConfiguration())
+// 	a.initTicker(a.getInterval(a.data.configManager.GetDeviceConfiguration()))
+// }
+
+// func (s *Heartbeat) HasStarted() bool {
+// 	s.tickerLock.RLock()
+// 	defer s.tickerLock.RUnlock()
+// 	return s.ticker != nil
+// }
+
+func (a *Manager) pushInformation() error {
+	// Create a data message to send back to the dispatcher.
+
+	deviceId := a.deviceId
+	log.Debugf("pushInformation: Ansible Manager; DeviceID: %s;", deviceId)
+	content, err := json.Marshal("")
+	if err != nil {
+		return err
+	}
+
+	data := &pb.Data{
+		MessageId: uuid.New().String(),
+		Content:   content,
+		Directive: "ansible",
+	}
+	log.Debugf("pushInformation: sending content %+v; DeviceID: %s;", content, deviceId)
+	err = a.send(data)
+	log.Debugf("pushInformation: sending content results %s; DeviceID: %s;", err, deviceId)
+
+	return err
+}
+
+func (a *Manager) send(data *pb.Data) error {
+	a.sendLock.Lock()
+	defer a.sendLock.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	log.Debugf("Andible Manager send: Sending data: %+v; Device ID: %s", data, a.deviceId)
+	response, err := a.dispatcherClient.Send(ctx, data)
+	log.Debugf("Ansible manager send: Response: %+v, err: %+v; Device ID: %s", response, err, a.deviceId)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func isResponseEmpty(response *pb.Response) bool {
+	return response == nil || len(response.Response) == 0
 }
 
 func MissingAttributeError(attribute string, metadata map[string]string) error {
