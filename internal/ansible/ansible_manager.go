@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/apenella/go-ansible/pkg/execute"
 	"github.com/apenella/go-ansible/pkg/options"
 	"github.com/apenella/go-ansible/pkg/playbook"
@@ -25,6 +24,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/model/message"
 	"github.com/project-flotta/flotta-operator/models"
+	log "github.com/sirupsen/logrus"
 
 	cfg "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
@@ -32,17 +32,18 @@ import (
 
 // Manager handle ansible playbook execution
 type Manager struct {
-	configManager     *cfg.Manager
-	deviceId          string
-	wg                sync.WaitGroup
-	managementLock    sync.Locker
-	sendLock          sync.Mutex
-	dispatcherClient  pb.DispatcherClient
-	ansibleDispatcher *dispatcher.AnsibleDispatcher
-	MappingRepository mapping.MappingRepository
-	eventsQueue       []*models.EventInfo
-	tickerLock        sync.RWMutex
-	ticker            *time.Ticker
+	configManager         *cfg.Manager
+	deviceId              string
+	wg                    sync.WaitGroup
+	managementLock        sync.Locker
+	sendLock              sync.Mutex
+	dispatcherClient      pb.DispatcherClient
+	ansibleDispatcher     *dispatcher.AnsibleDispatcher
+	MappingRepository     mapping.MappingRepository
+	eventsQueue           []*models.EventInfo
+	tickerLock            sync.RWMutex
+	ticker                *time.Ticker
+	previousPeriodSeconds int64
 }
 
 type RequiredFields struct {
@@ -101,10 +102,22 @@ func (a *Manager) initTicker(periodSeconds int64) {
 	log.Infof("the ansible manager ticker was started. DeviceID: %s", a.deviceId)
 }
 
-// func (a *Manager) Start() {
-// 	a.previousPeriodSeconds = s.getInterval(s.data.configManager.GetDeviceConfiguration())
-// 	a.initTicker(a.getInterval(a.data.configManager.GetDeviceConfiguration()))
-// }
+func (a *Manager) Start() {
+	a.previousPeriodSeconds = a.getInterval(a.configManager.GetDeviceConfiguration())
+	a.initTicker(a.getInterval(a.configManager.GetDeviceConfiguration()))
+}
+
+func (a *Manager) getInterval(config models.DeviceConfiguration) int64 {
+	var interval int64 = 60
+
+	if config.AnsibleManager != nil {
+		interval = config.AnsibleManager.PeriodSeconds
+	}
+	if interval <= 0 {
+		interval = 60
+	}
+	return interval
+}
 
 // func (s *Heartbeat) HasStarted() bool {
 // 	s.tickerLock.RLock()
