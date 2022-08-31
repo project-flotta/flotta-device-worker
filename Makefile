@@ -50,7 +50,6 @@ endif
 
 GOJSONSCHEMA = $(shell pwd)/bin/gojsonschema
 gojsonschema:
-
 ifeq (, $(shell which gojsonschema 2> /dev/null))
 	$(call go-install-tool,$(GOJSONSCHEMA),github.com/atombender/go-jsonschema/cmd/gojsonschema)
 else
@@ -84,7 +83,7 @@ generate-tools: gojsonschema
 
 generate-messages: generate-tools 
 	mkdir -p internal/ansible/model/message/
-	gojsonschema --yaml-extension yaml -p message internal/ansible/schema/ansibleRunnerJobEvent.yaml -o internal/ansible/model/message/runner-job-event-gen.go 
+	$(GOJSONSCHEMA) --yaml-extension yaml -p message internal/ansible/schema/ansibleRunnerJobEvent.yaml -o internal/ansible/model/message/runner-job-event-gen.go 
 
 generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(Q) go generate ./...
