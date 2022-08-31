@@ -241,6 +241,7 @@ func main() {
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg, ansibleManager))
 	if !configManager.IsInitialConfig() {
 		hbs.Start()
+		ansibleManager.Start()
 	} else {
 		reg.RegisterDevice()
 	}
