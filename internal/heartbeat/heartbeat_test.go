@@ -72,7 +72,7 @@ var _ = Describe("Heartbeat", func() {
 		osExecCommands := os2.NewOsExecCommands()
 		deviceOs = os2.NewOS(gracefulRebootChannel, osExecCommands)
 
-		ansibleManager, err = ansible.NewAnsibleManager(&client, ansibleDir)
+		ansibleManager, err = ansible.NewAnsibleManager(configManager, &client, ansibleDir, "device-id-123")
 		Expect(err).NotTo(HaveOccurred(), "Cannot start the Ansible Manager")
 
 		hb = heartbeat.NewHeartbeatService(&client,

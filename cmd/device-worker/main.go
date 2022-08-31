@@ -227,7 +227,7 @@ func main() {
 	if err := os.MkdirAll(dataDirPlaybook, 0750); err != nil {
 		log.Fatalf("cannot create directory: %v", err)
 	}
-	ansibleManager, err := ansible.NewAnsibleManager(dispatcherClient, dataDirPlaybook)
+	ansibleManager, err := ansible.NewAnsibleManager(configManager, dispatcherClient, dataDirPlaybook, deviceId)
 	if err != nil {
 		log.Errorf("cannot start ansible manager, err: %v", err)
 	} else {

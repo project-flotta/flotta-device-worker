@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
+	"github.com/project-flotta/flotta-device-worker/internal/configuration"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	"google.golang.org/grpc"
 )
@@ -19,6 +20,7 @@ import (
 var _ = Describe("Ansible Runner", func() {
 	const (
 		returnUrl = "test_return_url"
+		datadir   = "/tmp"
 		configDir = "/tmp/testAnsible/"
 	)
 	var (
@@ -34,8 +36,9 @@ var _ = Describe("Ansible Runner", func() {
 	BeforeEach(func() {
 		client = Dispatcher{}
 		messageID = "msg_" + uuid.New().String()
+		configManager := configuration.NewConfigurationManager(datadir)
 
-		ansibleManager, err = ansible.NewAnsibleManager(&client, configDir)
+		ansibleManager, err = ansible.NewAnsibleManager(configManager, &client, configDir, "deviceIdA")
 		playbookCmd = ansibleManager.GetPlaybookCommand()
 		Expect(err).ToNot(HaveOccurred())
 
