@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/go-openapi/swag"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
 
-	log "github.com/sirupsen/logrus"
 	podmanEvents "github.com/containers/podman/v4/libpod/events"
 	"github.com/containers/podman/v4/pkg/bindings"
 	"github.com/containers/podman/v4/pkg/bindings/containers"
@@ -27,6 +25,7 @@ import (
 	"github.com/containers/podman/v4/pkg/bindings/system"
 	"github.com/containers/podman/v4/pkg/domain/entities"
 	api2 "github.com/project-flotta/flotta-device-worker/internal/workload/api"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -134,7 +133,7 @@ func NewPodman() (*podman, error) {
 }
 
 func podmanConnection() (context.Context, error) {
-	podmanConnection, err := bindings.NewConnection(context.Background(), fmt.Sprintf("unix:%s/podman/podman.sock", os.Getenv("FLOTTA_XDG_RUNTIME_DIR")))
+	podmanConnection, err := bindings.NewConnection(context.Background(), "unix:/run/podman/podman.sock")
 	if err != nil {
 		return nil, err
 	}
