@@ -18,12 +18,16 @@ import (
 )
 
 var (
+	defaulAnsibleManagerConfiguration = models.AnsibleManagerConfiguration{
+		PeriodSeconds: 60,
+	}
 	defaultHeartbeatConfiguration = models.HeartbeatConfiguration{
 		HardwareProfile: &models.HardwareProfileConfiguration{},
 		PeriodSeconds:   60,
 	}
 	defaultDeviceConfiguration = models.DeviceConfiguration{
-		Heartbeat: &defaultHeartbeatConfiguration,
+		AnsibleManager: &defaulAnsibleManagerConfiguration,
+		Heartbeat:      &defaultHeartbeatConfiguration,
 	}
 	defaultDeviceConfigurationMessage = models.DeviceConfigurationMessage{
 		Configuration: &defaultDeviceConfiguration,
