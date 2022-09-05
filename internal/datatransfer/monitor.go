@@ -282,8 +282,8 @@ func (m *Monitor) syncPath(source, target string) error {
 	log.Debug(logMessage)
 	err := m.fsSync.SyncPath(source, target)
 	if err != nil {
-		log.Errorf("error while %s", logMessage)
-		return fmt.Errorf("error while %s", logMessage)
+		log.Errorf("error while %s; err: %s", logMessage, err)
+		return fmt.Errorf("error while %s; err: %s", logMessage, err)
 	}
 	return nil
 }
