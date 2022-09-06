@@ -214,29 +214,31 @@ func main() {
 	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, deviceOs, reg)
 	configManager.RegisterObserver(hbs)
 
-	reg.DeregisterLater(
-		wl,
-		configManager,
-		hbs,
-		dataMonitor,
-		systemMetricsWatcher,
-		metricsStore,
-	)
-
 	dataDirPlaybook := path.Join(baseDataDir, "devicePlaybooks")
 	if err := os.MkdirAll(dataDirPlaybook, 0750); err != nil {
 		log.Fatalf("cannot create directory: %v", err)
 	}
-	ansibleManager, err := ansible.NewAnsibleManager(configManager, dispatcherClient, dataDirPlaybook, deviceId)
+	ansibleManager, err := ansible.NewAnsibleManager(configManager, dispatcherClient, dataDirPlaybook, deviceId, reg)
 	if err != nil {
 		log.Errorf("cannot start ansible manager, err: %v", err)
 	} else {
+		configManager.RegisterObserver(ansibleManager)
+
 		err = ansibleManager.ExecutePendingPlaybooks()
 		if err != nil {
 			log.Errorf("cannot run previous ansible playbooks, err: %v", err)
 		}
 	}
 
+	reg.DeregisterLater(
+		wl,
+		configManager,
+		hbs,
+		ansibleManager,
+		dataMonitor,
+		systemMetricsWatcher,
+		metricsStore,
+	)
 	s := grpc.NewServer()
 	pb.RegisterWorkerServer(s, server.NewDeviceServer(configManager, reg, ansibleManager))
 	if !configManager.IsInitialConfig() {

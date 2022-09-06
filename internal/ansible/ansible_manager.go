@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apenella/go-ansible/pkg/execute"
@@ -23,6 +24,7 @@ import (
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/model/message"
+	"github.com/project-flotta/flotta-device-worker/internal/registration"
 	"github.com/project-flotta/flotta-operator/models"
 	log "github.com/sirupsen/logrus"
 
@@ -33,6 +35,7 @@ import (
 // Manager handle ansible playbook execution
 type Manager struct {
 	configManager         *cfg.Manager
+	reg                   *registration.Registration
 	deviceId              string
 	wg                    sync.WaitGroup
 	managementLock        sync.Locker
@@ -62,7 +65,12 @@ const (
 	dataDir      = "/tmp"
 )
 
-func NewAnsibleManager(configManager *cfg.Manager, dispatcherClient pb.DispatcherClient, configDir string, deviceId string) (*Manager, error) {
+func NewAnsibleManager(
+	configManager *cfg.Manager,
+	dispatcherClient pb.DispatcherClient,
+	configDir string,
+	deviceId string,
+	reg registration.RegistrationWrapper) (*Manager, error) {
 	mappingRepository, err := mapping.NewMappingRepository(configDir)
 	if err != nil {
 		return nil, fmt.Errorf("ansible manager cannot initialize mapping repository: %w", err)
@@ -88,6 +96,25 @@ func NewAnsibleManager(configManager *cfg.Manager, dispatcherClient pb.Dispatche
 // Init no-op due to we need to an update from the source of truth in this
 // case(API)
 func (a *Manager) Init(config models.DeviceConfigurationMessage) error {
+	return nil
+}
+func (a *Manager) String() string {
+	return "ansible-manager"
+}
+
+func (a *Manager) Update(config models.DeviceConfigurationMessage) error {
+	periodSeconds := a.getInterval(*config.Configuration)
+	previousPeriodSeconds := atomic.LoadInt64(&a.previousPeriodSeconds)
+	if previousPeriodSeconds <= 0 || previousPeriodSeconds != periodSeconds {
+		log.Debugf("Ansible manager configuration update: periodSeconds changed from %d to %d; Device ID: %s", previousPeriodSeconds, periodSeconds, a.deviceId)
+		log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, a.deviceId)
+		a.stopTicker()
+
+		atomic.StoreInt64(&a.previousPeriodSeconds, periodSeconds)
+
+		a.initTicker(periodSeconds)
+		return nil
+	}
 	return nil
 }
 
