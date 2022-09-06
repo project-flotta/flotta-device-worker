@@ -85,6 +85,12 @@ func NewAnsibleManager(configManager *cfg.Manager, dispatcherClient pb.Dispatche
 	}, nil
 }
 
+// Init no-op due to we need to an update from the source of truth in this
+// case(API)
+func (a *Manager) Init(config models.DeviceConfigurationMessage) error {
+	return nil
+}
+
 func (a *Manager) initTicker(periodSeconds int64) {
 	ticker := time.NewTicker(time.Second * time.Duration(periodSeconds))
 	a.tickerLock.Lock()
@@ -119,11 +125,11 @@ func (a *Manager) getInterval(config models.DeviceConfiguration) int64 {
 	return interval
 }
 
-// func (s *Heartbeat) HasStarted() bool {
-// 	s.tickerLock.RLock()
-// 	defer s.tickerLock.RUnlock()
-// 	return s.ticker != nil
-// }
+func (a *Manager) HasStarted() bool {
+	a.tickerLock.RLock()
+	defer a.tickerLock.RUnlock()
+	return a.ticker != nil
+}
 
 func (a *Manager) pushInformation() error {
 	// Create a data message to send back to the dispatcher.
@@ -159,6 +165,20 @@ func (a *Manager) send(data *pb.Data) error {
 		return err
 	}
 	return err
+}
+
+func (a *Manager) Deregister() error {
+	log.Infof("stopping ansible manager ticker. DeviceID: %s", a.deviceId)
+	a.stopTicker()
+	return nil
+}
+
+func (a *Manager) stopTicker() {
+	if a.HasStarted() {
+		a.tickerLock.RLock()
+		defer a.tickerLock.RUnlock()
+		a.ticker.Stop()
+	}
 }
 
 func isResponseEmpty(response *pb.Response) bool {
