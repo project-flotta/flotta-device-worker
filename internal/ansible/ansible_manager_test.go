@@ -8,11 +8,13 @@ import (
 	"time"
 
 	"github.com/apenella/go-ansible/pkg/playbook"
+	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	"github.com/project-flotta/flotta-device-worker/internal/configuration"
+	"github.com/project-flotta/flotta-device-worker/internal/registration"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
 	"google.golang.org/grpc"
 )
@@ -29,6 +31,7 @@ var _ = Describe("Ansible Runner", func() {
 		ansibleManager *ansible.Manager
 		client         Dispatcher
 		timeout        time.Duration
+		mockCtrl       *gomock.Controller
 
 		playbookCmd playbook.AnsiblePlaybookCmd
 	)
@@ -37,8 +40,9 @@ var _ = Describe("Ansible Runner", func() {
 		client = Dispatcher{}
 		messageID = "msg_" + uuid.New().String()
 		configManager := configuration.NewConfigurationManager(datadir)
-
-		ansibleManager, err = ansible.NewAnsibleManager(configManager, &client, configDir, "deviceIdA")
+		mockCtrl = gomock.NewController(GinkgoT())
+		regMock := registration.NewMockRegistrationWrapper(mockCtrl)
+		ansibleManager, err = ansible.NewAnsibleManager(configManager, &client, configDir, "deviceIdA", regMock)
 		playbookCmd = ansibleManager.GetPlaybookCommand()
 		Expect(err).ToNot(HaveOccurred())
 
