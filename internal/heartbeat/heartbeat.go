@@ -86,7 +86,7 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 		playbookExecutionStatuses = append(playbookExecutionStatuses, &peStatus)
 	}
 	if err != nil {
-		log.Errorf("cannot get workload information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
+		log.Errorf("cannot get playbook execution status information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 	}
 
 	config := s.configManager.GetDeviceConfiguration()
