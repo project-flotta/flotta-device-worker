@@ -71,7 +71,7 @@ replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
-	github.com/project-flotta/flotta-operator => github.com/gciavarrini/flotta-operator v0.0.0-20220831090208-640f86e1b562
+	github.com/project-flotta/flotta-operator => github.com/gciavarrini/flotta-operator v0.0.0-20220911150528-2ae735a707ef
 	k8s.io/apimachinery => k8s.io/apimachinery v0.22.4
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65
