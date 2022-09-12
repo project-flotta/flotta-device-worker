@@ -73,6 +73,22 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 		log.Errorf("cannot get workload information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
 	}
 
+	var playbookExecutionStatuses []*models.PlaybookExecutionStatus
+	playbookExecs := s.ansibleManager.List()
+	for _, info := range playbookExecs {
+		peStatus := models.PlaybookExecutionStatus{
+			Name:   info.Name,
+			Status: info.Status,
+		}
+		if lastSyncTime := s.dataMonitor.GetLastSuccessfulSyncTime(info.Name); lastSyncTime != nil {
+			peStatus.LastDataUpload = strfmt.DateTime(*lastSyncTime)
+		}
+		playbookExecutionStatuses = append(playbookExecutionStatuses, &peStatus)
+	}
+	if err != nil {
+		log.Errorf("cannot get workload information. DeviceID: %s; err: %v", s.workloadManager.GetDeviceID(), err)
+	}
+
 	config := s.configManager.GetDeviceConfiguration()
 	var hardwareInfo *models.HardwareInfo
 	if config.Heartbeat.HardwareProfile.Include {
@@ -83,12 +99,13 @@ func (s *HeartbeatData) RetrieveInfo() models.Heartbeat {
 		ansibleEvents = s.ansibleManager.PopEvents()
 	}
 	heartbeatInfo := models.Heartbeat{
-		Status:    models.HeartbeatStatusUp,
-		Version:   s.configManager.GetConfigurationVersion(),
-		Workloads: workloadStatuses,
-		Hardware:  hardwareInfo,
-		Events:    append(s.workloadManager.PopEvents(), ansibleEvents...),
-		Upgrade:   s.osInfo.GetUpgradeStatus(),
+		Status:             models.HeartbeatStatusUp,
+		Version:            s.configManager.GetConfigurationVersion(),
+		Workloads:          workloadStatuses,
+		PlaybookExecutions: playbookExecutionStatuses,
+		Hardware:           hardwareInfo,
+		Events:             append(s.workloadManager.PopEvents(), ansibleEvents...),
+		Upgrade:            s.osInfo.GetUpgradeStatus(),
 	}
 	return heartbeatInfo
 }

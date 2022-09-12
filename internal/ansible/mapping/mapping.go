@@ -16,28 +16,37 @@ import (
 type mapping struct {
 	ModTime  int64  `json:"mod_time"` //unix nano
 	FilePath string `json:"file_path"`
+	Name     string `json:"name"`
+	Status   string `json:status`
 }
 
 //go:generate mockgen -package=mapping -destination=mock_mapping.go . MappingRepository
 type MappingRepository interface {
 	GetSha256(fileContent []byte) string
-	Add(fileContent []byte, modTime time.Time) error
+	Add(peName string, fileContent []byte, modTime time.Time) error
 	Remove(fileContent []byte) error
 	RemoveMappingFile() error
 	GetModTime(filePath string) int64
 	GetFilePath(modTime time.Time) string
+	GetName(filePath string) string
 	Persist() error
 	Size() int
 	Exists(modTime time.Time) bool
 	GetAll() map[int]string
+	GetAllNames() []string
+	GetStatus(name string) string
+	GetAllNamesStatus() map[string]string
 }
 
 type mappingRepository struct {
 	mappingFilePath string
 	modTimeToPath   map[int64]string
 	pathToModTime   map[string]int64
+	pathToName      map[string]string
+	nameStatus      map[string]string
 	lock            sync.RWMutex
 	configDir       string
+	name            string
 }
 
 func NewMappingRepository(configDir string) (MappingRepository, error) {
@@ -55,9 +64,12 @@ func NewMappingRepository(configDir string) (MappingRepository, error) {
 
 	modTimeToPath := make(map[int64]string)
 	pathToModTime := make(map[string]int64)
+	pathToName := make(map[string]string)
 	for _, mapping := range mappings {
 		modTimeToPath[mapping.ModTime] = mapping.FilePath
 		pathToModTime[mapping.FilePath] = mapping.ModTime
+		pathToName[mapping.FilePath] = mapping.Name
+
 	}
 
 	return &mappingRepository{
@@ -65,6 +77,7 @@ func NewMappingRepository(configDir string) (MappingRepository, error) {
 		lock:            sync.RWMutex{},
 		modTimeToPath:   modTimeToPath,
 		pathToModTime:   pathToModTime,
+		pathToName:      pathToName,
 		configDir:       configDir,
 	}, nil
 }
@@ -91,7 +104,7 @@ func (m *mappingRepository) GetSha256(fileContent []byte) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func (m *mappingRepository) Add(fileContent []byte, modTime time.Time) error {
+func (m *mappingRepository) Add(peName string, fileContent []byte, modTime time.Time) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	filePath := path.Join(m.configDir, m.GetSha256(fileContent))
@@ -100,7 +113,7 @@ func (m *mappingRepository) Add(fileContent []byte, modTime time.Time) error {
 	if err != nil {
 		return err
 	}
-
+	m.name = peName
 	m.modTimeToPath[modTime.UnixNano()] = filePath
 	m.pathToModTime[filePath] = modTime.UnixNano()
 
@@ -145,6 +158,39 @@ func (m *mappingRepository) GetFilePath(modTime time.Time) string {
 	defer m.lock.RUnlock()
 
 	return m.modTimeToPath[modTime.UnixNano()]
+}
+
+func (m *mappingRepository) GetName(filePath string) string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	return m.pathToName[filePath]
+}
+
+func (m *mappingRepository) GetAllNames() []string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	names := make([]string, 0, len(m.pathToName))
+	for _, val := range m.pathToName {
+		names = append(names, val)
+	}
+
+	return names
+}
+
+func (m *mappingRepository) GetAllNamesStatus() map[string]string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	return m.nameStatus
+}
+
+func (m *mappingRepository) GetStatus(name string) string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	return m.nameStatus[name]
 }
 
 func (m *mappingRepository) Exists(modTime time.Time) bool {

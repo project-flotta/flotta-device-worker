@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
 	"github.com/project-flotta/flotta-operator/models"
 	pb "github.com/redhatinsights/yggdrasil/protocol"
+	log "github.com/sirupsen/logrus"
 )
 
 type deviceServer struct {
@@ -52,11 +52,12 @@ func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Response, error)
 				playbookCmd := s.ansibleManager.GetPlaybookCommand()
 
 				timeout := getTimeout(d.GetMetadata())
-				err := s.ansibleManager.HandlePlaybook(playbookCmd, d, timeout)
+				err := s.ansibleManager.HandlePlaybook(d.GetMetadata()["pe-name"], playbookCmd, d, timeout)
 
 				if err != nil {
 					log.Warnf("cannot handle ansible playbook. Error: %v", err)
 				}
+
 			}
 		}
 
