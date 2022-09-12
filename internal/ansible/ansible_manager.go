@@ -21,6 +21,7 @@ import (
 	ansibleResults "github.com/apenella/go-ansible/pkg/stdoutcallback/results"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"github.com/project-flotta/flotta-device-worker/internal/ansible/api"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/dispatcher"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/mapping"
 	"github.com/project-flotta/flotta-device-worker/internal/ansible/model/message"
@@ -208,6 +209,20 @@ func (a *Manager) stopTicker() {
 	}
 }
 
+func (a *Manager) List() []api.PlaybookExecutionInfo {
+	nameStatuses := a.MappingRepository.GetAllNamesStatus()
+	infos := make([]api.PlaybookExecutionInfo, len(nameStatuses))
+	i := 0
+	for name, status := range nameStatuses {
+		infos[i] = api.PlaybookExecutionInfo{
+			Name:   name,
+			Status: status,
+		}
+		i = i + 1
+	}
+	return infos
+}
+
 func isResponseEmpty(response *pb.Response) bool {
 	return response == nil || len(response.Response) == 0
 }
@@ -231,7 +246,7 @@ func setupPlaybookCmd(playbookCmd playbook.AnsiblePlaybookCmd, buffOut, buffErr 
 	return playbookCmd
 }
 
-func (a *Manager) HandlePlaybook(playbookCmd playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
+func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
 	var err error
 	buffOut := new(bytes.Buffer)
 	buffErr := new(bytes.Buffer)
@@ -292,7 +307,7 @@ func (a *Manager) HandlePlaybook(playbookCmd playbook.AnsiblePlaybookCmd, d *pb.
 	fileInfo, err := os.Stat(playbookYamlFile)
 	// execute
 	a.wg.Add(1)
-	go execPlaybook(executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.ModTime())
+	go execPlaybook(peName, executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.ModTime())
 	var errRunPlaybook error
 	for {
 		select {
@@ -419,6 +434,7 @@ func parseFailure(event message.AnsibleRunnerJobEventYaml) (errorCode string, er
 // It sends ansible playbook results when the playbook execution has been completed on playbookResults channel.
 // When the execution terminates, execPlaybook signals on executionCompleted channel if there was an error.
 func execPlaybook(
+	peName string, //PlaybookExecution name
 	executionCompleted chan error,
 	playbookResults chan<- *ansibleResults.AnsiblePlaybookJSONResults,
 	playbookCmd playbook.AnsiblePlaybookCmd,
@@ -449,7 +465,7 @@ func execPlaybook(
 		return
 	}
 
-	err = mappingRepository.Add(fileContent, modTime)
+	err = mappingRepository.Add(peName, fileContent, modTime)
 	if err != nil {
 		executionCompleted <- err
 		return
