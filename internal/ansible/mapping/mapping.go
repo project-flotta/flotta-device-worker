@@ -23,7 +23,7 @@ type mapping struct {
 //go:generate mockgen -package=mapping -destination=mock_mapping.go . MappingRepository
 type MappingRepository interface {
 	GetSha256(fileContent []byte) string
-	Add(peName string, fileContent []byte, modTime time.Time) error
+	Add(peName string, fileContent []byte, modTime time.Time, status string) error
 	Remove(fileContent []byte) error
 	RemoveMappingFile() error
 	GetModTime(filePath string) int64
@@ -36,6 +36,7 @@ type MappingRepository interface {
 	GetAllNames() []string
 	GetStatus(name string) string
 	GetAllNamesStatus() map[string]string
+	UpdateStatus(name, status string) error
 }
 
 type mappingRepository struct {
@@ -104,7 +105,7 @@ func (m *mappingRepository) GetSha256(fileContent []byte) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func (m *mappingRepository) Add(peName string, fileContent []byte, modTime time.Time) error {
+func (m *mappingRepository) Add(peName string, fileContent []byte, modTime time.Time, status string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	filePath := path.Join(m.configDir, m.GetSha256(fileContent))
@@ -116,7 +117,7 @@ func (m *mappingRepository) Add(peName string, fileContent []byte, modTime time.
 	m.name = peName
 	m.modTimeToPath[modTime.UnixNano()] = filePath
 	m.pathToModTime[filePath] = modTime.UnixNano()
-
+	m.nameStatus[peName] = status
 	return m.persist()
 }
 
@@ -128,7 +129,7 @@ func (m *mappingRepository) Remove(fileContent []byte) error {
 	modTime := m.pathToModTime[filePath]
 	delete(m.modTimeToPath, modTime)
 	delete(m.pathToModTime, filePath)
-
+	delete(m.pathToName, filePath)
 	return m.persist()
 }
 
@@ -191,6 +192,19 @@ func (m *mappingRepository) GetStatus(name string) string {
 	defer m.lock.RUnlock()
 
 	return m.nameStatus[name]
+}
+
+func (m *mappingRepository) UpdateStatus(name, status string) error {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	if _, ok := m.nameStatus[name]; !ok {
+		return fmt.Errorf("cannot find playbook execution with name: %s", name)
+	}
+
+	m.nameStatus[name] = status
+	return nil
+
 }
 
 func (m *mappingRepository) Exists(modTime time.Time) bool {

@@ -465,16 +465,21 @@ func execPlaybook(
 		return
 	}
 
-	err = mappingRepository.Add(peName, fileContent, modTime)
+	err = mappingRepository.Add(peName, fileContent, modTime, "Deploying")
 	if err != nil {
 		executionCompleted <- err
 		return
 	}
+	mappingRepository.UpdateStatus(peName, "Running")
 	errRun := playbookCmd.Run(ctx)
 
 	if errRun != nil {
 		log.Warnf("playbook executed with errors. Results: %s, messageID: %s, Error: %v", buffOut.String(), messageID, errRun)
+		mappingRepository.UpdateStatus(peName, "CompletedWithError")
+	} else {
+		mappingRepository.UpdateStatus(peName, "SuccessfullyCompleted")
 	}
+
 	results, err := ansibleResults.JSONParse(buffOut.Bytes())
 	if err != nil {
 		log.Errorf("error while parsing json string %s. MessageID: %s, Error: %v\n", buffOut.String(), messageID, err)
