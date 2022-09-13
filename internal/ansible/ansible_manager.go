@@ -465,11 +465,11 @@ func execPlaybook(
 		return
 	}
 
-	err = mappingRepository.Add(peName, fileContent, modTime, "Deploying")
-	if err != nil {
-		executionCompleted <- err
-		return
-	}
+	// err = mappingRepository.Add(peName, fileContent, modTime, "Deploying")
+	// if err != nil {
+	// 	executionCompleted <- err
+	// 	return
+	// }
 	mappingRepository.UpdateStatus(peName, "Running")
 	errRun := playbookCmd.Run(ctx)
 
