@@ -35,17 +35,17 @@ func (m *MockMappingRepository) EXPECT() *MockMappingRepositoryMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockMappingRepository) Add(arg0 []byte, arg1 time.Time) error {
+func (m *MockMappingRepository) Add(arg0 string, arg1 []byte, arg2 time.Time, arg3 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", arg0, arg1)
+	ret := m.ctrl.Call(m, "Add", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockMappingRepositoryMockRecorder) Add(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockMappingRepositoryMockRecorder) Add(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockMappingRepository)(nil).Add), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockMappingRepository)(nil).Add), arg0, arg1, arg2, arg3)
 }
 
 // Exists mocks base method.
@@ -76,6 +76,34 @@ func (mr *MockMappingRepositoryMockRecorder) GetAll() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockMappingRepository)(nil).GetAll))
 }
 
+// GetAllNames mocks base method.
+func (m *MockMappingRepository) GetAllNames() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllNames")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// GetAllNames indicates an expected call of GetAllNames.
+func (mr *MockMappingRepositoryMockRecorder) GetAllNames() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllNames", reflect.TypeOf((*MockMappingRepository)(nil).GetAllNames))
+}
+
+// GetAllNamesStatus mocks base method.
+func (m *MockMappingRepository) GetAllNamesStatus() map[string]string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllNamesStatus")
+	ret0, _ := ret[0].(map[string]string)
+	return ret0
+}
+
+// GetAllNamesStatus indicates an expected call of GetAllNamesStatus.
+func (mr *MockMappingRepositoryMockRecorder) GetAllNamesStatus() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllNamesStatus", reflect.TypeOf((*MockMappingRepository)(nil).GetAllNamesStatus))
+}
+
 // GetFilePath mocks base method.
 func (m *MockMappingRepository) GetFilePath(arg0 time.Time) string {
 	m.ctrl.T.Helper()
@@ -104,6 +132,20 @@ func (mr *MockMappingRepositoryMockRecorder) GetModTime(arg0 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetModTime", reflect.TypeOf((*MockMappingRepository)(nil).GetModTime), arg0)
 }
 
+// GetName mocks base method.
+func (m *MockMappingRepository) GetName(arg0 string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetName", arg0)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetName indicates an expected call of GetName.
+func (mr *MockMappingRepositoryMockRecorder) GetName(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetName", reflect.TypeOf((*MockMappingRepository)(nil).GetName), arg0)
+}
+
 // GetSha256 mocks base method.
 func (m *MockMappingRepository) GetSha256(arg0 []byte) string {
 	m.ctrl.T.Helper()
@@ -116,6 +158,20 @@ func (m *MockMappingRepository) GetSha256(arg0 []byte) string {
 func (mr *MockMappingRepositoryMockRecorder) GetSha256(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSha256", reflect.TypeOf((*MockMappingRepository)(nil).GetSha256), arg0)
+}
+
+// GetStatus mocks base method.
+func (m *MockMappingRepository) GetStatus(arg0 string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStatus", arg0)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetStatus indicates an expected call of GetStatus.
+func (mr *MockMappingRepositoryMockRecorder) GetStatus(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatus", reflect.TypeOf((*MockMappingRepository)(nil).GetStatus), arg0)
 }
 
 // Persist mocks base method.
@@ -172,4 +228,18 @@ func (m *MockMappingRepository) Size() int {
 func (mr *MockMappingRepositoryMockRecorder) Size() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Size", reflect.TypeOf((*MockMappingRepository)(nil).Size))
+}
+
+// UpdateStatus mocks base method.
+func (m *MockMappingRepository) UpdateStatus(arg0, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateStatus", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateStatus indicates an expected call of UpdateStatus.
+func (mr *MockMappingRepositoryMockRecorder) UpdateStatus(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockMappingRepository)(nil).UpdateStatus), arg0, arg1)
 }

@@ -17,7 +17,7 @@ type mapping struct {
 	ModTime  int64  `json:"mod_time"` //unix nano
 	FilePath string `json:"file_path"`
 	Name     string `json:"name"`
-	Status   string `json:status`
+	Status   string `json:"status"`
 }
 
 //go:generate mockgen -package=mapping -destination=mock_mapping.go . MappingRepository
@@ -66,11 +66,13 @@ func NewMappingRepository(configDir string) (MappingRepository, error) {
 	modTimeToPath := make(map[int64]string)
 	pathToModTime := make(map[string]int64)
 	pathToName := make(map[string]string)
+	nameStatus := make(map[string]string)
+
 	for _, mapping := range mappings {
 		modTimeToPath[mapping.ModTime] = mapping.FilePath
 		pathToModTime[mapping.FilePath] = mapping.ModTime
 		pathToName[mapping.FilePath] = mapping.Name
-
+		nameStatus[mapping.Name] = mapping.Status
 	}
 
 	return &mappingRepository{
@@ -79,6 +81,7 @@ func NewMappingRepository(configDir string) (MappingRepository, error) {
 		modTimeToPath:   modTimeToPath,
 		pathToModTime:   pathToModTime,
 		pathToName:      pathToName,
+		nameStatus:      nameStatus,
 		configDir:       configDir,
 	}, nil
 }
@@ -117,7 +120,9 @@ func (m *mappingRepository) Add(peName string, fileContent []byte, modTime time.
 	m.name = peName
 	m.modTimeToPath[modTime.UnixNano()] = filePath
 	m.pathToModTime[filePath] = modTime.UnixNano()
+	m.pathToName[filePath] = peName
 	m.nameStatus[peName] = status
+
 	return m.persist()
 }
 
@@ -232,7 +237,7 @@ func (m *mappingRepository) persist() error {
 	var mappings []mapping
 
 	for modTime, path := range m.modTimeToPath {
-		mappings = append(mappings, mapping{ModTime: modTime, FilePath: path})
+		mappings = append(mappings, mapping{ModTime: modTime, FilePath: path, Name: m.pathToName[path], Status: m.nameStatus[m.pathToName[path]]})
 	}
 	mappingsJSON, err := json.Marshal(mappings)
 	if err != nil {

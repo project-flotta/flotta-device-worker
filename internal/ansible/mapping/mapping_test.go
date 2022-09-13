@@ -11,7 +11,11 @@ import (
 )
 
 var _ = Describe("Mapping", func() {
-	const peTestName = "pe-test-name"
+	const (
+		peTestName        = "pe-test-name"
+		peStatusDeploying = "Deploying"
+		peStatusRunning   = "Running"
+	)
 	var configDir, sha256Test, filePathTest string
 	var repo mapping.MappingRepository
 
@@ -60,7 +64,7 @@ var _ = Describe("Mapping", func() {
 	It("Should store and return values", func() {
 		// when
 		modTime := time.Now()
-		err := repo.Add(peTestName, []byte("test"), modTime)
+		err := repo.Add(peTestName, []byte("test"), modTime, peStatusDeploying)
 
 		// then
 		Expect(err).ToNot(HaveOccurred())
@@ -68,12 +72,13 @@ var _ = Describe("Mapping", func() {
 		Expect(repo.GetModTime(filePathTest)).To(Equal(modTime.UnixNano()))
 		Expect(repo.GetFilePath(modTime)).To(Equal(path.Join(configDir, sha256Test)))
 		Expect(repo.GetName(filePathTest)).To(Equal(peTestName))
+		Expect(repo.GetStatus(peTestName)).To(Equal(peStatusDeploying))
 	})
 
 	It("Should remove mapping", func() {
 		// given
 		modTime := time.Now()
-		err := repo.Add(peTestName, []byte("test"), modTime)
+		err := repo.Add(peTestName, []byte("test"), modTime, peStatusDeploying)
 		Expect(err).ToNot(HaveOccurred())
 
 		// when
@@ -84,6 +89,8 @@ var _ = Describe("Mapping", func() {
 		Expect(repo.GetModTime(filePathTest)).To(Equal(int64(0)))
 		Expect(repo.GetFilePath(modTime)).To(BeEmpty())
 		Expect(repo.GetName(filePathTest)).To(BeEmpty())
+		Expect(repo.GetStatus(peTestName)).To(Equal(peStatusDeploying))
+
 	})
 
 	It("Should persist mappings", func() {
@@ -93,15 +100,16 @@ var _ = Describe("Mapping", func() {
 		modTime1 := time.Now()
 		modTime2 := modTime1.Add(1 * time.Minute)
 		peTestName1 := peTestName + "1"
-		err := repo.Add(peTestName1, []byte("test-one"), modTime1)
+		err := repo.Add(peTestName1, []byte("test-one"), modTime1, peStatusDeploying)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(repo.GetModTime(filePath1)).To(Equal(modTime1.UnixNano()))
 		Expect(repo.GetFilePath(modTime1)).To(Equal(filePath1))
 		Expect(repo.GetName(filePath1)).To(Equal(peTestName1))
+		Expect(repo.GetStatus(peTestName1)).To(Equal(peStatusDeploying))
 
 		peTestName2 := peTestName + "2"
 
-		err = repo.Add(peTestName2, []byte("test-two"), modTime2)
+		err = repo.Add(peTestName2, []byte("test-two"), modTime2, peStatusRunning)
 		Expect(err).ToNot(HaveOccurred())
 		// when
 		repo2, err := mapping.NewMappingRepository(configDir)
@@ -111,10 +119,12 @@ var _ = Describe("Mapping", func() {
 		Expect(repo2.GetModTime(filePath1)).To(Equal(modTime1.UnixNano()))
 		Expect(repo2.GetFilePath(modTime1)).To(Equal(filePath1))
 		Expect(repo2.GetName(filePath1)).To(Equal(peTestName1))
+		Expect(repo2.GetStatus(peTestName1)).To(Equal(peStatusDeploying))
 
 		Expect(repo2.GetModTime(filePath2)).To(Equal(modTime2.UnixNano()))
 		Expect(repo2.GetFilePath(modTime2)).To(Equal(filePath2))
 		Expect(repo2.GetName(filePath2)).To(Equal(peTestName2))
+		Expect(repo2.GetStatus(peTestName2)).To(Equal(peStatusRunning))
 
 	})
 
