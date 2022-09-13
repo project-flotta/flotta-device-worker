@@ -36,6 +36,7 @@ var _ = Describe("Configuration", func() {
 
 	getDefaultDeviceconfig := func() models.DeviceConfiguration {
 		return models.DeviceConfiguration{
+			AnsibleManager: &models.AnsibleManagerConfiguration{PeriodSeconds: 60},
 			Heartbeat: &models.HeartbeatConfiguration{
 				HardwareProfile: &models.HardwareProfileConfiguration{
 					Include: false,
@@ -88,7 +89,6 @@ var _ = Describe("Configuration", func() {
 
 			// when
 			configManager := configuration.NewConfigurationManager(datadir)
-
 			// then
 			Expect(configManager.GetDeviceConfiguration()).To(Equal(getDefaultDeviceconfig()))
 		})
