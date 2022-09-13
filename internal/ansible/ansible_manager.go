@@ -307,7 +307,7 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 	a.MappingRepository.Add(peName, []byte(playbookCmd.Playbooks[0]), fileInfo.ModTime(), "Deploying")
 	// execute
 	a.wg.Add(1)
-	go execPlaybook(peName, executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.ModTime())
+	go execPlaybook(peName, executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.Name(), fileInfo.ModTime())
 	var errRunPlaybook error
 	for {
 		select {
@@ -442,6 +442,7 @@ func execPlaybook(
 	messageID string,
 	buffOut *bytes.Buffer,
 	mappingRepository mapping.MappingRepository,
+	fileName string,
 	modTime time.Time) {
 
 	defer close(executionCompleted)
@@ -459,7 +460,7 @@ func execPlaybook(
 		return
 	}
 
-	fileContent, err := os.ReadFile(playbookCmd.Playbooks[0]) //TODO: handle more than the first playbook
+	fileContent, err := os.ReadFile(fileName) //TODO: handle more than the first playbook
 	if err != nil {
 		executionCompleted <- err
 		return
