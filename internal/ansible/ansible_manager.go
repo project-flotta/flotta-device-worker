@@ -287,7 +287,6 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 		return fmt.Errorf("cannot create ansible playbook yaml file %s. Error: %v", playbookYamlFile, err)
 	}
 	defer os.Remove(playbookYamlFile)
-
 	/*
 	*******************************************
 	*  TODO : Verify playbook
@@ -305,6 +304,7 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	fileInfo, err := os.Stat(playbookYamlFile)
+	a.MappingRepository.Add(peName, []byte(playbookCmd.Playbooks[0]), fileInfo.ModTime(), "Deploying")
 	// execute
 	a.wg.Add(1)
 	go execPlaybook(peName, executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.ModTime())
@@ -459,7 +459,7 @@ func execPlaybook(
 		return
 	}
 
-	fileContent, err := os.ReadFile(playbookCmd.Playbooks[0])
+	fileContent, err := os.ReadFile(playbookCmd.Playbooks[0]) //TODO: handle more than the first playbook
 	if err != nil {
 		executionCompleted <- err
 		return
