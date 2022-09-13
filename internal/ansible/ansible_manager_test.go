@@ -68,7 +68,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
 
 			//then
 			Expect(err).To(HaveOccurred(), "missing playbook string in message")
@@ -97,7 +97,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
 			Expect(err).ToNot(HaveOccurred())
 			//then
 			Expect(client.latestData).ToNot(BeNil())
@@ -127,7 +127,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.latestData).ToNot(BeNil())
 			Expect(client.latestData.Directive).To(Equal(returnUrl))
@@ -157,7 +157,7 @@ var _ = Describe("Ansible Runner", func() {
 			}
 
 			//when
-			err = ansibleManager.HandlePlaybook(playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
 			Expect(err).To(HaveOccurred())
 			Expect(client.latestData).To(BeNil())
 		})
@@ -179,9 +179,9 @@ var _ = Describe("Ansible Runner", func() {
 
 			Expect(ansibleManager.MappingRepository.GetAll()).To(BeEmpty())
 
-			err = ansibleManager.MappingRepository.Add(p1, modTime1)
+			err = ansibleManager.MappingRepository.Add("test-playbook-name1", p1, modTime1, "Deploying")
 			Expect(err).ToNot(HaveOccurred())
-			err = ansibleManager.MappingRepository.Add(p2, modTime2)
+			err = ansibleManager.MappingRepository.Add("test-playbook-name2", p2, modTime2, "Deploying")
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(ansibleManager.MappingRepository.GetAll()).ToNot(BeEmpty())
