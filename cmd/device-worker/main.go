@@ -211,9 +211,6 @@ func main() {
 		log.Fatalf("cannot start registration process:  DeviceID: %s; err: %v", deviceId, err)
 	}
 
-	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, dataMonitor, deviceOs, reg)
-	configManager.RegisterObserver(hbs)
-
 	dataDirPlaybook := path.Join(baseDataDir, "devicePlaybooks")
 	if err := os.MkdirAll(dataDirPlaybook, 0750); err != nil {
 		log.Fatalf("cannot create directory: %v", err)
@@ -229,6 +226,9 @@ func main() {
 			log.Errorf("cannot run previous ansible playbooks, err: %v", err)
 		}
 	}
+
+	hbs := heartbeat2.NewHeartbeatService(dispatcherClient, configManager, wl, &hw, ansibleManager, dataMonitor, deviceOs, reg)
+	configManager.RegisterObserver(hbs)
 
 	reg.DeregisterLater(
 		wl,

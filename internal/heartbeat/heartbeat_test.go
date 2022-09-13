@@ -79,6 +79,7 @@ var _ = Describe("Heartbeat", func() {
 			configManager,
 			wkManager,
 			hwMock,
+			ansibleManager,
 			monitor,
 			deviceOs,
 			regMock)
@@ -372,7 +373,7 @@ var _ = Describe("Heartbeat", func() {
 			createHardwareMutableInformationCall.Times(5)
 			getMutableHardwareInfoDeltaCall.Times(0)
 			clientFail := DispatcherFailing{}
-			hb := createCustomHeartbeatWithDispatcher(&clientFail, mockCtrl, datadir, int64(1), wkManager, hwMock, monitor, deviceOs)
+			hb := createCustomHeartbeatWithDispatcher(&clientFail, mockCtrl, datadir, int64(1), wkManager, hwMock, ansibleManager, monitor, deviceOs)
 
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
 
@@ -405,7 +406,7 @@ var _ = Describe("Heartbeat", func() {
 			getMutableHardwareInfoDeltaCall.MinTimes(3).MaxTimes(4)
 			//have to create ne Dispatcher to avoid race error
 			clientSuccess := Dispatcher{}
-			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(1), wkManager, hwMock, monitor, deviceOs)
+			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(1), wkManager, hwMock, ansibleManager, monitor, deviceOs)
 
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
 
@@ -445,7 +446,7 @@ var _ = Describe("Heartbeat", func() {
 			createHardwareMutableInformationCall.Times(1)
 			getMutableHardwareInfoDeltaCall.Times(0)
 			clientEmpty := DispatcherEmptyResponse{}
-			hb := createCustomHeartbeatWithDispatcher(&clientEmpty, mockCtrl, datadir, 2, wkManager, hwMock, monitor, deviceOs)
+			hb := createCustomHeartbeatWithDispatcher(&clientEmpty, mockCtrl, datadir, 2, wkManager, hwMock, ansibleManager, monitor, deviceOs)
 
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
 			var buf Buffer
@@ -523,7 +524,7 @@ var _ = Describe("Heartbeat", func() {
 			getMutableHardwareInfoDeltaCall.AnyTimes()
 			//have to create ne Dispatcher to avoid race error
 			clientSuccess := Dispatcher{}
-			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, monitor, deviceOs)
+			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, ansibleManager, monitor, deviceOs)
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
 			var buf Buffer
 			writer := bufio.NewWriter(&buf)
@@ -575,7 +576,7 @@ var _ = Describe("Heartbeat", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(hb.HasStarted()).To(BeTrue())
 			time.Sleep(5 * time.Second)
-
+			log.Infof("check clientSuccess.GetHwInfoList() %v", clientSuccess.GetHwInfoList())
 			Expect(len(clientSuccess.GetHwInfoList())).To(Equal(1))
 			quit_1 <- true
 			quit_2 <- true
@@ -594,7 +595,7 @@ var _ = Describe("Heartbeat", func() {
 			getMutableHardwareInfoDeltaCall.AnyTimes()
 			//have to create ne Dispatcher to avoid race error
 			clientSuccess := Dispatcher{}
-			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, monitor, deviceOs)
+			hb := createCustomHeartbeatWithDispatcher(&clientSuccess, mockCtrl, datadir, int64(initialPeriod), wkManager, hwMock, ansibleManager, monitor, deviceOs)
 
 			Expect(hb.HasStarted()).To(BeFalse(), "Ticker is initialized when it shouldn't")
 			var buf Buffer
@@ -825,7 +826,7 @@ func initHwMock(hwMock *hardware.MockHardware, configManager *configuration.Mana
 	return getHardwareInformationCall, getMutableHardwareInfoDeltaCall, createHardwareMutableInformationCall
 }
 
-func createCustomHeartbeatWithDispatcher(client pb.DispatcherClient, mockCtrl *gomock.Controller, datadir string, periodSeconds int64, wkManager *workload.WorkloadManager, hwMock *hardware.MockHardware, monitor *datatransfer.Monitor, deviceOs *os2.OS) *heartbeat.Heartbeat {
+func createCustomHeartbeatWithDispatcher(client pb.DispatcherClient, mockCtrl *gomock.Controller, datadir string, periodSeconds int64, wkManager *workload.WorkloadManager, hwMock *hardware.MockHardware, ansibleManager *ansible.Manager, monitor *datatransfer.Monitor, deviceOs *os2.OS) *heartbeat.Heartbeat {
 	regMock := registration.NewMockRegistrationWrapper(mockCtrl)
 	configManager := configuration.NewConfigurationManager(datadir)
 	configManager.GetDeviceConfiguration().Heartbeat.PeriodSeconds = periodSeconds
@@ -835,6 +836,7 @@ func createCustomHeartbeatWithDispatcher(client pb.DispatcherClient, mockCtrl *g
 		configManager,
 		wkManager,
 		hwMock,
+		ansibleManager,
 		monitor,
 		deviceOs,
 		regMock)

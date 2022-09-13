@@ -169,13 +169,14 @@ type Heartbeat struct {
 }
 
 func NewHeartbeatService(dispatcherClient pb.DispatcherClient, configManager *cfg.Manager,
-	workloadManager *workld.WorkloadManager, hardware hw.Hardware,
+	workloadManager *workld.WorkloadManager, hardware hw.Hardware, ansibleManager *ansible.Manager,
 	dataMonitor *datatransfer.Monitor, osInfo *os2.OS,
 	reg registration.RegistrationWrapper) *Heartbeat {
 	return &Heartbeat{
 		ticker:           nil,
 		dispatcherClient: dispatcherClient,
 		data: &HeartbeatData{
+			ansibleManager:  ansibleManager,
 			configManager:   configManager,
 			workloadManager: workloadManager,
 			hardware:        hardware,
