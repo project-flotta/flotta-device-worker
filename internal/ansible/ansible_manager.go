@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -192,7 +193,43 @@ func (a *Manager) send(data *pb.Data) error {
 	if err != nil {
 		return err
 	}
+	responseMsg := models.Message{}
+	err = json.Unmarshal(response.GetResponse(), &responseMsg)
+	if err != nil {
+		log.Error("a *Manager) send(data *pb.Data) error :: cannot unmarshal ansible response")
+		return err
+	}
+
+	playbookCmd := a.GetPlaybookCommand()
+	respMetadata := responseMsg.Metadata.(map[string]string)
+	timeout := getTimeout(respMetadata)
+	log.Warnf("CHECK RESP METADATA %v", respMetadata)
+
+	log.Info("CALLING HANDLE PLAYBOOK")
+	dataResponse := &pb.Data{
+		MessageId: uuid.New().String(),
+		Content:   responseMsg.Content.([]byte),
+	}
+	err = a.HandlePlaybook(respMetadata["pe-name"], playbookCmd, dataResponse, timeout)
+
+	if err != nil {
+		log.Warnf("a *Manager) send(data *pb.Data) error :: cannot handle ansible playbook. Error: %v", err)
+	}
 	return err
+}
+
+func getTimeout(metadata map[string]string) time.Duration {
+	timeout := 300 * time.Second // Deafult timeout
+	if timeoutStr, found := metadata["ansible-playbook-timeout"]; found {
+		timeoutVal, err := strconv.Atoi(timeoutStr)
+		if err != nil {
+			log.Warnf("invalid timeout received %s. Use default of %s", timeoutStr, timeout)
+			return timeout
+		}
+		timeout = time.Duration(timeoutVal) * time.Second
+		log.Infof("set timeout to %s", timeout)
+	}
+	return timeout
 }
 
 func (a *Manager) Deregister() error {
