@@ -201,7 +201,7 @@ func (a *Manager) send(data *pb.Data) error {
 	}
 
 	playbookCmd := a.GetPlaybookCommand()
-	respMetadata := responseMsg.Metadata.(map[string]string)
+	respMetadata := responseMsg.Metadata.(map[string]interface{})
 	timeout := getTimeout(respMetadata)
 	log.Warnf("CHECK RESP METADATA %v", respMetadata)
 
@@ -210,7 +210,12 @@ func (a *Manager) send(data *pb.Data) error {
 		MessageId: uuid.New().String(),
 		Content:   responseMsg.Content.([]byte),
 	}
-	err = a.HandlePlaybook(respMetadata["pe-name"], playbookCmd, dataResponse, timeout)
+	var peName interface{}
+	var ok bool
+	if peName, ok = respMetadata["pe-name"]; !ok {
+		return fmt.Errorf("cannot find metada pe-name")
+	}
+	err = a.HandlePlaybook(fmt.Sprintf("%v", peName), playbookCmd, dataResponse, timeout)
 
 	if err != nil {
 		log.Warnf("a *Manager) send(data *pb.Data) error :: cannot handle ansible playbook. Error: %v", err)
@@ -218,10 +223,10 @@ func (a *Manager) send(data *pb.Data) error {
 	return err
 }
 
-func getTimeout(metadata map[string]string) time.Duration {
+func getTimeout(metadata map[string]interface{}) time.Duration {
 	timeout := 300 * time.Second // Deafult timeout
 	if timeoutStr, found := metadata["ansible-playbook-timeout"]; found {
-		timeoutVal, err := strconv.Atoi(timeoutStr)
+		timeoutVal, err := strconv.Atoi(fmt.Sprintf("%v", timeoutStr))
 		if err != nil {
 			log.Warnf("invalid timeout received %s. Use default of %s", timeoutStr, timeout)
 			return timeout
