@@ -193,38 +193,76 @@ func (a *Manager) send(data *pb.Data) error {
 	if err != nil {
 		return err
 	}
-	responseMsg := models.Message{}
-	err = json.Unmarshal(response.GetResponse(), &responseMsg)
+
+	parsedResponse, err := NewYGGDResponse(response.Response)
 	if err != nil {
-		log.Error("a *Manager) send(data *pb.Data) error :: cannot unmarshal ansible response")
 		return err
 	}
 
-	playbookCmd := a.GetPlaybookCommand()
-	respMetadata := responseMsg.Metadata.(map[string]interface{})
-	timeout := getTimeout(respMetadata)
-	log.Warnf("CHECK RESP METADATA %v", respMetadata)
-	var peName interface{}
-	var ok bool
-	if peName, ok = respMetadata["pe-name"]; !ok {
-		log.Debug("cannot find metada \"pe-name\": nothing to do.")
-		return nil
-	}
-	if responseMsg.Content == nil {
-		return fmt.Errorf("message has metadata  \"pe-name\"=%s but content is nil", peName)
-	}
+	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %v", parsedResponse)
 
-	dataResponse := &pb.Data{
-		MessageId: uuid.New().String(),
-		Content:   responseMsg.Content.([]byte),
-	}
-	log.Info("CALLING HANDLE PLAYBOOK")
-	err = a.HandlePlaybook(fmt.Sprintf("%v", peName), playbookCmd, dataResponse, timeout)
+	// err = a.HandlePlaybook(fmt.Sprintf("%v", peName), playbookCmd, dataResponse, timeout)
 
 	if err != nil {
 		log.Warnf("a *Manager) send(data *pb.Data) error :: cannot handle ansible playbook. Error: %v", err)
 	}
 	return err
+}
+
+type YGGDResponse struct {
+	Metadata   map[string]string
+	Body       json.RawMessage
+	StatusCode int
+}
+
+func NewYGGDResponse(response []byte) (*YGGDResponse, error) {
+	var parsedResponse YGGDResponse
+	err := json.Unmarshal(response, &parsedResponse)
+	if err != nil {
+		log.Warnf("NewYGGDResponse Error unmarshal %s", string(response))
+		return nil, err
+	}
+	return &parsedResponse, nil
+}
+
+func (a *Manager) parseRegistrationResponse(response *pb.Response, key []byte) error {
+	parsedResponse, err := NewYGGDResponse(response.Response)
+	if err != nil {
+		return err
+	}
+
+	if parsedResponse.StatusCode >= 300 {
+		return fmt.Errorf("cannot register to the operator, status_code=%d, body=%s", parsedResponse.StatusCode, parsedResponse.Body)
+	}
+
+	var message models.MessageResponse
+	err = json.Unmarshal(parsedResponse.Body, &message)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal playbook execution response content: %v", err)
+	}
+
+	parsedContent, ok := message.Content.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("cannot parse message content")
+	}
+
+	log.Debugf("@@@ Check parsed content %v", parsedContent)
+	// cert, ok := parsedContent["certificate"]
+	// if !ok {
+	// 	return fmt.Errorf("cannot retrieve certificate from parsedResponse")
+	// }
+
+	// parsedCert, ok := cert.(string)
+	// if !ok {
+	// 	return fmt.Errorf("cannot parse certificate from response.Content, content=%+v", message.Content)
+	// }
+
+	// err = r.clientCert.WriteCertificate([]byte(parsedCert), key)
+	// if err != nil {
+	// 	log.Errorf("failed to write certificate: %v,", err)
+	// 	return err
+	// }
+	return nil
 }
 
 func getTimeout(metadata map[string]interface{}) time.Duration {
