@@ -204,17 +204,21 @@ func (a *Manager) send(data *pb.Data) error {
 	respMetadata := responseMsg.Metadata.(map[string]interface{})
 	timeout := getTimeout(respMetadata)
 	log.Warnf("CHECK RESP METADATA %v", respMetadata)
+	var peName interface{}
+	var ok bool
+	if peName, ok = respMetadata["pe-name"]; !ok {
+		log.Debug("cannot find metada \"pe-name\": nothing to do.")
+		return nil
+	}
+	if responseMsg.Content == nil {
+		return fmt.Errorf("message has metadata  \"pe-name\"=%s but content is nil", peName)
+	}
 
-	log.Info("CALLING HANDLE PLAYBOOK")
 	dataResponse := &pb.Data{
 		MessageId: uuid.New().String(),
 		Content:   responseMsg.Content.([]byte),
 	}
-	var peName interface{}
-	var ok bool
-	if peName, ok = respMetadata["pe-name"]; !ok {
-		return fmt.Errorf("cannot find metada pe-name")
-	}
+	log.Info("CALLING HANDLE PLAYBOOK")
 	err = a.HandlePlaybook(fmt.Sprintf("%v", peName), playbookCmd, dataResponse, timeout)
 
 	if err != nil {
