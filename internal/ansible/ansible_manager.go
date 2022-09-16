@@ -231,9 +231,11 @@ func (a *Manager) parseRegistrationResponse(response *pb.Response, key []byte) e
 		return err
 	}
 
-	if parsedResponse.StatusCode >= 300 {
-		return fmt.Errorf("cannot register to the operator, status_code=%d, body=%s", parsedResponse.StatusCode, parsedResponse.Body)
-	}
+	// TODO
+	// if parsedResponse.StatusCode >= 300 {
+
+	// 	return fmt.Errorf("cannot register to the operator, status_code=%d, body=%s", parsedResponse.StatusCode, parsedResponse.Body)
+	// }
 
 	var message models.MessageResponse
 	err = json.Unmarshal(parsedResponse.Body, &message)
