@@ -196,10 +196,42 @@ func (a *Manager) send(data *pb.Data) error {
 
 	parsedResponse, err := NewYGGDResponse(response.Response)
 	if err != nil {
-		return err
+		log.Error("cannot transform to NewYGGDResponse %s  err: %v", string(response.Response), err)
+		return fmt.Errorf("cannot transform to NewYGGDResponse : %v", err)
 	}
 
-	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %v", parsedResponse)
+	if parsedResponse.StatusCode >= 300 {
+		return fmt.Errorf("cannot send ansible message to the operator, status_code=%d, body=%s", parsedResponse.StatusCode, parsedResponse.Body)
+	}
+
+	var message models.MessageResponse
+	err = json.Unmarshal(parsedResponse.Body, &message)
+	if err != nil {
+		log.Errorf("cannot unmarshal pe response content: %v", err)
+		return fmt.Errorf("cannot unmarshal pe response content: %v", err)
+	}
+
+	stringContent := message.Content.(string)
+	// log.Infof(">> message content type: %T\n", message.Content)
+	// log.Infof(">> message content VALUE: %s\n", message.Content.(string))
+	// log.Infof(">> message content stringContent: %s\n", stringContent)
+	// log.Infof(">> message content stringContent to bytes: %s\n", []byte(stringContent))
+	// log.Infof(">> message content stringContent to atring: %s\n", string(stringContent))
+	// msgContent := fmt.Sprintf("%s", message.Content)
+	var parsedContent []interface{}
+	err = json.Unmarshal([]byte(stringContent), &parsedContent)
+
+	if err != nil {
+		log.Errorf(">> cannot parse message content %v. Error: %v", message.Content, err)
+		return fmt.Errorf("cannot parse message content")
+	}
+
+	// parsedResponse, err := a.parsePlaybookExecutionResponse(response.Response)
+	// if err != nil {
+	// 	return err
+	// }
+
+	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %v", parsedContent)
 
 	// err = a.HandlePlaybook(fmt.Sprintf("%v", peName), playbookCmd, dataResponse, timeout)
 
@@ -225,10 +257,10 @@ func NewYGGDResponse(response []byte) (*YGGDResponse, error) {
 	return &parsedResponse, nil
 }
 
-func (a *Manager) parseRegistrationResponse(response *pb.Response, key []byte) error {
-	parsedResponse, err := NewYGGDResponse(response.Response)
+func (a *Manager) parsePlaybookExecutionResponse(response []byte) (*YGGDResponse, error) {
+	parsedResponse, err := NewYGGDResponse(response)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO
@@ -240,12 +272,16 @@ func (a *Manager) parseRegistrationResponse(response *pb.Response, key []byte) e
 	var message models.MessageResponse
 	err = json.Unmarshal(parsedResponse.Body, &message)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal playbook execution response content: %v", err)
+		return nil, fmt.Errorf("cannot unmarshal playbook execution response content: %v", err)
 	}
 
+	// parsedContent := []*models.PlaybookExecution{}
+	// var parsedContent interface{}
 	parsedContent, ok := message.Content.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("cannot parse message content")
+
+	if !ok { //err != nil {
+		log.Errorf("cannot parse message content. parsedContent: %v    err: %v", parsedContent, err)
+		return nil, fmt.Errorf("cannot parse message content")
 	}
 
 	log.Debugf("@@@ Check parsed content %v", parsedContent)
@@ -264,7 +300,8 @@ func (a *Manager) parseRegistrationResponse(response *pb.Response, key []byte) e
 	// 	log.Errorf("failed to write certificate: %v,", err)
 	// 	return err
 	// }
-	return nil
+
+	return parsedResponse, nil
 }
 
 func getTimeout(metadata map[string]interface{}) time.Duration {
