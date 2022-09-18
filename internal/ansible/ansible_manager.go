@@ -223,7 +223,7 @@ func (a *Manager) send(data *pb.Data) error {
 		playbookCmd := a.GetPlaybookCommand()
 		timeout := getTimeout(parsedResponse.Metadata)
 
-		err = a.HandlePlaybook(message.MessageID, map[string]string{}, p.Name, p.AnsiblePlaybookString, playbookCmd, timeout)
+		err = a.HandlePlaybook(message.MessageID, message.Metadata.(map[string]string), p.Name, p.AnsiblePlaybookString, playbookCmd, timeout)
 
 		if err != nil {
 			log.Errorf("cannot handle playbook execution %v. %v", p, err)
