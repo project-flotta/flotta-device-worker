@@ -580,9 +580,9 @@ func execPlaybook(
 	defer cancel()
 
 	// Check if the playbook has been already executed on the device.
-	alreadyExecuted := mappingRepository.Exists(modTime)
+	alreadyExecuted := mappingRepository.Exists(peName)
 
-	if alreadyExecuted {
+	if alreadyExecuted && mappingRepository.GetStatus(peName) != "Deploying" {
 		err := fmt.Errorf("playbook of messageID %s is already in execution", messageID)
 		executionCompleted <- err
 		return
