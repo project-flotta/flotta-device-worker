@@ -44,22 +44,22 @@ func NewDeviceServer(configManager *configuration2.Manager, registrationManager 
 // Send implements the "Send" method of the Worker gRPC service.
 func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Response, error) {
 	go func() {
-		//check if it is an ansible playbook message
-		if s.ansibleManager != nil {
-			if x, found := d.GetMetadata()["ansible-playbook"]; found && x == "true" {
-				log.Debugf("Received message %s with 'ansible-playbook' metadata", d.MessageId)
+		// //check if it is an ansible playbook message
+		// if s.ansibleManager != nil {
+		// 	if x, found := d.GetMetadata()["ansible-playbook"]; found && x == "true" {
+		// 		log.Debugf("Received message %s with 'ansible-playbook' metadata", d.MessageId)
 
-				playbookCmd := s.ansibleManager.GetPlaybookCommand()
+		// 		playbookCmd := s.ansibleManager.GetPlaybookCommand()
 
-				timeout := getTimeout(d.GetMetadata())
-				err := s.ansibleManager.HandlePlaybook(d.GetMetadata()["pe-name"], playbookCmd, d, timeout)
+		// 		timeout := getTimeout(d.GetMetadata())
+		// 		err := s.ansibleManager.HandlePlaybook(uuid.New().String(), d.GetMetadata(), d.GetMetadata()["pe-name"], playbookCmd, d, timeout)
 
-				if err != nil {
-					log.Warnf("cannot handle ansible playbook. Error: %v", err)
-				}
+		// 		if err != nil {
+		// 			log.Warnf("cannot handle ansible playbook. Error: %v", err)
+		// 		}
 
-			}
-		}
+		// 	}
+		// }
 
 		deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 		err := json.Unmarshal(d.Content, &deviceConfigurationMessage)
