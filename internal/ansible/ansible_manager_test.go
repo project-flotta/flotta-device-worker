@@ -2,7 +2,6 @@ package ansible_test
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path"
 	"time"
@@ -59,16 +58,11 @@ var _ = Describe("Ansible Runner", func() {
 	Context("Execute playbook", func() {
 		It("Empty playbook", func() {
 			//given
-			samplePlaybook := ""
-			m := map[string]string{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
-			message := pb.Data{
-				MessageId: messageID,
-				Metadata:  m,
-				Content:   []byte(samplePlaybook),
-			}
+			emptyPlaybook := ""
+			m := map[string]interface{}{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
 
 			//when
-			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(messageID, m, "test-playbook-name", emptyPlaybook, playbookCmd, timeout)
 
 			//then
 			Expect(err).To(HaveOccurred(), "missing playbook string in message")
@@ -84,20 +78,10 @@ var _ = Describe("Ansible Runner", func() {
 				Fail("cannot read playbook test file: " + playbookFilename)
 			}
 
-			m := map[string]string{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
-			msgContent := map[string]string{"ansible_playbook": string(playbookContent)}
-			msgContentByte, err := json.Marshal(msgContent)
-			if err != nil {
-				Fail("cannot crete message content")
-			}
-			message := pb.Data{
-				MessageId: messageID,
-				Metadata:  m,
-				Content:   msgContentByte,
-			}
+			m := map[string]interface{}{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
 
 			//when
-			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(messageID, m, "test-playbook-name", string(playbookContent), playbookCmd, timeout)
 			Expect(err).ToNot(HaveOccurred())
 			//then
 			Expect(client.latestData).ToNot(BeNil())
@@ -114,20 +98,10 @@ var _ = Describe("Ansible Runner", func() {
 				Fail("cannot read playbook test file: " + playbookFilename)
 			}
 
-			m := map[string]string{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
-			msgContent := map[string]string{"ansible_playbook": string(playbookContent)}
-			msgContentByte, err := json.Marshal(msgContent)
-			if err != nil {
-				Fail("cannot crete message content")
-			}
-			message := pb.Data{
-				MessageId: messageID,
-				Metadata:  m,
-				Content:   msgContentByte,
-			}
+			m := map[string]interface{}{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
 
 			//when
-			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(messageID, m, "test-playbook-name", string(playbookContent), playbookCmd, timeout)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client.latestData).ToNot(BeNil())
 			Expect(client.latestData.Directive).To(Equal(returnUrl))
@@ -144,20 +118,10 @@ var _ = Describe("Ansible Runner", func() {
 				Fail("cannot read playbook test file: " + playbookFilename)
 			}
 
-			m := map[string]string{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
-			msgContent := map[string]string{"ansible_playbook": string(playbookContent)}
-			msgContentByte, err := json.Marshal(msgContent)
-			if err != nil {
-				Fail("cannot crete message content")
-			}
-			message := pb.Data{
-				MessageId: messageID,
-				Metadata:  m,
-				Content:   msgContentByte,
-			}
+			m := map[string]interface{}{"ansible-playbook": "true", "crc_dispatcher_correlation_id": "d4ae95cf-71fd-4386-8dbf-2bce933ce713", "response_interval": "250", "return_url": returnUrl}
 
 			//when
-			err = ansibleManager.HandlePlaybook("test-playbook-name", playbookCmd, &message, timeout)
+			err = ansibleManager.HandlePlaybook(messageID, m, "test-playbook-name", string(playbookContent), playbookCmd, timeout)
 			Expect(err).To(HaveOccurred())
 			Expect(client.latestData).To(BeNil())
 		})
