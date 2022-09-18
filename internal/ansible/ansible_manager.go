@@ -443,7 +443,7 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 			a.wg.Done()
 			log.Infof("ansible playbook execution completed of messageID %s", messageId)
 			if errRunPlaybook != nil {
-				log.Errorf("ansible playbook execution completed with error. [MessageID: %s, Error: %v]", messageId, err)
+				log.Errorf("ansible playbook execution completed with error. [MessageID: %s, Error: %v]", messageId, errRunPlaybook)
 				// last event should be the failure, find the reason
 				msgList := a.ansibleDispatcher.GetMsgList()
 				errorCode, errorDetails := parseFailure(msgList[len(msgList)-1])
