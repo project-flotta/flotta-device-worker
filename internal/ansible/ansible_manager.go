@@ -216,21 +216,14 @@ func (a *Manager) send(data *pb.Data) error {
 		return fmt.Errorf("cannot parse message content")
 	}
 
-	for _, p := range parsedContent {
-		log.Debugf("STRUCT ELEM %+v\n", p)
-	}
-	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %+v", parsedContent)
-
-	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %+v", parsedContent)
 	var errors error
 	for _, p := range parsedContent {
+		fmt.Printf("STRUCT ELEM %+v\n", p)
 
 		playbookCmd := a.GetPlaybookCommand()
-
 		timeout := getTimeout(parsedResponse.Metadata)
 
-		err = a.HandlePlaybook(p.Name, playbookCmd, dataResponse, timeout)
-		fmt.Printf("STRUCT ELEM %+v\n", p)
+		err = a.HandlePlaybook(message.MessageID, map[string]string{}, p.Name, p.AnsiblePlaybookString, playbookCmd, timeout)
 
 		if err != nil {
 			log.Errorf("cannot handle playbook execution %v. %v", p, err)
@@ -368,7 +361,7 @@ func setupPlaybookCmd(playbookCmd playbook.AnsiblePlaybookCmd, buffOut, buffErr 
 	return playbookCmd
 }
 
-func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlaybookCmd, d *pb.Data, timeout time.Duration) error {
+func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]string, peName string, playbookString string, playbookCmd playbook.AnsiblePlaybookCmd, timeout time.Duration) error {
 	var err error
 	buffOut := new(bytes.Buffer)
 	buffErr := new(bytes.Buffer)
@@ -377,10 +370,10 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 
 	deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 
-	if len(d.Content) == 0 {
-		return fmt.Errorf("empty message. messageID: %s", d.MessageId)
+	if len(playbookString) == 0 {
+		return fmt.Errorf("empty message. messageID: %s", messageId)
 	}
-	err = json.Unmarshal(d.Content, &deviceConfigurationMessage)
+	err = json.Unmarshal([]byte(playbookString), &deviceConfigurationMessage)
 	if err != nil {
 		log.Error("Error while converting message content to map ", err)
 	}
@@ -391,11 +384,10 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 	log.Infof("Handle Playbook Content message: %s", payloadStr)
 	found := false
 
-	responseTo := d.MessageId
+	responseTo := messageId
 	if payloadStr == "" {
-		return fmt.Errorf("missing playbook string in message with messageID: %s", d.MessageId)
+		return fmt.Errorf("missing playbook string in message with messageID: %s", messageId)
 	}
-	metadataMap := d.GetMetadata()
 	if reqFields.crcDispatcherCorrelationID, found = metadataMap[crcDispatcherAttribute]; !found {
 		return MissingAttributeError(crcDispatcherAttribute, metadataMap)
 	}
@@ -403,7 +395,7 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 	if reqFields.returnURL, found = metadataMap[returnURLAttribute]; !found {
 		return fmt.Errorf(missingAttributeMsg(returnURLAttribute, metadataMap))
 	}
-	playbookYamlFile := path.Join(dataDir, "ansible_playbook_"+d.MessageId+".yml")
+	playbookYamlFile := path.Join(dataDir, "ansible_playbook_"+messageId+".yml")
 	err = os.WriteFile(playbookYamlFile, []byte(payloadStr), 0600)
 	if err != nil {
 		return fmt.Errorf("cannot create ansible playbook yaml file %s. Error: %v", playbookYamlFile, err)
@@ -435,12 +427,12 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 		select {
 		case <-ctx.Done():
 			a.wg.Done()
-			return fmt.Errorf("execution timeout reached for playbook in messageID %s. Error: %v", d.MessageId, ctx.Err())
+			return fmt.Errorf("execution timeout reached for playbook in messageID %s. Error: %v", messageId, ctx.Err())
 		case errRunPlaybook = <-executionCompleted:
 			a.wg.Done()
-			log.Infof("ansible playbook execution completed of messageID %s", d.MessageId)
+			log.Infof("ansible playbook execution completed of messageID %s", messageId)
 			if errRunPlaybook != nil {
-				log.Errorf("ansible playbook execution completed with error. [MessageID: %s, Error: %v]", d.MessageId, err)
+				log.Errorf("ansible playbook execution completed with error. [MessageID: %s, Error: %v]", messageId, err)
 				// last event should be the failure, find the reason
 				msgList := a.ansibleDispatcher.GetMsgList()
 				errorCode, errorDetails := parseFailure(msgList[len(msgList)-1])
@@ -450,10 +442,10 @@ func (a *Manager) HandlePlaybook(peName string, playbookCmd playbook.AnsiblePlay
 			}
 			return nil
 		case results := <-playbookResults:
-			log.Debugf("posting events for messageID %s", d.MessageId)
+			log.Debugf("posting events for messageID %s", messageId)
 			err := a.sendEvents(results, reqFields.returnURL, responseTo, playbookYamlFile)
 			if err != nil {
-				log.Errorf("cannot post ansible playbook results of message %s: %v", d.MessageId, err)
+				log.Errorf("cannot post ansible playbook results of message %s: %v", messageId, err)
 			}
 		}
 	}
