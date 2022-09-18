@@ -223,7 +223,7 @@ func (a *Manager) send(data *pb.Data) error {
 		playbookCmd := a.GetPlaybookCommand()
 		timeout := getTimeout(parsedResponse.Metadata)
 
-		err = a.HandlePlaybook(message.MessageID, message.Metadata.(map[string]string), p.Name, p.AnsiblePlaybookString, playbookCmd, timeout)
+		err = a.HandlePlaybook(message.MessageID, message.Metadata.(map[string]interface{}), p.Name, p.AnsiblePlaybookString, playbookCmd, timeout)
 
 		if err != nil {
 			log.Errorf("cannot handle playbook execution %v. %v", p, err)
@@ -342,11 +342,11 @@ func isResponseEmpty(response *pb.Response) bool {
 	return response == nil || len(response.Response) == 0
 }
 
-func MissingAttributeError(attribute string, metadata map[string]string) error {
+func MissingAttributeError(attribute string, metadata map[string]interface{}) error {
 	return fmt.Errorf(missingAttributeMsg(attribute, metadata))
 }
 
-func missingAttributeMsg(attribute string, metadata map[string]string) string {
+func missingAttributeMsg(attribute string, metadata map[string]interface{}) string {
 	return fmt.Sprintf("missing attribute %s in message metadata %+v", attribute, metadata)
 }
 
@@ -361,7 +361,7 @@ func setupPlaybookCmd(playbookCmd playbook.AnsiblePlaybookCmd, buffOut, buffErr 
 	return playbookCmd
 }
 
-func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]string, peName string, playbookString string, playbookCmd playbook.AnsiblePlaybookCmd, timeout time.Duration) error {
+func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interface{}, peName string, playbookString string, playbookCmd playbook.AnsiblePlaybookCmd, timeout time.Duration) error {
 	var err error
 	buffOut := new(bytes.Buffer)
 	buffErr := new(bytes.Buffer)
@@ -370,9 +370,9 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]string
 
 	// deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 
-	// if len(playbookString) == 0 {
-	// 	return fmt.Errorf("empty message. messageID: %s", messageId)
-	// }
+	if len(playbookString) == 0 {
+		return fmt.Errorf("empty message. messageID: %s", messageId)
+	}
 	// err = json.Unmarshal([]byte(playbookString), &deviceConfigurationMessage)
 	// if err != nil {
 	// 	log.Error("Error while converting message content to map ", err)
@@ -388,13 +388,24 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]string
 	if playbookString == "" {
 		return fmt.Errorf("missing playbook string in message with messageID: %s", messageId)
 	}
-	if reqFields.crcDispatcherCorrelationID, found = metadataMap[crcDispatcherAttribute]; !found {
+
+	if _, found := metadataMap[crcDispatcherAttribute]; !found {
 		return MissingAttributeError(crcDispatcherAttribute, metadataMap)
 	}
 
-	if reqFields.returnURL, found = metadataMap[returnURLAttribute]; !found {
+	var ok bool
+	if reqFields.crcDispatcherCorrelationID, ok = metadataMap[crcDispatcherAttribute].(string); !ok {
+		return fmt.Errorf("cannot assert type of crc id. Metadata map: %+v", metadataMap)
+	}
+
+	if _, found = metadataMap[returnURLAttribute]; !found {
 		return fmt.Errorf(missingAttributeMsg(returnURLAttribute, metadataMap))
 	}
+
+	if reqFields.crcDispatcherCorrelationID, ok = metadataMap[returnURLAttribute].(string); !ok {
+		return fmt.Errorf("cannot assert type of crc id. Metadata map: %+v", metadataMap)
+	}
+
 	playbookYamlFile := path.Join(dataDir, "ansible_playbook_"+messageId+".yml")
 	err = os.WriteFile(playbookYamlFile, []byte(playbookString), 0600)
 	if err != nil {
