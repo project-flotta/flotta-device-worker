@@ -31,7 +31,7 @@ type MappingRepository interface {
 	GetName(filePath string) string
 	Persist() error
 	Size() int
-	Exists(modTime time.Time) bool
+	Exists(peName string) bool
 	GetAll() map[int]string
 	GetAllNames() []string
 	GetStatus(name string) string
@@ -212,11 +212,11 @@ func (m *mappingRepository) UpdateStatus(name, status string) error {
 
 }
 
-func (m *mappingRepository) Exists(modTime time.Time) bool {
+func (m *mappingRepository) Exists(peName string) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	_, x := m.modTimeToPath[modTime.UnixNano()]
+	_, x := m.nameStatus[peName]
 	return x
 }
 
