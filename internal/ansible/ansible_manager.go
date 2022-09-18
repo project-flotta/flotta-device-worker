@@ -211,16 +211,18 @@ func (a *Manager) send(data *pb.Data) error {
 		return fmt.Errorf("cannot unmarshal pe response content: %v", err)
 	}
 
-	stringContent := message.Content.(string)
-	// log.Infof(">> message content type: %T\n", message.Content)
-	// log.Infof(">> message content VALUE: %s\n", message.Content.(string))
+	log.Infof(">> message content type: %T\n", message.Content)
+	log.Infof(">> message content VALUE: %s\n", message.Content.([]interface{}))
+	// stringContent := message.Content.(string)
 	// log.Infof(">> message content stringContent: %s\n", stringContent)
 	// log.Infof(">> message content stringContent to bytes: %s\n", []byte(stringContent))
 	// log.Infof(">> message content stringContent to atring: %s\n", string(stringContent))
-	// msgContent := fmt.Sprintf("%s", message.Content)
-	var parsedContent []interface{}
-	err = json.Unmarshal([]byte(stringContent), &parsedContent)
+	msgContent := fmt.Sprintf("%s", message.Content)
+	var parsedContent []models.PlaybookExecution
+	err = json.Unmarshal([]byte(msgContent), &parsedContent)
 
+	// models.PlaybookExecutionsResponse
+	// []*models.PlaybookExecution
 	if err != nil {
 		log.Errorf(">> cannot parse message content %v. Error: %v", message.Content, err)
 		return fmt.Errorf("cannot parse message content")
