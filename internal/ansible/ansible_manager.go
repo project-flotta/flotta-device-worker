@@ -429,6 +429,9 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	fileInfo, err := os.Stat(playbookYamlFile)
+	if err != nil {
+		return fmt.Errorf("cannot stat file %s", playbookYamlFile)
+	}
 	a.MappingRepository.Add(peName, []byte(playbookCmd.Playbooks[0]), fileInfo.ModTime(), "Deploying")
 	// execute
 	a.wg.Add(1)
