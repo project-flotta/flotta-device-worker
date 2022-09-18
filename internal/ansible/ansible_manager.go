@@ -164,7 +164,6 @@ func (a *Manager) pushInformation() error {
 	// Create a data message to send back to the dispatcher.
 
 	deviceId := a.deviceId
-	log.Debugf("pushInformation: Ansible Manager; DeviceID: %s;", deviceId)
 	content, err := json.Marshal("")
 	if err != nil {
 		return err
@@ -172,14 +171,11 @@ func (a *Manager) pushInformation() error {
 
 	data := &pb.Data{
 		MessageId: uuid.New().String(),
-		Content:   content,
+		Content:   []byte(""),
 		Directive: "ansible",
 	}
 	log.Debugf("pushInformation: sending content %+v; DeviceID: %s;", content, deviceId)
-	err = a.send(data)
-	log.Debugf("pushInformation: sending content results %s; DeviceID: %s;", err, deviceId)
-
-	return err
+	return a.send(data)
 }
 
 func (a *Manager) send(data *pb.Data) error {
@@ -211,36 +207,37 @@ func (a *Manager) send(data *pb.Data) error {
 		return fmt.Errorf("cannot unmarshal pe response content: %v", err)
 	}
 
-	log.Infof(">> message content type: %T\n", message.Content)
-	log.Infof(">> message content VALUE: %s\n", message.Content.([]interface{}))
-	// stringContent := message.Content.(string)
-	// log.Infof(">> message content stringContent: %s\n", stringContent)
-	// log.Infof(">> message content stringContent to bytes: %s\n", []byte(stringContent))
-	// log.Infof(">> message content stringContent to atring: %s\n", string(stringContent))
-	msgContent := fmt.Sprintf("%s", message.Content)
-	var parsedContent []models.PlaybookExecution
+	msgContent := message.Content.(string)
+	var parsedContent []*models.PlaybookExecution
 	err = json.Unmarshal([]byte(msgContent), &parsedContent)
 
-	// models.PlaybookExecutionsResponse
-	// []*models.PlaybookExecution
 	if err != nil {
 		log.Errorf(">> cannot parse message content %v. Error: %v", message.Content, err)
 		return fmt.Errorf("cannot parse message content")
 	}
 
-	// parsedResponse, err := a.parsePlaybookExecutionResponse(response.Response)
-	// if err != nil {
-	// 	return err
-	// }
-
-	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %v", parsedContent)
-
-	// err = a.HandlePlaybook(fmt.Sprintf("%v", peName), playbookCmd, dataResponse, timeout)
-
-	if err != nil {
-		log.Warnf("a *Manager) send(data *pb.Data) error :: cannot handle ansible playbook. Error: %v", err)
+	for _, p := range parsedContent {
+		log.Debugf("STRUCT ELEM %+v\n", p)
 	}
-	return err
+	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %+v", parsedContent)
+
+	log.Infof("CALLING HANDLE PLAYBOOK :: parsed  response %+v", parsedContent)
+	var errors error
+	for _, p := range parsedContent {
+
+		playbookCmd := a.GetPlaybookCommand()
+
+		timeout := getTimeout(parsedResponse.Metadata)
+
+		err = a.HandlePlaybook(p.Name, playbookCmd, dataResponse, timeout)
+		fmt.Printf("STRUCT ELEM %+v\n", p)
+
+		if err != nil {
+			log.Errorf("cannot handle playbook execution %v. %v", p, err)
+			errors = multierror.Append(errors, err)
+		}
+	}
+	return errors
 }
 
 type YGGDResponse struct {
@@ -306,7 +303,7 @@ func (a *Manager) parsePlaybookExecutionResponse(response []byte) (*YGGDResponse
 	return parsedResponse, nil
 }
 
-func getTimeout(metadata map[string]interface{}) time.Duration {
+func getTimeout(metadata map[string]string) time.Duration {
 	timeout := 300 * time.Second // Deafult timeout
 	if timeoutStr, found := metadata["ansible-playbook-timeout"]; found {
 		timeoutVal, err := strconv.Atoi(fmt.Sprintf("%v", timeoutStr))
