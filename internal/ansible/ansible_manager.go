@@ -368,24 +368,24 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]string
 
 	playbookCmd = setupPlaybookCmd(playbookCmd, buffOut, buffErr)
 
-	deviceConfigurationMessage := models.DeviceConfigurationMessage{}
+	// deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 
-	if len(playbookString) == 0 {
-		return fmt.Errorf("empty message. messageID: %s", messageId)
-	}
-	err = json.Unmarshal([]byte(playbookString), &deviceConfigurationMessage)
-	if err != nil {
-		log.Error("Error while converting message content to map ", err)
-	}
+	// if len(playbookString) == 0 {
+	// 	return fmt.Errorf("empty message. messageID: %s", messageId)
+	// }
+	// err = json.Unmarshal([]byte(playbookString), &deviceConfigurationMessage)
+	// if err != nil {
+	// 	log.Error("Error while converting message content to map ", err)
+	// }
 
 	// required fields
 	reqFields := &RequiredFields{}
-	payloadStr := deviceConfigurationMessage.AnsiblePlaybook
-	log.Infof("Handle Playbook Content message: %s", payloadStr)
+	// payloadStr := deviceConfigurationMessage.AnsiblePlaybook
+	log.Infof("Handle Playbook Content message: %s", playbookString)
 	found := false
 
 	responseTo := messageId
-	if payloadStr == "" {
+	if playbookString == "" {
 		return fmt.Errorf("missing playbook string in message with messageID: %s", messageId)
 	}
 	if reqFields.crcDispatcherCorrelationID, found = metadataMap[crcDispatcherAttribute]; !found {
@@ -396,7 +396,7 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]string
 		return fmt.Errorf(missingAttributeMsg(returnURLAttribute, metadataMap))
 	}
 	playbookYamlFile := path.Join(dataDir, "ansible_playbook_"+messageId+".yml")
-	err = os.WriteFile(playbookYamlFile, []byte(payloadStr), 0600)
+	err = os.WriteFile(playbookYamlFile, []byte(playbookString), 0600)
 	if err != nil {
 		return fmt.Errorf("cannot create ansible playbook yaml file %s. Error: %v", playbookYamlFile, err)
 	}
