@@ -402,7 +402,7 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 		return fmt.Errorf(missingAttributeMsg(returnURLAttribute, metadataMap))
 	}
 
-	if reqFields.crcDispatcherCorrelationID, ok = metadataMap[returnURLAttribute].(string); !ok {
+	if reqFields.returnURL, ok = metadataMap[returnURLAttribute].(string); !ok {
 		return fmt.Errorf("cannot assert type of crc id. Metadata map: %+v", metadataMap)
 	}
 
@@ -435,7 +435,7 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 	a.MappingRepository.Add(peName, []byte(playbookCmd.Playbooks[0]), fileInfo.ModTime(), "Deploying")
 	// execute
 	a.wg.Add(1)
-	go execPlaybook(peName, executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, fileInfo.Name(), fileInfo.ModTime())
+	go execPlaybook(peName, executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, playbookYamlFile, fileInfo.ModTime())
 	var errRunPlaybook error
 	for {
 		select {
