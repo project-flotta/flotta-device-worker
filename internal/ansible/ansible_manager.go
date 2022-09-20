@@ -109,7 +109,7 @@ func (a *Manager) Update(config models.DeviceConfigurationMessage) error {
 	previousPeriodSeconds := atomic.LoadInt64(&a.previousPeriodSeconds)
 	if previousPeriodSeconds <= 0 || previousPeriodSeconds != periodSeconds {
 		log.Debugf("Ansible manager configuration update: periodSeconds changed from %d to %d; Device ID: %s", previousPeriodSeconds, periodSeconds, a.deviceId)
-		log.Infof("reconfiguring ticker with interval: %v. DeviceID: %s", periodSeconds, a.deviceId)
+		log.Infof("reconfiguring ansible ticker with interval: %v. DeviceID: %s", periodSeconds, a.deviceId)
 		a.stopTicker()
 
 		atomic.StoreInt64(&a.previousPeriodSeconds, periodSeconds)
