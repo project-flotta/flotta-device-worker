@@ -425,6 +425,14 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 	if err != nil {
 		return fmt.Errorf("cannot stat file %s", playbookYamlFile)
 	}
+
+	if a.MappingRepository.Exists(peName) {
+		if a.MappingRepository.GetStatus(peName) == models.PlaybookExecutionStatusStatusCompletedWithError || a.MappingRepository.GetStatus(peName) == models.PlaybookExecutionStatusStatusSuccessfullyCompleted {
+			log.Infof("Playbook %s has been already executed", peName)
+			return fmt.Errorf("playbook %s has been already executed with status %s", peName, a.MappingRepository.GetStatus(peName))
+		}
+	}
+
 	a.MappingRepository.Add(peName, []byte(playbookCmd.Playbooks[0]), fileInfo.ModTime(), "Deploying")
 	// execute
 	a.wg.Add(1)
@@ -447,6 +455,7 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 				onFailed := a.ansibleDispatcher.ExecutorOnFailed(reqFields.crcDispatcherCorrelationID, "", errorCode, fmt.Sprintf("%v", errorDetails))
 				a.ansibleDispatcher.AddRunnerJobEvent(onFailed)
 			}
+
 			return nil
 		case results := <-playbookResults:
 			log.Debugf("posting events for messageID %s", messageId)
@@ -587,11 +596,6 @@ func execPlaybook(
 		return
 	}
 
-	// err = mappingRepository.Add(peName, fileContent, modTime, "Deploying")
-	// if err != nil {
-	// 	executionCompleted <- err
-	// 	return
-	// }
 	mappingRepository.UpdateStatus(peName, "Running")
 	errRun := playbookCmd.Run(ctx)
 
