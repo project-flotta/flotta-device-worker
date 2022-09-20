@@ -368,19 +368,12 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 
 	playbookCmd = setupPlaybookCmd(playbookCmd, buffOut, buffErr)
 
-	// deviceConfigurationMessage := models.DeviceConfigurationMessage{}
-
 	if len(playbookString) == 0 {
 		return fmt.Errorf("empty message. messageID: %s", messageId)
 	}
-	// err = json.Unmarshal([]byte(playbookString), &deviceConfigurationMessage)
-	// if err != nil {
-	// 	log.Error("Error while converting message content to map ", err)
-	// }
 
 	// required fields
 	reqFields := &RequiredFields{}
-	// payloadStr := deviceConfigurationMessage.AnsiblePlaybook
 	log.Infof("Handle Playbook Content message: %s", playbookString)
 	found := false
 
