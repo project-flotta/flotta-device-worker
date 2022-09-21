@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -545,7 +546,7 @@ func execPlaybook(
 		return
 	}
 
-	fileContent, err := os.ReadFile(fileName) //TODO: handle more than the first playbook
+	fileContent, err := os.ReadFile(filepath.Clean(fileName)) //TODO: handle more than the first playbook
 	if err != nil {
 		executionCompleted <- err
 		return
