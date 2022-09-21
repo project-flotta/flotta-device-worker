@@ -37,7 +37,6 @@ import (
 // Manager handle ansible playbook execution
 type Manager struct {
 	configManager         *cfg.Manager
-	reg                   *registration.Registration
 	deviceId              string
 	wg                    sync.WaitGroup
 	managementLock        sync.Locker
@@ -183,16 +182,17 @@ func (a *Manager) send(data *pb.Data) error {
 	defer a.sendLock.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	log.Debugf("Andible Manager send: Sending data: %+v; Device ID: %s", data, a.deviceId)
 	response, err := a.dispatcherClient.Send(ctx, data)
-	log.Debugf("Ansible manager send: Response: %+v, err: %+v; Device ID: %s", response, err, a.deviceId)
 	if err != nil {
 		return err
 	}
 
+	if isResponseEmpty(response) {
+		return fmt.Errorf("empty response received, host may not be reachable; reponse: %+v, response.Response: %s, Device ID: %s", response, response.Response, a.deviceId)
+	}
+
 	parsedResponse, err := NewYGGDResponse(response.Response)
 	if err != nil {
-		log.Error("cannot transform to NewYGGDResponse %s  err: %v", string(response.Response), err)
 		return fmt.Errorf("cannot transform to NewYGGDResponse : %v", err)
 	}
 
@@ -203,7 +203,6 @@ func (a *Manager) send(data *pb.Data) error {
 	var message models.MessageResponse
 	err = json.Unmarshal(parsedResponse.Body, &message)
 	if err != nil {
-		log.Errorf("cannot unmarshal pe response content: %v", err)
 		return fmt.Errorf("cannot unmarshal pe response content: %v", err)
 	}
 
@@ -212,13 +211,11 @@ func (a *Manager) send(data *pb.Data) error {
 	err = json.Unmarshal([]byte(msgContent), &parsedContent)
 
 	if err != nil {
-		log.Errorf(">> cannot parse message content %v. Error: %v", message.Content, err)
-		return fmt.Errorf("cannot parse message content")
+		return fmt.Errorf("cannot parse message content: %v", err)
 	}
 
 	var errors error
 	for _, p := range parsedContent {
-		fmt.Printf("STRUCT ELEM %+v\n", p)
 
 		playbookCmd := a.GetPlaybookCommand()
 		timeout := getTimeout(parsedResponse.Metadata)
@@ -247,53 +244,6 @@ func NewYGGDResponse(response []byte) (*YGGDResponse, error) {
 		return nil, err
 	}
 	return &parsedResponse, nil
-}
-
-func (a *Manager) parsePlaybookExecutionResponse(response []byte) (*YGGDResponse, error) {
-	parsedResponse, err := NewYGGDResponse(response)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO
-	// if parsedResponse.StatusCode >= 300 {
-
-	// 	return fmt.Errorf("cannot register to the operator, status_code=%d, body=%s", parsedResponse.StatusCode, parsedResponse.Body)
-	// }
-
-	var message models.MessageResponse
-	err = json.Unmarshal(parsedResponse.Body, &message)
-	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal playbook execution response content: %v", err)
-	}
-
-	// parsedContent := []*models.PlaybookExecution{}
-	// var parsedContent interface{}
-	parsedContent, ok := message.Content.(map[string]interface{})
-
-	if !ok { //err != nil {
-		log.Errorf("cannot parse message content. parsedContent: %v    err: %v", parsedContent, err)
-		return nil, fmt.Errorf("cannot parse message content")
-	}
-
-	log.Debugf("@@@ Check parsed content %v", parsedContent)
-	// cert, ok := parsedContent["certificate"]
-	// if !ok {
-	// 	return fmt.Errorf("cannot retrieve certificate from parsedResponse")
-	// }
-
-	// parsedCert, ok := cert.(string)
-	// if !ok {
-	// 	return fmt.Errorf("cannot parse certificate from response.Content, content=%+v", message.Content)
-	// }
-
-	// err = r.clientCert.WriteCertificate([]byte(parsedCert), key)
-	// if err != nil {
-	// 	log.Errorf("failed to write certificate: %v,", err)
-	// 	return err
-	// }
-
-	return parsedResponse, nil
 }
 
 func getTimeout(metadata map[string]string) time.Duration {
