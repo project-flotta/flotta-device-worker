@@ -383,7 +383,12 @@ func (a *Manager) HandlePlaybook(messageId string, metadataMap map[string]interf
 		}
 	}
 
-	a.MappingRepository.Add(peName, []byte(playbookCmd.Playbooks[0]), fileInfo.ModTime(), "Deploying")
+	for _, pe := range playbookCmd.Playbooks {
+		err = a.MappingRepository.Add(peName, []byte(pe), fileInfo.ModTime(), "Deploying")
+		if err != nil {
+			return fmt.Errorf("cannot add playbook %s to repository: %v", pe, err)
+		}
+	}
 	// execute
 	a.wg.Add(1)
 	go execPlaybook(peName, executionCompleted, playbookResults, playbookCmd, timeout, reqFields.returnURL, buffOut, a.MappingRepository, playbookYamlFile, fileInfo.ModTime())
@@ -546,14 +551,22 @@ func execPlaybook(
 		return
 	}
 
-	mappingRepository.UpdateStatus(peName, "Running")
+	errMappingUpdate := mappingRepository.UpdateStatus(peName, "Running")
+	if errMappingUpdate != nil {
+		executionCompleted <- errMappingUpdate
+	}
+
 	errRun := playbookCmd.Run(ctx)
 
 	if errRun != nil {
 		log.Warnf("playbook executed with errors. Results: %s, messageID: %s, Error: %v", buffOut.String(), messageID, errRun)
-		mappingRepository.UpdateStatus(peName, "CompletedWithError")
+		errMappingUpdate = mappingRepository.UpdateStatus(peName, "CompletedWithError")
 	} else {
-		mappingRepository.UpdateStatus(peName, "SuccessfullyCompleted")
+		errMappingUpdate = mappingRepository.UpdateStatus(peName, "SuccessfullyCompleted")
+	}
+
+	if errMappingUpdate != nil {
+		executionCompleted <- errMappingUpdate
 	}
 
 	results, err := ansibleResults.JSONParse(buffOut.Bytes())
