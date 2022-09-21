@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"strconv"
-	"time"
 
 	"github.com/project-flotta/flotta-device-worker/internal/ansible"
 	configuration2 "github.com/project-flotta/flotta-device-worker/internal/configuration"
@@ -44,23 +42,6 @@ func NewDeviceServer(configManager *configuration2.Manager, registrationManager 
 // Send implements the "Send" method of the Worker gRPC service.
 func (s *deviceServer) Send(_ context.Context, d *pb.Data) (*pb.Response, error) {
 	go func() {
-		// //check if it is an ansible playbook message
-		// if s.ansibleManager != nil {
-		// 	if x, found := d.GetMetadata()["ansible-playbook"]; found && x == "true" {
-		// 		log.Debugf("Received message %s with 'ansible-playbook' metadata", d.MessageId)
-
-		// 		playbookCmd := s.ansibleManager.GetPlaybookCommand()
-
-		// 		timeout := getTimeout(d.GetMetadata())
-		// 		err := s.ansibleManager.HandlePlaybook(uuid.New().String(), d.GetMetadata(), d.GetMetadata()["pe-name"], playbookCmd, d, timeout)
-
-		// 		if err != nil {
-		// 			log.Warnf("cannot handle ansible playbook. Error: %v", err)
-		// 		}
-
-		// 	}
-		// }
-
 		deviceConfigurationMessage := models.DeviceConfigurationMessage{}
 		err := json.Unmarshal(d.Content, &deviceConfigurationMessage)
 		if err != nil {
@@ -85,18 +66,4 @@ func (s *deviceServer) NotifyEvent(ctx context.Context, in *pb.EventNotification
 		}
 	}
 	return &pb.EventReceipt{}, nil
-}
-
-func getTimeout(metadata map[string]string) time.Duration {
-	timeout := 300 * time.Second // Deafult timeout
-	if timeoutStr, found := metadata["ansible-playbook-timeout"]; found {
-		timeoutVal, err := strconv.Atoi(timeoutStr)
-		if err != nil {
-			log.Warnf("invalid timeout received %s. Use default of %s", timeoutStr, timeout)
-			return timeout
-		}
-		timeout = time.Duration(timeoutVal) * time.Second
-		log.Infof("set timeout to %s", timeout)
-	}
-	return timeout
 }
