@@ -34,6 +34,7 @@ var (
 type Observer interface {
 	Init(configuration models.DeviceConfigurationMessage) error
 	Update(configuration models.DeviceConfigurationMessage) error
+	String() string
 }
 
 type Manager struct {
@@ -48,10 +49,10 @@ type Manager struct {
 func NewConfigurationManager(dataDir string) *Manager {
 	deviceConfigFile := path.Join(dataDir, "device-config.json")
 	log.Infof("device config file: %s", deviceConfigFile)
-	file, err := os.ReadFile(deviceConfigFile) //#nosec
 	var deviceConfiguration models.DeviceConfigurationMessage
 	initialConfig := atomic.Value{}
 	initialConfig.Store(false)
+	file, err := os.ReadFile(deviceConfigFile) //#nosec
 	if err != nil {
 		log.Error(err)
 		deviceConfiguration = defaultDeviceConfigurationMessage
@@ -146,6 +147,7 @@ func (m *Manager) Update(message models.DeviceConfigurationMessage) error {
 	}
 
 	log.Infof("updating configuration. New config: %s\nOld config: %s", newJson, oldJson)
+	log.Debugf("[ConfigManager] observers :%v+", m.observers)
 	for _, observer := range m.observers {
 		err := observer.Update(message)
 		if err != nil {

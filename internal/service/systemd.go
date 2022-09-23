@@ -25,6 +25,13 @@ var (
 	DefaultUnitsPath = path.Join(os.Getenv("HOME"), ".config/systemd/user/")
 )
 
+type BusType string
+
+const (
+	UserBus   BusType = "user"
+	SystemBus BusType = "system"
+)
+
 //go:generate mockgen -package=service -destination=mock_systemd.go . Service
 type Service interface {
 	GetName() string
@@ -38,11 +45,10 @@ type Service interface {
 
 type systemd struct {
 	Name           string            `json:"name"`
-	RestartSec     int               `json:"restartSec"`
 	Units          []string          `json:"units"`
 	UnitsContent   map[string]string `json:"-"`
 	dbusConnection *dbus.Conn        `json:"-"`
-	Rootless       bool              `json:"rootless"`
+	BusType        BusType           `json:"busType"`
 }
 
 //go:generate mockgen -package=service -destination=mock_systemd_manager.go . SystemdManager
@@ -97,7 +103,6 @@ func (mgr *systemdManager) Add(svc Service) error {
 	defer mgr.lock.Unlock()
 
 	mgr.services[svc.GetName()] = svc
-
 	return mgr.write()
 }
 
@@ -113,7 +118,6 @@ func (mgr *systemdManager) Remove(svc Service) error {
 	defer mgr.lock.Unlock()
 
 	delete(mgr.services, svc.GetName())
-
 	return mgr.write()
 }
 
@@ -122,19 +126,11 @@ func (mgr *systemdManager) write() error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
 }
 
-func NewSystemd(name string, units map[string]string) (Service, error) {
-	return NewSystemdRootless(name, units, true)
-}
-
-func newDbusConnection(rootless bool) (*dbus.Conn, error) {
-	if rootless {
+func newDbusConnection(busType BusType) (*dbus.Conn, error) {
+	if busType == UserBus {
 		return dbus.NewConnection(func() (*godbus.Conn, error) {
 			uid := path.Base(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"))
 			path := filepath.Join(os.Getenv("FLOTTA_XDG_RUNTIME_DIR"), "systemd/private")
@@ -161,11 +157,11 @@ func newDbusConnection(rootless bool) (*dbus.Conn, error) {
 	}
 }
 
-func NewSystemdRootless(name string, units map[string]string, rootless bool) (Service, error) {
+func NewSystemd(name string, units map[string]string, busType BusType) (Service, error) {
 	var err error
 	var conn *dbus.Conn
 
-	conn, err = newDbusConnection(rootless)
+	conn, err = newDbusConnection(busType)
 	if err != nil {
 		return nil, err
 	}
@@ -177,10 +173,9 @@ func NewSystemdRootless(name string, units map[string]string, rootless bool) (Se
 
 	return &systemd{
 		Name:           name,
-		RestartSec:     DefaultRestartTimeout,
 		dbusConnection: conn,
 		Units:          unitNames,
-		Rootless:       rootless,
+		BusType:        busType,
 		UnitsContent:   units,
 	}, nil
 }
@@ -208,7 +203,6 @@ func (s *systemd) Remove() error {
 			return err
 		}
 	}
-
 	return s.reload()
 }
 
@@ -217,7 +211,7 @@ func (s *systemd) GetName() string {
 }
 
 func (s *systemd) reload() error {
-	conn, err := newDbusConnection(s.Rootless)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -226,7 +220,8 @@ func (s *systemd) reload() error {
 }
 
 func (s *systemd) Start() error {
-	conn, err := newDbusConnection(s.Rootless)
+	log.Debugf("Starting systemd service %s", s.Name)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -246,7 +241,7 @@ func (s *systemd) Start() error {
 }
 
 func (s *systemd) Stop() error {
-	conn, err := newDbusConnection(s.Rootless)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -266,7 +261,8 @@ func (s *systemd) Stop() error {
 }
 
 func (s *systemd) Enable() error {
-	conn, err := newDbusConnection(s.Rootless)
+	log.Debugf("Enabling systemd service %s", s.Name)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}
@@ -277,7 +273,8 @@ func (s *systemd) Enable() error {
 }
 
 func (s *systemd) Disable() error {
-	conn, err := newDbusConnection(s.Rootless)
+	log.Debugf("Disabling systemd service %s", s.Name)
+	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
 	}

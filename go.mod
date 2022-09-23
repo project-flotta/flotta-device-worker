@@ -18,6 +18,7 @@ require (
 	github.com/digitalocean/godo v1.80.0 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.7 // indirect
+	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/runtime v0.23.1 // indirect

@@ -48,11 +48,12 @@ func (wrkM *WorkloadMetrics) Update(config models.DeviceConfigurationMessage) er
 }
 
 func (wrkM *WorkloadMetrics) WorkloadRemoved(workloadName string) {
-	log.Infof("removing target metrics for workload '%v'", workloadName)
+	log.Infof("Removing target metrics for workload '%v'", workloadName)
 	wrkM.daemon.DeleteTarget(workloadName)
 }
 
 func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podman.PodReport) {
+	log.Infof("Starting target metrics for workload '%s'", workloadName)
 	for _, workload := range report {
 		cfg := wrkM.getWorkload(workloadName)
 		if cfg == nil {
@@ -81,6 +82,10 @@ func (wrkM *WorkloadMetrics) WorkloadStarted(workloadName string, report []*podm
 		// log for this is part of the AddTarget function
 		wrkM.daemon.AddTarget(workload.Name, CreateHTTPScraper(urls), time.Duration(interval)*time.Second, filter)
 	}
+}
+
+func (wrKM *WorkloadMetrics) String() string {
+	return "workload metrics"
 }
 
 func getWorkloadUrls(report *podman.PodReport, config *models.Workload) []string {

@@ -20,7 +20,7 @@ type mapping struct {
 
 //go:generate mockgen -package=mapping -destination=mock_mapping.go . MappingRepository
 type MappingRepository interface {
-	GetSha256(fileContent []byte) string
+	GetSha256(fileContent []byte) (string, error)
 	Add(fileContent []byte, modTime time.Time) error
 	Remove(fileContent []byte) error
 	RemoveMappingFile() error
@@ -85,17 +85,24 @@ func (m *mappingRepository) GetAll() map[int]string {
 	return all
 }
 
-func (m *mappingRepository) GetSha256(fileContent []byte) string {
+func (m *mappingRepository) GetSha256(fileContent []byte) (string, error) {
 	h := sha256.New()
-	h.Write(fileContent)
-	return fmt.Sprintf("%x", h.Sum(nil))
+	_, err := h.Write(fileContent)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 func (m *mappingRepository) Add(fileContent []byte, modTime time.Time) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	filePath := path.Join(m.configDir, m.GetSha256(fileContent))
-	err := os.WriteFile(filePath, []byte(fileContent), 0600)
+	sha, err := m.GetSha256(fileContent)
+	if err != nil {
+		return err
+	}
+	filePath := path.Join(m.configDir, sha)
+	err = os.WriteFile(filePath, []byte(fileContent), 0600)
 
 	if err != nil {
 		return err
@@ -111,7 +118,11 @@ func (m *mappingRepository) Remove(fileContent []byte) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	filePath := path.Join(m.configDir, m.GetSha256(fileContent))
+	sha, err := m.GetSha256(fileContent)
+	if err != nil {
+		return err
+	}
+	filePath := path.Join(m.configDir, sha)
 	modTime := m.pathToModTime[filePath]
 	delete(m.modTimeToPath, modTime)
 	delete(m.pathToModTime, filePath)

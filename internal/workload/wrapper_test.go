@@ -40,7 +40,7 @@ var _ = Describe("Workload management", func() {
 		serviceManager = service.NewMockSystemdManager(mockCtrl)
 		svc = service.NewMockService(mockCtrl)
 
-		wk = workload.NewWorkload(newPodman, netfilter, mappingRepository, serviceManager, 15)
+		wk = workload.NewWorkload(newPodman, netfilter, mappingRepository, serviceManager, 15, nil)
 	})
 
 	AfterEach(func() {
@@ -56,7 +56,6 @@ var _ = Describe("Workload management", func() {
 
 			newPodman.EXPECT().Run(manifestPath, authFilePath, nil).Return([]*podman.PodReport{{Id: "id1"}}, nil)
 			newPodman.EXPECT().GenerateSystemdService(pod, gomock.Any(), gomock.Any()).Return(svc, nil)
-			newPodman.EXPECT().GetPodReportForId("pod1").Return(nil, nil)
 
 			svc.EXPECT().Add().Return(nil)
 			svc.EXPECT().Enable().Return(nil)
