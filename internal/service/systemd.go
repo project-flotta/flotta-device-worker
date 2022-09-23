@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -127,7 +126,7 @@ func (mgr *systemdManager) write() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
+	return os.WriteFile(mgr.svcFilePath, svcJson, 0640) //#nosec
 }
 
 func newDbusConnection(busType BusType) (*dbus.Conn, error) {
@@ -221,7 +220,7 @@ func (s *systemd) reload() error {
 }
 
 func (s *systemd) Start() error {
-	log.Debugf("Starting service %s", s.Name)
+	log.Debugf("Starting systemd service %s", s.Name)
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
@@ -262,7 +261,7 @@ func (s *systemd) Stop() error {
 }
 
 func (s *systemd) Enable() error {
-	log.Debugf("Enabling service %s", s.Name)
+	log.Debugf("Enabling systemd service %s", s.Name)
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err
@@ -274,7 +273,7 @@ func (s *systemd) Enable() error {
 }
 
 func (s *systemd) Disable() error {
-	log.Debugf("Disabling service %s", s.Name)
+	log.Debugf("Disabling systemd service %s", s.Name)
 	conn, err := newDbusConnection(s.BusType)
 	if err != nil {
 		return err

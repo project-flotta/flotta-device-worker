@@ -61,21 +61,21 @@ func (e *DBusEventListener) Init(configuration models.DeviceConfigurationMessage
 	log.Infof("Starting DBus event listener")
 	conn, err := newDbusConnection(UserBus)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while starting event listener: %v", err)
 	}
 	e.set = conn.NewSubscriptionSet()
 	for _, w := range configuration.Workloads {
 		s, err := conn.GetUnitPropertyContext(context.Background(), DefaultServiceName(w.Name), "UnitFileState")
 		if err != nil {
-			return err
+			return fmt.Errorf("error while retrieving workload '%s' state: %v", w.Name, err)
 		}
-		log.Debugf("Unit UnitFileState property for workload %s:%s", w.Name, s.Value.String())
+		log.Debugf("Unit UnitFileState property for workload '%s':%s", w.Name, s.Value.String())
 		v, err := strconv.Unquote(s.Value.String())
 		if err != nil {
 			return err
 		}
 		if v == "disabled" {
-			log.Warnf("Service for workload %s is disabled", w.Name)
+			log.Warnf("Service for workload '%s' is disabled", w.Name)
 		}
 		e.add(DefaultServiceName(w.Name))
 	}
@@ -88,6 +88,8 @@ func (e *DBusEventListener) Update(configuration models.DeviceConfigurationMessa
 		svcName := DefaultServiceName(wl.Name)
 		if !e.contains(svcName) {
 			e.add(svcName)
+		} else {
+			return fmt.Errorf("unable to add systemd service '%s': there is service unit already being monitored with the same name", svcName)
 		}
 	}
 	return nil

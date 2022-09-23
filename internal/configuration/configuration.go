@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -53,7 +52,7 @@ func NewConfigurationManager(dataDir string) *Manager {
 	var deviceConfiguration models.DeviceConfigurationMessage
 	initialConfig := atomic.Value{}
 	initialConfig.Store(false)
-	file, err := ioutil.ReadFile(deviceConfigFile) //#nosec
+	file, err := os.ReadFile(deviceConfigFile) //#nosec
 	if err != nil {
 		log.Error(err)
 		deviceConfiguration = defaultDeviceConfigurationMessage

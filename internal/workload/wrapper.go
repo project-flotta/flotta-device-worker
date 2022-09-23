@@ -363,16 +363,16 @@ func (w *Workload) ListenServiceEvents() {
 			log.Infof("Service for workload %s started", event.WorkloadName)
 			report, err := w.podManager.GetPodReportForPodName(event.WorkloadName)
 			if err != nil {
-				log.Errorf("unable to get pod report for workload %s:%v", event.WorkloadName, err)
+				log.Errorf("unable to get pod report for workload '%s':%v", event.WorkloadName, err)
 			}
 			for _, observer := range observers {
-				log.Debugf("Triggering WorkloadStarted in observer '%s' for workload %s", observer, event.WorkloadName)
+				log.Debugf("Triggering WorkloadStarted in observer '%s' for workload '%s'", observer, event.WorkloadName)
 				observer.WorkloadStarted(event.WorkloadName, []*podman.PodReport{report})
 			}
 		case service.EventStopped:
-			log.Infof("Service for workload %s stopped", event.WorkloadName)
+			log.Infof("Service for workload '%s' stopped", event.WorkloadName)
 			for _, observer := range observers {
-				log.Debugf("Triggering WorkloadRemoved in observer '%s' for workload %s", observer, event.WorkloadName)
+				log.Debugf("Triggering WorkloadRemoved in observer '%s' for workload '%s'", observer, event.WorkloadName)
 				observer.WorkloadRemoved(event.WorkloadName)
 			}
 		default:

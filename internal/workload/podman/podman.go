@@ -15,7 +15,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/go-openapi/swag"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
-	api "github.com/project-flotta/flotta-device-worker/internal/workload/api"
+	"github.com/project-flotta/flotta-device-worker/internal/workload/api"
 
 	"github.com/containers/podman/v4/pkg/bindings"
 	"github.com/containers/podman/v4/pkg/bindings/containers"

@@ -21,7 +21,7 @@ import (
 	registration2 "github.com/project-flotta/flotta-device-worker/internal/registration"
 	"github.com/project-flotta/flotta-device-worker/internal/server"
 	"github.com/project-flotta/flotta-device-worker/internal/service"
-	workload "github.com/project-flotta/flotta-device-worker/internal/workload"
+	"github.com/project-flotta/flotta-device-worker/internal/workload"
 
 	"net"
 	"os"
