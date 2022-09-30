@@ -87,6 +87,9 @@ func NewMappingRepository(configDir string) (MappingRepository, error) {
 }
 
 func (m *mappingRepository) GetAll() map[int]string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
 	all := make(map[int]string)
 	keys := make([]int64, 0, len(m.modTimeToPath))
 	for k := range m.modTimeToPath {
@@ -200,8 +203,8 @@ func (m *mappingRepository) GetStatus(name string) string {
 }
 
 func (m *mappingRepository) UpdateStatus(name, status string) error {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	if _, ok := m.nameStatus[name]; !ok {
 		return fmt.Errorf("cannot find playbook execution with name: %s", name)
