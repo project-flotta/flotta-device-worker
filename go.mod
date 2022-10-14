@@ -45,7 +45,7 @@ require (
 	github.com/openshift/assisted-installer-agent v1.0.10-0.20211027185717-53b0eacfa147
 	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
-	github.com/project-flotta/flotta-operator v0.1.1-0.20220707161136-6f40ced49d0f
+	github.com/project-flotta/flotta-operator v0.2.1-0.20221006133229-3591f8dd5dda
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/common v0.34.0
 	github.com/prometheus/prometheus v1.8.2-0.20211217191541-41f1a8125e66
@@ -71,7 +71,6 @@ replace (
 	github.com/containernetworking/cni => github.com/containernetworking/cni v0.8.1
 	github.com/containers/buildah => github.com/containers/buildah v1.23.1
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
-	github.com/project-flotta/flotta-operator => github.com/gciavarrini/flotta-operator v0.0.0-20220920132036-2c4d58ce059e
 	k8s.io/apimachinery => k8s.io/apimachinery v0.22.4
 	k8s.io/client-go => k8s.io/client-go v0.21.0
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65
